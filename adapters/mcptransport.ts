@@ -1,7 +1,7 @@
 /**
  * mcp transport keeps JSON RPC framing separate from the tool server.
  */
-import { jsondecode, jsonencode } from "../protocol/json.js";
+import { jsondecode, jsonencode } from "../api/json.js";
 
 /** Creates JSONL and HTTP handlers for the transport agnostic MCP server. */
 export function mcptransport(server) {

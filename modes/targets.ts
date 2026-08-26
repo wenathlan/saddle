@@ -15,7 +15,7 @@ export const targetprofiles = Object.freeze({
   internet: { runtime: "caller", entry: "dist/index.js", capabilities: ["network", "webhook", "api"], formats: ["http", "websocket", "grpc", "rest"] },
   web: { runtime: "browser", entry: "web/dist/public/index.html", capabilities: ["network", "visible"], formats: ["html", "pwa", "ssg", "ssr", "wasm"] },
   libreoffice: { runtime: "caller", entry: "dist/index.js", capabilities: ["file", "network"], formats: ["oxt", "zip"] },
-  mcp: { runtime: "caller", entry: "dist/mcp/server.js", capabilities: ["network", "api"], formats: ["stdio", "jsonrpc"] },
+  mcp: { runtime: "caller", entry: "dist/adapters/mcpserver.js", capabilities: ["network", "api"], formats: ["stdio", "jsonrpc"] },
   vsix: { runtime: "caller", entry: "dist/index.js", capabilities: ["network", "visible"], formats: ["vsix"] },
   container: { runtime: "node", entry: "dist/index.js", capabilities: ["memory", "storage", "network"], formats: ["oci", "docker"] }
 });

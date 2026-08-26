@@ -1,7 +1,7 @@
 /**
  * workflow dispatch keeps remote execution explicit and records a stable request identity.
  */
-import { idempotency } from "../queue/idempotency.js";
+import { idempotency } from "./idempotency.js";
 
 export function workflowdispatch(adapter, options = {}) {
   if (typeof adapter?.dispatch !== "function") throw new TypeError("workflow adapter requires dispatch");

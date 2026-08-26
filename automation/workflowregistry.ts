@@ -1,8 +1,8 @@
 /**
  * workflow registry stores generated manifests and templates for later dispatch.
  */
-import { forgeprofiles } from "./manifest.js";
-import { forgejoworkflow, giteaworkflow, githubworkflow, gitlabworkflow, woodpeckerworkflow } from "./templates.js";
+import { forgeprofiles } from "./workflowmanifest.js";
+import { forgejoworkflow, giteaworkflow, githubworkflow, gitlabworkflow, woodpeckerworkflow } from "./workflowtemplates.js";
 
 export function workflowregistry() {
   const manifests = new Map();

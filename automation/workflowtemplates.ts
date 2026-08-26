@@ -1,7 +1,7 @@
 /**
  * workflow templates use explicit environment names and keep provider secrets external.
  */
-import { workflowinputs } from "./manifest.js";
+import { workflowinputs } from "./workflowmanifest.js";
 
 export function githubworkflow(manifest) {
   const input = workflowinputs(manifest);

@@ -2,7 +2,7 @@
  * memory storage keeps bytes in a bounded process-local map for browser workers, Deno, Bun and tests.
  */
 
-import { artifactmanifest } from "../domain/artifacts.js";
+import { artifactmanifest } from "../core/artifacts.js";
 import { sha256 } from "./checksum.js";
 import { storageadapter } from "./adapter.js";
 

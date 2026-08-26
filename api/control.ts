@@ -5,7 +5,7 @@
 import { authorize } from "./auth.js";
 import { requestcontext } from "./contracts.js";
 import { errorresponse, jsonresponse } from "./http.js";
-import { controlsurface } from "../surfaces/controls.js";
+import { controlsurface } from "../automation/surfacecontrols.js";
 
 /** Creates a framework-neutral HTTP handler for an injected operator control surface. */
 export function controlservice(options = {}) {

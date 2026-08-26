@@ -210,3 +210,32 @@ Every completed package must link its source material, design record, source pat
 - [x] **W005.** Evaluate candidate workflows against the no-secret-in-source, tag-derived-release and minimal-cache policies.
 - [x] **W006.** Implement only low-risk workflow improvements with deterministic validation and no new external credentials.
 - [x] **W007.** Publish a workflow-improvement assessment with evidence, trade-offs, deferred work and operating requirements.
+
+## Architecture reorganization ledger
+
+- [x] **A001.** Inventory root modules, mode folders, public exports, build entrypoints and generated-output boundaries.
+- [x] **A002.** Build an import and export dependency map before moving any implementation file.
+- [x] **A003.** Define the 20 correlated logic domains and assign every owned module to one primary domain.
+- [x] **A004.** Record compatibility boundaries for package exports, CLI commands, extension entrypoints, workflows and native build metadata.
+- [x] **A005.** Consolidate public API and contract logic without changing published function names or serializable shapes.
+- [ ] **A006.** Consolidate virtual isolation, policy, approval, handoff and evidence logic without privileged effects.
+- [ ] **A007.** Consolidate browser, virtual-browser, session and agent-facing logic into one browser domain.
+- [ ] **A008.** Consolidate storage, memory, working-set, cache and materialization planning into one memory domain.
+- [ ] **A009.** Consolidate binary inspection, transformation, packaging and artifact derivation into one binary domain.
+- [x] **A010.** Consolidate runner, runtime, remote-execution plan and mode-selection logic into one execution domain.
+- [x] **A011.** Consolidate scrape, crawl, request, content and protocol logic into one acquisition domain.
+- [ ] **A012.** Consolidate release evidence, readiness, assets, registry and publication validation into one release domain.
+- [ ] **A013.** Consolidate CLI commands, parsing, presentation and command fixtures into one command domain.
+- [ ] **A014.** Consolidate web pages, components, styles, route composition and static-build boundaries into one web domain.
+- [ ] **A015.** Align desktop, Android, iOS and extension mode folders with flat root-first ownership and shared library contracts.
+- [ ] **A016.** Consolidate tests, deterministic fixtures, validation scripts and architecture assertions by the same domains.
+- [x] **A017.** Update internal imports, package subpaths, workflow paths and documentation references after each domain move.
+- [x] **A018.** Publish an architecture map and organization diagram that names the 20 domains and their allowed dependency direction.
+- [x] **A019.** Run full engine, legacy, package, web, native, format and security gates after the final move set.
+- [x] **A020.** Bump all active product manifests to 1.8.19, document the reorganization and prepare the release only after all gates pass.
+
+### Architecture-reorganization evidence
+
+The 1.8.19 source reorganization completed without removing logic. The public root now routes through domain façades, while correlated implementation moved into `core/`, `runtime/`, `api/`, `adapters/`, `automation/`, `packager/`, `scrape/` and `modes/`. Explicit package subpaths were redirected to their new compiled targets, and Node-only server and filesystem adapters remain outside the transport-neutral root graph.
+
+The versioned validation pass completed with 140 active tests, 69 legacy tests, package-export import coverage, web type checking and production build, flat-native validation, formatting, npm package dry-run, diff integrity checking, and a production dependency audit reporting no vulnerabilities. The web bundler reported a non-blocking JavaScript chunk-size advisory; no gate failed. The result is publication-ready source evidence only: no tag, registry publication, signing, browser session, provider or remote execution was performed by this reorganization.

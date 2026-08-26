@@ -3,7 +3,7 @@
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { validatesession } from "../domain/sessions.js";
+import { validatesession } from "../core/sessions.js";
 
 export function filesessions(root) {
   return {

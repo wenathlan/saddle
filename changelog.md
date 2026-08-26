@@ -8,7 +8,16 @@
 
 	  ## [Unreleased]
 
-	    - Future changes will be recorded here after the 1.8.11 release.
+	    - Future changes will be recorded here after the 1.8.19 release.
+
+	  ## [1.8.19] - 2026-08-26
+
+	    - Reorganized the TypeScript-first library into twenty correlated domains behind a transport-neutral public router.
+	    - Consolidated foundation nouns, runtime execution state, API protocols and webhooks, MCP adapters, automation contracts, delivery planning and mode profiles while preserving package subpaths.
+	    - Added an architecture organization record and rendered dependency-flow diagram, with compatibility rules for package exports, native metadata and workflows.
+	    - Verified 140 active tests, 69 legacy tests, web type checking and build, flat-native validation, formatting, npm packaging and a production dependency audit with no reported vulnerabilities.
+	    - Aligned active npm, lockfile, Maven, NuGet, RubyGems, desktop, Capacitor, iOS, extension and crawler metadata to `1.8.19`, with iOS build number `1008019`.
+	    - Added the canonical [1.8.19 release notes](docs/releasenotes-1.8.19.md).
 
 		  ## [1.8.18] - 2026-08-17
 

@@ -12,7 +12,7 @@ import { inprocess } from "../runners/inprocess.js";
 import { scheduler } from "../runners/scheduler.js";
 import { engine } from "../runtime/engine.js";
 import { localstorage } from "../storage/local.js";
-import { mcpserver } from "../mcp/server.js";
+import { mcpserver } from "../adapters/mcpserver.js";
 import { modecatalog } from "../modes/matrix.js";
 
 /** Runs one CLI command and keeps external services behind adapters. */

@@ -3,8 +3,8 @@
  */
 import { crawl } from "../scrape/crawl.js";
 import { extractwithschema } from "../scrape/schema.js";
-import { jsonencode } from "../protocol/json.js";
-import { browsertools } from "./browser.js";
+import { jsonencode } from "../api/json.js";
+import { browsertools } from "./mcpbrowser.js";
 
 export function mcpserver(options = {}) {
   if (typeof options.scrape !== "function") throw new TypeError("mcp server requires scrape");

@@ -6,7 +6,7 @@
   <strong>Storage-backed jobs, scraping contracts and portable runners for Node.js.</strong><br/>
   <strong>Binary computing engine, agent browser, scraper and packager.</strong><br/>
   <a href="https://github.com/wenathlan/saddle/actions/workflows/ci.yml"><img src="https://github.com/wenathlan/saddle/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/wenathlan/saddle/releases/tag/v1.8.18"><img src="https://img.shields.io/badge/release-v1.8.18-d35d3d" alt="Release 1.8.18" /></a>
+  <a href="https://github.com/wenathlan/saddle/releases/tag/v1.8.19"><img src="https://img.shields.io/badge/release-v1.8.19-d35d3d" alt="Release 1.8.19" /></a>
   <a href="https://github.com/wenathlan/saddle/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-202a2f" alt="GPL 3.0 only license" /></a>
 </p>
 
@@ -177,7 +177,7 @@ The base permission set is `activeTab`, `scripting` and `storage`. It does not r
 | Failure | retry, circuit breaker, idempotency and resume are configurable |
 | Releases | version comes from the `vX.Y.Z` tag and must match `package.json` |
 
-Version 1.8.18 keeps the TypeScript-first public package paths stable and adds serializable, denied-by-default execution intent, policy decision, handoff and internal-API contracts. They do not read a file, start a process, create a worker, instantiate WebAssembly, open a browser, call a provider, allocate host memory, write a database or dispatch remotely. An operator may supply a separately approved adapter later; the initial result remains a plan or a receipt. The current container targets `linux/amd64`, `linux/arm64` and `linux/ppc64le`; release evidence, readiness and verification remain serializable and caller-owned. Release workflows also include cache-retention operations and an automatic mobile artifact fallback that is identified according to its actual signing state. The dynamic debug collector remains an unchecked browser boundary because it monkey-patches browser APIs; the rest of the web surface remains strictly typechecked.
+Version 1.8.19 preserves the TypeScript-first public API while reorganizing implementation ownership into twenty correlated domains behind a transport-neutral root router. The migration groups foundation nouns, execution state, API protocols, MCP adapters, automation contracts, package delivery and mode profiles without adding a privileged effect. Existing package subpaths remain available through their updated compiled targets. The denied-by-default execution, policy, handoff and internal-API contracts remain plans or receipts until a separately approved caller adapter is supplied. The current container targets `linux/amd64`, `linux/arm64` and `linux/ppc64le`; release evidence, readiness and verification remain serializable and caller-owned.
 
 ## Package surfaces and release automation
 
@@ -244,23 +244,23 @@ Remote execution, provider credentials, browser transport, persistence, proxy se
 ## Repository map
 
 ```text
-core/          engine errors, scrape error taxonomy, events, identifiers and hashing
-domain/        jobs, artifacts, sessions and providers
+core/          errors, events, identifiers, hashing, jobs, artifacts, sessions and providers
 memory/        working-set bridge, modes, objects and transforms
 storage/       local, chunked, remote and file-hosting adapters
 scrape/        robots, cache, extraction, schema, normalization and grouped crawl contracts
-queue/         queue, idempotency, saga and recovery
+runtime/       engine orchestration, queues, idempotency, saga, resumable and session contexts
 browser/       fingerprint, session, agent and Playwright adapter contracts
 extension/     Manifest V3 reference surface and packager
 desktop/       Tauri browser application for Windows, Linux and macOS
 android/       Capacitor Android conversion target and optimized Gradle release
 ios/           Capacitor iOS conversion target and caller-owned Xcode signing
 capacitor.config.ts shared web-to-native configuration for Android and iOS
-protocol/      JSON, NDJSON, SSE and block serializers
-workflow/      manifests, templates and registry contracts
+api/           envelopes, authentication, controls, JSON/NDJSON/SSE and webhooks
+adapters/      forge, app, socket and MCP integration adapters
+automation/    workflow, bot, permission and surface automation contracts
 release/       checksums, SBOM and provenance metadata
-runtime/       engine orchestration, capability detection, worker and grouped retry context
-packager/      dist, binary, container and multi-target artifact plans
+packager/      distribution, delivery, binary, container and multi-target artifact plans
+modes/         target mode selection, deployment plans and surface profiles
 web/           root-based static marketing site with TypeScript React source
 tests/         deterministic engine and extension coverage
 docs/          architecture, API, security, release and registry notes
@@ -274,7 +274,7 @@ The repository history contains 41 root README revisions and several surface-spe
 
 ## Current scope
 
-Version 1.8.18 extends the TypeScript-first engine with flat project-owned desktop, Android and iOS build surfaces; explicit Capacitor staging boundaries; dotted release asset naming; helper-binary rejection; structured extraction provenance; browser context budgets; resumable workflow compensation; retention metadata; release-evidence contracts; and pure internal API execution-policy contracts. The web playground demonstrates request, policy and handoff states using a fixed fixture with no operational adapter. Browser binaries, provider credentials, hosted automation registration, persistent databases, captcha solvers, remote execution and production deployment remain caller-selected adapters. Future work should extend contracts without coupling the core to one forge, registry, browser or storage vendor.
+Version 1.8.19 organizes the existing engine into twenty documented, dependency-directed domains and keeps the root package as a universal, transport-neutral router. The web playground continues to demonstrate request, policy and handoff states using a fixed fixture with no operational adapter. Browser binaries, provider credentials, hosted automation registration, persistent databases, captcha solvers, remote execution and production deployment remain caller-selected adapters. Future work should extend contracts without coupling the core to one forge, registry, browser or storage vendor.
 
 ## License
 

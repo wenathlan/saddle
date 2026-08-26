@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
- * Capacitor 1.8.18 uses the shared web build as the native application source.
+ * Capacitor 1.8.19 uses the shared web build as the native application source.
  * Project-owned native configuration stays at the android/ and ios/ roots.
  * Capacitor-generated staging remains transient and never owns engine logic.
  */

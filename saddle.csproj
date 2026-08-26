@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>Saddle</PackageId>
-    <Version Condition="'$(PackageVersion)' == ''">1.8.18</Version>
+    <Version Condition="'$(PackageVersion)' == ''">1.8.19</Version>
     <Authors>wenathlan</Authors>
     <Description>Binary computing engine that turns distributed storage into a publishable working set.</Description>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>

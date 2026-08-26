@@ -4,7 +4,7 @@
 import { aserror } from "../core/errors.js";
 import { eventbus } from "../core/events.js";
 import { idfactory, systemclock } from "../core/ids.js";
-import { createjob } from "../domain/jobs.js";
+import { createjob } from "../core/jobs.js";
 
 export function engine(options) {
   if (!options?.storage || !options?.memory || !options?.scheduler) throw new TypeError("engine requires storage memory and scheduler");

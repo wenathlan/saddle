@@ -9,7 +9,7 @@ import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 import { releaseartifactmatrix } from "../packager/manifest.js";
 
-const transportneutral = ["dist/index.js", "dist/storage/index.js", "dist/runners/scheduler.js", "dist/domain/sessions.js", "dist/modes/resolve.js", "dist/modes/matrix.js", "dist/browser/index.js", "dist/bot/bot.js", "dist/captcha/contract.js", "dist/deploy/index.js", "dist/extension/index.js", "dist/core/hash.js", "dist/runtime/worker.js"];
+const transportneutral = ["dist/index.js", "dist/storage/index.js", "dist/runners/scheduler.js", "dist/core/sessions.js", "dist/modes/resolve.js", "dist/modes/matrix.js", "dist/browser/index.js", "dist/automation/bot.js", "dist/captcha/contract.js", "dist/modes/deploy.js", "dist/extension/index.js", "dist/core/hash.js", "dist/runtime/worker.js"];
 
 test("imports every declared package export target in Node", async () => {
   const root = dirname(new URL(import.meta.url).pathname);

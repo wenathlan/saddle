@@ -1,7 +1,7 @@
 /**
  * webhook receiver validates signatures before dispatch and drops duplicate delivery ids.
  */
-import { webhookverify } from "./signature.js";
+import { webhookverify } from "./webhooksignature.js";
 
 export function webhookreceiver(options = {}) {
   if (typeof options.secret !== "string" || typeof options.handle !== "function") throw new TypeError("webhook receiver requires secret and handler");

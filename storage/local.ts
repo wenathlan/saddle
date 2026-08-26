@@ -4,7 +4,7 @@
 import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { artifactnotfound, validationerror } from "../core/errors.js";
-import { artifactmanifest } from "../domain/artifacts.js";
+import { artifactmanifest } from "../core/artifacts.js";
 import { collectbytes, sha256 } from "./checksum.js";
 import { storageadapter } from "./adapter.js";
 

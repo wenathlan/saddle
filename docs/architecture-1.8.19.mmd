@@ -1,0 +1,33 @@
+flowchart TD
+  public[01 Public surface] --> foundation[02 Foundation]
+  public --> policy[03 Isolation policy]
+  public --> execution[04 Execution]
+  public --> memory[05 Memory]
+  public --> storage[06 Storage]
+  public --> persistence[07 Persistence]
+  public --> browser[08 Browser]
+  public --> acquisition[09 Acquisition]
+  public --> communication[10 Communication]
+  public --> integration[11 External adapters]
+  public --> automation[12 Automation]
+  public --> intelligence[13 Intelligence]
+  public --> binary[14 Binary]
+  public --> distribution[15 Distribution]
+  public --> modes[16 Modes]
+  public --> commands[17 Commands]
+  public --> web[18 Web application]
+  public --> native[19 Native modes]
+  public --> quality[20 Quality operations]
+  foundation --> policy
+  policy --> execution
+  memory --> storage --> persistence
+  acquisition --> browser
+  automation --> communication --> integration
+  execution --> integration
+  browser --> integration
+  binary --> distribution --> quality
+  modes --> commands
+  modes --> web
+  modes --> native
+  web --> quality
+  native --> quality

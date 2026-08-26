@@ -4,7 +4,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { syncresult, workingset } from "../domain/runtime.js";
+import { syncresult, workingset } from "../core/runtime.js";
 
 export function localmemory(options = {}) {
   const base = options.base ?? tmpdir();

@@ -16,10 +16,10 @@ async function exists(path) {
 async function validateFlatNative() {
   const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
   const forbidden = [
-    join(repositoryRoot, "desktop", "src-tauri"),
-    join(repositoryRoot, "android", "app"),
-    join(repositoryRoot, "android", "src"),
-    join(repositoryRoot, "ios", "src"),
+    join(repositoryRoot, "web", "desktop", "src-tauri"),
+    join(repositoryRoot, "web", "android", "app"),
+    join(repositoryRoot, "web", "android", "src"),
+    join(repositoryRoot, "web", "ios", "src"),
     join(repositoryRoot, "todo.md"),
   ];
 

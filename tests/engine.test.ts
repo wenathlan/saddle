@@ -69,14 +69,14 @@ import { normalizeurl, crawl, persistentqueue as crawlqueue, crawlfrontier } fro
 import { saddleservice } from "../communication.js";
 import { filesessions } from "../execution.js";
 import { extractwithschema, extractstructured } from "../acquisition.js";
-import { parseSitemap } from "../acquisition.js";
+import { parseSitemap } from "../webscrape.js";
 import { mcpserver } from "../integration.js";
 import { runtimename, runtimefeatures } from "../execution.js";
 import { deadline } from "../execution.js";
 import { publishplan, registrymanifest } from "../distribution.js";
 import { fingerprintfor, fingerprintvalidate } from "../browser.js";
 import { browsersession } from "../browser.js";
-import { proxypool } from "../acquisition.js";
+import { proxypool } from "../webscrape.js";
 import { captchacontract } from "../acquisition.js";
 import { evidence } from "../acquisition.js";
 import { captchaguard } from "../acquisition.js";

@@ -1,0 +1,73 @@
+# dependabot configuration for the saddle grand merge (v2.0.0).
+# automated dependency updates for the npm root, the docker base images,
+# the github actions references, the tauri desktop crate, the android
+# gradle project and the ruby/java envelopes — resolves the openssf
+# scorecard "dependency-update-tool" check and keeps security advisories
+# actionable.
+version: 2
+updates:
+  # npm dependencies (root package + lockfile)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+  # docker base images of the one container file
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+  # github actions references of every workflow
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+  # the tauri desktop shell crate (web/desktop since the grand merge)
+  - package-ecosystem: cargo
+    directory: /web/desktop
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps)"
+  # the android capacitor shell (web/android since the grand merge)
+  - package-ecosystem: gradle
+    directory: /web/android
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps)"
+  # the nuget envelopes (saddle + the e2ugh carrier)
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps)"
+  # the ruby envelope
+  - package-ecosystem: bundler
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps)"
+  # the maven envelopes (saddle + the e2ugh carrier)
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps)"

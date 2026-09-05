@@ -38,3 +38,15 @@ jobs:
         run: mvn --batch-mode --settings settings.xml -Drevision="${{ steps.release.outputs.version }}" deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: publish the e2ugh maven artifact (grand-merge carrier)
+        run: |
+          set -euo pipefail
+          version="${{ steps.release.outputs.version }}"
+          existing=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://maven.pkg.github.com/wenathlan/saddle/io/github/wenathlan/e2ugh/${version}/e2ugh-${version}.pom")
+          if [ "$existing" = "200" ]; then
+            echo "e2ugh artifact ${version} already present — skipping the duplicate deploy"
+            exit 0
+          fi
+          mvn --batch-mode --settings settings.xml -f e2ugh.pom.xml -Drevision="${version}" deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,739 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "meta": {
+    "name": "e2ugh",
+    "title": "e2ugh v6 - Master Schema, Cross-References and Compatibility Matrix",
+    "version": "2.0.0",
+    "date": "2026-08-22",
+    "language": "en",
+    "description": "Master schema of the e2ugh v6 virtual hardware engine: binds the 10 specification files (cpu, cores, boards, gpu, vm.config, passage, docker, qemu, mttcg, mesa), defines the modularity ranges (vCPU 1-192, RAM 1-1024 GB, vRAM 8-96 GB via MIG), defaults, validation rules and the pinned 2026-08-22 compatibility matrix.",
+    "sources": [
+      "https://nodejs.org/en/blog/release/v26.7.0",
+      "https://nodejs.org/en/blog/release/v24.19.0",
+      "https://www.npmjs.com/package/typescript",
+      "https://docs.docker.com/engine/release-notes/29/",
+      "https://docs.mesa3d.org/relnotes/26.2.1.html",
+      "https://github.com/llvm/llvm-project/releases",
+      "https://www.qemu.org/2026/08/11/qemu-11-1-0/",
+      "https://github.com/firecracker-microvm/firecracker/releases",
+      "https://github.com/google/gvisor/releases",
+      "https://github.com/kata-containers/kata-containers/releases",
+      "https://github.com/checkpoint-restore/criu/releases",
+      "https://github.com/bytecodealliance/wasmtime/releases",
+      "https://www.cloudhypervisor.org",
+      "https://github.com/docker/compose/releases",
+      "https://github.com/docker/buildx/releases",
+      "https://www.npmjs.com/package/@biomejs/biome",
+      "https://bun.com/blog",
+      "pool:catalog.json [quick_catalog: prices + b200 driver 580.105.08]",
+      "pool:versioncatalog.json + nested_version-catalog.json [legacy_catalog, 2025 pins - never override v5]",
+      "pool:nested_virtualhardware.json [guest_envelope_schema draft-07, re-pinned]",
+      "pool:moduleconfig.json + nested_module-config.json [nbit module modes]"
+    ],
+    "mergeReport": {
+      "modules": 12,
+      "quickCatalogCpus": 7,
+      "quickCatalogGpus": 4,
+      "legacyCatalogPins": {
+        "node": "20.19.0",
+        "typescript": "5.8.3",
+        "mesa": "25.2.7",
+        "llvm": "19.1.7",
+        "dockerode": "4.0.8",
+        "express": "5.1.0",
+        "commander": "13.1.0",
+        "zod": "4.0.5",
+        "ws": "8.18.1"
+      },
+      "envelopeEnums": {
+        "cpu": ["EPYC 9965", "9950X3D", "9950X3D2", "9995WX", "7980X"],
+        "gpu": ["RTX5090", "RTXPRO6000"]
+      },
+      "note": "guest_envelope enums kept as source; full live catalog in processors.json (57) and gpus.json (19)",
+      "pinPatch": "embedded active config values re-pinned date-first 2026-08-22 (9.1.2->11.1.0, 27.3.1->29.7.2, 22.12.3->24.19.0, 5.6.3->7.0.2, 25.2.7->26.2.1, 19.1.7->22.1.8, 1.9.0->1.16.1, libvirt 10.10.0->12.5.0, checkout v4.2.2->v5); originals preserved under *_legacy*/source_value keys"
+    }
+  },
+  "engine": {
+    "name": "Virtual Hardware Engine",
+    "version": "5.0.0",
+    "tagline": "100% software virtual hardware: CPU/RAM/GPU identity spoofing + software GL/Vulkan/OpenCL + QEMU microVMs + Docker sandboxes",
+    "specDate": "2026-08-22",
+    "specFilesCount": 11
+  },
+  "modules": [
+    {
+      "file": "cpu.json",
+      "purpose": "virtual CPU database (EPYC 9965/9955, Ryzen 9950X3D, Threadripper PRO 9995WX, Threadripper 7980X, Core Ultra 9 285K) with CPUID flags per family, lscpu/proc-cpuinfo virtual identity templates and QEMU cpu models",
+      "provides": ["processors[].id", "families[].id", "cpuid_reference", "qemu_cpu_models"]
+    },
+    {
+      "file": "cores.json",
+      "purpose": "vCPU modularity presets (1..192), SMT2 mapping, cache topology per model, NUMA NPS1/2/4, affinity masks, QEMU -smp generation",
+      "provides": ["vcpu_presets", "cache_topology", "numa", "qemu_topology_generation"]
+    },
+    {
+      "file": "boards.json",
+      "purpose": "platform systems SP5/AM5/sTR5(WRX90/TRX50)/LGA1851 with memory population, PCIe lane maps, form factors (ATX/E-ATX/CEZANNE) and QEMU machine mapping",
+      "provides": ["boards[].id", "qemu_machine_mapping", "form_factor_reference"]
+    },
+    {
+      "file": "gpu.json",
+      "purpose": "virtual GPU database (RTX 5090, RTX PRO 6000 Blackwell, B200, H100, A100, RX 9070 XT, MI350X) with PCI ids, MIG profiles, nvidia-smi format and smi-adapter profiles",
+      "provides": [
+        "gpus[].id",
+        "fake_smi_profiles",
+        "mig.profiles_rtx_pro_6000",
+        "nvidia_smi_format"
+      ]
+    },
+    {
+      "file": "vm.config.json",
+      "purpose": "22 orchestrator VM profiles (dev, build, buildfarm, ai, render, gaming, llm, trading, mobile, edge, database, e2e) binding cpu+cores+boards+gpu+runtime",
+      "provides": ["profiles[].id", "orchestrator_defaults", "profile_index"]
+    },
+    {
+      "file": "passage.json",
+      "purpose": "passthrough matrix: VFIO, MDEV, MIG, vGPU, SR-IOV, vfio-user (Cloud Hypervisor v53 experimental), hotplug, KVM availability ladder with TCG fallback",
+      "provides": ["mode_overview", "kvm", "decision_matrix"]
+    },
+    {
+      "file": "docker.json",
+      "purpose": "Docker 29.7.2 / Compose 5.5.0 / Buildx 0.36.1: MemorySwap -1, ShmSize 2g, NanoCpus, tmpfs 20G, overcommit, seccomp, gVisor runsc, userns, cap-drop",
+      "provides": [
+        "container_run_reference",
+        "daemon_configuration",
+        "runtimes",
+        "buildx_reference"
+      ]
+    },
+    {
+      "file": "qemu.json",
+      "purpose": "QEMU 11.1.0: MTTCG flags, EPYC-v5 model (target/i386/cpu.c), tb-size, q35/microvm, -smp topology, snapshot/savevm + CRIU, no-KVM CI workaround, nitro accelerator",
+      "provides": ["accelerators", "cpu_models", "example_commands", "qmp_reference"]
+    },
+    {
+      "file": "mttcg.json",
+      "purpose": "MTTCG internals: per-vCPU threads, TranslationBlock cache, lockless QHT, enablement rules, 192-vCPU scaling and performance tuning",
+      "provides": ["architecture", "scaling_to_192_vcpus", "recommended_flags_matrix"]
+    },
+    {
+      "file": "mesa.json",
+      "purpose": "Mesa 26.2.1 + LLVM 22.1.8 stack: llvmpipe GL 4.6 (161/161), lavapipe Vulkan 1.4, Rusticl OpenCL 3.1, every validated env var, Xvfb :99 recipe",
+      "provides": ["versions", "environment_variables", "xvfb", "spoof_recipes"]
+    },
+    {
+      "id": "memory",
+      "file": "memory.json",
+      "note": "added in v2 (memory.json split from vram/vm.config; virtualhardware self-reference)"
+    },
+    {
+      "id": "virtualhardware",
+      "file": "virtualhardware.json",
+      "note": "added in v2 (memory.json split from vram/vm.config; virtualhardware self-reference)"
+    }
+  ],
+  "moduleModes": {
+    "nbit": {
+      "versionCatalog": "version-catalog.json",
+      "modules": [
+        "library",
+        "binary",
+        "desktop",
+        "mobile",
+        "cli",
+        "server",
+        "web",
+        "extension",
+        "package",
+        "orchestrator",
+        "compute",
+        "edge",
+        "wasm",
+        "container",
+        "microvm",
+        "k8s"
+      ],
+      "nativeFirst": [
+        "node:fs",
+        "node:http",
+        "node:crypto",
+        "node:path",
+        "node:stream",
+        "node:worker_threads"
+      ]
+    },
+    "nativeFirst": [
+      "node:fs",
+      "node:http",
+      "node:crypto",
+      "node:path",
+      "node:stream",
+      "node:worker_threads"
+    ],
+    "optionalServerCliDeps": {
+      "library": {
+        "deps": ["node:fs", "node:crypto", "node:path"]
+      },
+      "server": {
+        "deps": ["express", "dockerode", "node:http"]
+      },
+      "cli": {
+        "deps": ["commander"]
+      }
+    },
+    "note": "versioncatalog modules imply express/dockerode/commander deps - v2 policy is zero runtime deps; these become optionalDependencies of the server/cli module modes only"
+  },
+  "modularityRanges": {
+    "vcpu": {
+      "min": 1,
+      "max": 192,
+      "default": 4,
+      "presets": [1, 2, 4, 8, 16, 32, 64, 96, 128, 192],
+      "smt2ThreadMax": 384,
+      "source": "cores.json vcpu_presets (EPYC 9965 identity ceiling)"
+    },
+    "ramGb": {
+      "min": 1,
+      "max": 1024,
+      "default": 8,
+      "notes": [
+        "1-2 GB edge sandboxes",
+        "512 GB buildfarm-max",
+        "1024 GB ai-cluster (DGX-class node identity)",
+        "virtual identity display values can exceed physical via --memory-swap=-1 + overcommit (docker.json)"
+      ],
+      "boardCaps": {
+        "sp5DualSocket": 12288,
+        "sp5Single": 6144,
+        "str5Wrx90": 2048,
+        "str5Trx50": 1024,
+        "am5": 192,
+        "lga1851": 192
+      }
+    },
+    "vramGb": {
+      "min": 8,
+      "max": 96,
+      "default": 0,
+      "migSlices": [24, 48, 96],
+      "gpuFull": [16, 32, 80, 96, 192, 288],
+      "notes": [
+        "8-96 GB is the MIG-slice envelope (1g.24gb..4g.96gb on RTX PRO 6000 Server)",
+        "full-GPU identities go up to 288 GB (MI350X) / 1536 GB aggregate (8x B200)",
+        "see gpu.json mig and vm.config.json profile_index.mig_vram_slices_gb"
+      ]
+    },
+    "diskGb": {
+      "min": 4,
+      "max": 1024,
+      "default": 32
+    },
+    "network": {
+      "modes": ["user (slirp)", "tap (root)", "vfio SR-IOV VF"],
+      "default": "user"
+    }
+  },
+  "defaults": {
+    "vmProfile": "dev",
+    "cpuIdentity": "core-ultra-9-285k",
+    "gpuProfile": "llvmpipe (software)",
+    "accel": "tcg,thread=multi (fallback of preferred kvm)",
+    "machine": "q35",
+    "tbSizeMib": 128,
+    "display": "headless; Xvfb :99 1920x1080x24 when GL required",
+    "dockerMemorySwap": -1,
+    "dockerShmSize": "2g",
+    "mesaEnv": [
+      "LIBGL_ALWAYS_SOFTWARE=true",
+      "GALLIUM_DRIVER=llvmpipe",
+      "LP_NUM_THREADS=0",
+      "RUSTICL_ENABLE=llvmpipe",
+      "RUSTICL_DEVICE_TYPE=gpu",
+      "VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json"
+    ],
+    "fakeSmi": {
+      "header": "NVIDIA-SMI 575.57.08 Driver Version: 575.57.08 CUDA Version: 12.9"
+    }
+  },
+  "quickCatalog": {
+    "description": "pool catalog.json verbatim: fast SKU lookup incl. EPYC 9965 price 14813 USD and b200 driver 580.105.08",
+    "cpus": [
+      {
+        "id": "epyc-9965",
+        "name": "AMD EPYC 9965",
+        "cores": 192,
+        "threads": 384,
+        "baseGHz": 2.25,
+        "boostGHz": 3.7,
+        "cacheMB": 384,
+        "arch": "Zen 5c Turin Dense 3nm",
+        "tdpW": 500,
+        "price": 14813
+      },
+      {
+        "id": "epyc-9755",
+        "name": "AMD EPYC 9755",
+        "cores": 128,
+        "threads": 256,
+        "baseGHz": 2.7,
+        "boostGHz": 4.1,
+        "cacheMB": 512
+      },
+      {
+        "id": "threadripper-7995wx",
+        "name": "AMD Ryzen Threadripper PRO 7995WX",
+        "cores": 96,
+        "threads": 192,
+        "baseGHz": 2.5,
+        "boostGHz": 5.1,
+        "cacheMB": 384
+      },
+      {
+        "id": "ryzen-9950x3d",
+        "name": "AMD Ryzen 9 9950X3D",
+        "cores": 16,
+        "threads": 32,
+        "baseGHz": 4.3,
+        "boostGHz": 5.7,
+        "cacheMB": 144
+      },
+      {
+        "id": "ryzen-9950x3d2",
+        "name": "AMD Ryzen 9 9950X3D2",
+        "cores": 16,
+        "threads": 32,
+        "baseGHz": 4.3,
+        "boostGHz": 5.6,
+        "cacheMB": 192
+      },
+      {
+        "id": "ryzen-9800x3d",
+        "name": "AMD Ryzen 7 9800X3D",
+        "cores": 8,
+        "threads": 16,
+        "baseGHz": 4.7,
+        "boostGHz": 5.2,
+        "cacheMB": 96
+      },
+      {
+        "id": "xeon-6980p",
+        "name": "Intel Xeon 6980P",
+        "cores": 128,
+        "threads": 256,
+        "baseGHz": 2.0,
+        "boostGHz": 3.9,
+        "cacheMB": 504
+      }
+    ],
+    "gpus": [
+      {
+        "id": "rtx-5090",
+        "name": "NVIDIA GeForce RTX 5090",
+        "vramGB": 32,
+        "vramType": "GDDR7",
+        "cudaCores": 21760,
+        "tensorCores": 680,
+        "arch": "Blackwell GB202-300-A1",
+        "driver": "575.51.03",
+        "cuda": "12.9",
+        "pciId": "10DE:2B85"
+      },
+      {
+        "id": "rtx-pro-6000",
+        "name": "NVIDIA RTX PRO 6000 Blackwell WE",
+        "vramGB": 96,
+        "vramType": "GDDR7 ECC",
+        "cudaCores": 24064,
+        "tensorCores": 752,
+        "arch": "Blackwell GB202GL",
+        "driver": "575.51.03",
+        "cuda": "12.9",
+        "pciId": "10DE:2BB5"
+      },
+      {
+        "id": "b200",
+        "name": "NVIDIA B200",
+        "vramGB": 192,
+        "vramType": "HBM3e",
+        "arch": "Blackwell B200",
+        "driver": "580.105.08"
+      },
+      {
+        "id": "h100",
+        "name": "NVIDIA H100",
+        "vramGB": 80,
+        "vramType": "HBM3"
+      }
+    ]
+  },
+  "legacyCatalog": {
+    "description": "2025 nbit version pins - legacy lineage, NEVER overrides the date-first 2026-08-22 pins (Node 24.19.0/26.7.0, TS 7.0.2, Mesa 26.2.1, LLVM 22.1.8, QEMU 11.1.0, Docker 29.7.2)",
+    "catalog": {
+      "node": "20.19.0",
+      "typescript": "5.8.3",
+      "mesa": "25.2.7",
+      "llvm": "19.1.7",
+      "dockerode": "4.0.8",
+      "express": "5.1.0",
+      "commander": "13.1.0",
+      "zod": "4.0.5",
+      "ws": "8.18.1"
+    },
+    "modules": {
+      "library": {
+        "deps": ["node:fs", "node:crypto", "node:path"]
+      },
+      "server": {
+        "deps": ["express", "dockerode", "node:http"]
+      },
+      "cli": {
+        "deps": ["commander"]
+      }
+    },
+    "identicalNestedVariant": "nested_version-catalog.json is byte-equivalent (322b vs 323b)"
+  },
+  "guestEnvelopeSchema": {
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "title": "VirtualHardware v4",
+    "type": "object",
+    "required": [
+      "cpu",
+      "memory",
+      "gpu",
+      "display",
+      "mesa",
+      "envs",
+      "docker",
+      "firecracker",
+      "host"
+    ],
+    "properties": {
+      "cpu": {
+        "cores": {
+          "type": "integer",
+          "min": 1,
+          "max": 192
+        },
+        "threads": {
+          "type": "integer",
+          "min": 2,
+          "max": 384
+        },
+        "model": {
+          "enum": ["EPYC 9965", "9950X3D", "9950X3D2", "9995WX", "7980X"]
+        }
+      },
+      "memory": {
+        "ramGb": {
+          "min": 1,
+          "max": 1024
+        },
+        "vramGb": {
+          "min": 8,
+          "max": 96
+        },
+        "virtualMeminfoKb": 134217728
+      },
+      "gpu": {
+        "model": {
+          "enum": ["RTX5090", "RTXPRO6000"]
+        },
+        "pciId": {
+          "type": "string"
+        },
+        "mig": {
+          "type": "string"
+        }
+      },
+      "display": {
+        "resolution": "1920x1080x24",
+        "xvfb": ":99"
+      },
+      "mesa": {
+        "llvm": "22.1.8",
+        "driver": "llvmpipe+lavapipe+rusticl",
+        "versionSource": "26.2.1",
+        "version": "26.2.1",
+        "rePinNote": "mesa 25.2.7/llvm 19.1.7 (source) re-pinned to 26.2.1/22.1.8 date-first 2026-08-22"
+      },
+      "envs": {
+        "type": "object"
+      },
+      "docker": {
+        "MemorySwap": -1,
+        "ShmSize": 2147483648
+      },
+      "firecracker": {
+        "bootMs": 125
+      },
+      "host": {
+        "randomizedPort": "20000-60000"
+      }
+    }
+  },
+  "validationRules": [
+    {
+      "rule": "vm profile vcpus must be in modularity_ranges.vcpu.presets",
+      "error": "VHE_VCPU_RANGE"
+    },
+    {
+      "rule": "vm profile ram_gb <= boards.json max_memory for the cpu identity socket (virtual identity display value may differ from backing memory)",
+      "error": "VHE_RAM_CAP"
+    },
+    {
+      "rule": "vm profile gpu vram must match gpu.json: full-card values or a MIG slice of the declared card",
+      "error": "VHE_VRAM_PROFILE"
+    },
+    {
+      "rule": "cpu identity family flags must match target tool expectations (zen5 => avx512f/bw/cd/dq/vl/bf16/fp16 + sha_ni; arrow_lake => avx2, no avx512)",
+      "error": "VHE_CPUID_MISMATCH"
+    },
+    {
+      "rule": "-cpu host is rejected unless /dev/kvm exists (passage.json kvm check)",
+      "error": "VHE_KVM_REQUIRED"
+    },
+    {
+      "rule": "-icount may not be combined with thread=multi performance profiles (mttcg.json)",
+      "error": "VHE_ICOUNT_CONFLICT"
+    },
+    {
+      "rule": "AI profiles must ship --shm-size>=2g (docker.json shm_size evidence)",
+      "error": "VHE_SHM_REQUIRED"
+    },
+    {
+      "rule": "LP_NUM_THREADS values above 32 clamp to 32 (mesa.json LP_MAX_THREADS)",
+      "error": "VHE_MESA_THREADS_CLAMP"
+    },
+    {
+      "rule": "SMT identities: threads = cores*2, except core-ultra-9-285k where threads = cores",
+      "error": "VHE_SMT_MATH"
+    },
+    {
+      "rule": "all spec files must carry meta.version == engine.version == 5.0.0 and meta.date == 2026-08-22",
+      "error": "VHE_SPEC_DRIFT"
+    }
+  ],
+  "compatibilityMatrix": {
+    "pinnedDate": "2026-08-22",
+    "core": {
+      "nodeCurrent": {
+        "version": "26.7.0",
+        "date": "2026-08-05",
+        "notes": "V8 14.6.202.33, Temporal enabled by default, Undici 8.0, NODE_MODULE_VERSION 147"
+      },
+      "nodeLts": {
+        "version": "24.19.0",
+        "codename": "Krypton",
+        "date": "2026-08-03",
+        "notes": "OpenSSL 3.5.5 bundled, default X25519MLKEM768 post-quantum TLS"
+      },
+      "typescript": {
+        "version": "7.0.2",
+        "ga": "2026-07-08",
+        "notes": "native Go port (Corsa), ~10x faster, shared-memory multithreading"
+      },
+      "biome": {
+        "version": "2.5.11",
+        "date": "2026-08-27"
+      },
+      "bun": {
+        "version": "1.4.0",
+        "date": "2026-08-20",
+        "notes": "core rewritten from Zig to Rust"
+      }
+    },
+    "containerization": {
+      "dockerEngine": {
+        "version": "29.7.2",
+        "date": "2026-08-05"
+      },
+      "dockerCompose": {
+        "version": "5.5.0",
+        "date": "2026-08-17",
+        "notes": "declarative digest reconciliation since 5.4/5.5"
+      },
+      "dockerBuildx": {
+        "version": "0.36.1",
+        "date": "2026-07-29",
+        "notes": "GHA cache backend, multi-arch builds"
+      },
+      "containerdDefault": "cgroup v2 unified"
+    },
+    "graphics": {
+      "mesa": {
+        "version": "26.2.1",
+        "date": "2026-08-20",
+        "devel": "26.3.0 expected ~2026-11-04"
+      },
+      "llvm": {
+        "version": "22.1.8",
+        "date": "2026-07-10",
+        "staged": "23.1.0-rc3 (2026-08-12)"
+      },
+      "llvmpipe": "GL 4.6 core 161/161 + GLES 3.2, 32-thread cap, AVX-512 runtime",
+      "lavapipe": "Vulkan 1.4 exposed, 1.3 conformant (CTS 1.3.1.1)",
+      "rusticl": "OpenCL 3.1 (Clover deleted in 25.2)"
+    },
+    "virtualization": {
+      "qemu": {
+        "version": "11.1.0",
+        "date": "2026-08-11",
+        "notes": "MTTCG default x86_64, EPYC-v5 model, nitro accelerator since 11.0"
+      },
+      "firecracker": {
+        "version": "1.16.1",
+        "date": "2026-07-02",
+        "notes": "125 ms cold boot, 4-30 ms snapshot restore, requires KVM"
+      },
+      "cloudHypervisor": {
+        "version": "53.0",
+        "date": "2026-07-12",
+        "notes": "vfio-user experimental (--user-device), offloaded snapshot daemon"
+      },
+      "kataContainers": {
+        "version": "4.1.0",
+        "date": "2026-08-21",
+        "notes": "runtime-rs default, OpenVMM support"
+      },
+      "gvisor": {
+        "version": "release-20260817.0",
+        "date": "2026-08-19",
+        "notes": "systrap platform, weekly releases"
+      },
+      "criu": {
+        "version": "4.2.1",
+        "date": "2026-07-21"
+      }
+    },
+    "sandboxAlternatives": {
+      "wasmtime": {
+        "version": "48.0.0",
+        "lts": true,
+        "date": "2026-08-20",
+        "notes": "fuel metering + epoch interruption, WASI 0.2/0.3"
+      },
+      "appleContainersReference": {
+        "version": "1.2.2",
+        "date": "2026-08-08",
+        "notes": "macOS only - reference"
+      }
+    },
+    "githubActions": {
+      "checkout": "actions/checkout@v7.0.1",
+      "setupNode": "actions/setup-node@v7.0.0 (Node 24 runtime, runner >= 2.327.1)",
+      "cache": "actions/cache@v6.1.0",
+      "setupBuildx": "docker/setup-buildx-action@v4.3.0",
+      "buildPush": "docker/build-push-action@v7.3.0",
+      "login": "docker/login-action@v4.6.0",
+      "metadata": "docker/metadata-action@v6.2.0",
+      "runnerReality": "no /dev/kvm on hosted runners: engine runs TCG+Docker paths there; KVM/Firecracker/VFIO paths require self-hosted bare metal (passage.json)"
+    }
+  },
+  "resolutionOrder": [
+    "1. orchestrator loads virtualhardware.json defaults",
+    "2. vm.config.json profile selected (id)",
+    "3. cpu.json identity bound (flags, clocks, caches) + cores.json preset (vcpus, smp)",
+    "4. boards.json platform checked (memory cap, PCIe lanes, machine type)",
+    "5. gpu.json profile attached (full card, MIG slice, or software llvmpipe)",
+    "6. qemu.json + mttcg.json build the QEMU command line (accel policy from passage.json kvm detection)",
+    "7. docker.json wraps container workloads (MemorySwap -1, ShmSize 2g, tmpfs, seccomp, runtime)",
+    "8. mesa.json env block + Xvfb for graphics; gpu.json smi-adapter/NVML shim for GPU identity"
+  ],
+  "crossReferenceIntegrity": {
+    "cpuIds": [
+      "epyc-9965",
+      "epyc-9955",
+      "ryzen-9-9950x3d",
+      "threadripper-pro-9995wx",
+      "threadripper-7980x",
+      "core-ultra-9-285k"
+    ],
+    "gpuIds": [
+      "rtx-5090",
+      "rtx-pro-6000-blackwell",
+      "b200",
+      "h100",
+      "a100",
+      "rx-9070-xt",
+      "mi350x"
+    ],
+    "boardIds": ["sp5", "am5", "str5-wrx90", "str5-trx50", "lga1851"],
+    "vmProfileIds": [
+      "dev",
+      "dev-large",
+      "build",
+      "build-large",
+      "buildfarm",
+      "buildfarm-max",
+      "ai",
+      "ai-training",
+      "ai-cluster",
+      "llm",
+      "llm-inference",
+      "inference-mig",
+      "render",
+      "render-pro",
+      "gaming",
+      "gaming-max",
+      "trading",
+      "mobile",
+      "edge",
+      "edge-tiny",
+      "database",
+      "e2e-browser"
+    ],
+    "familyIds": ["zen5", "zen5c", "zen4", "arrow_lake"],
+    "consistencyChecks": [
+      "every vm.config cpu.identity exists in cpu.json",
+      "every vm.config gpu.profile is a gpu.json id or llvmpipe/none",
+      "every cores.json vcpu preset maps to a -smp combo honoring the SMT rule",
+      "every spec meta.version == 5.0.0 and meta.date == 2026-08-22"
+    ]
+  },
+  "specFileInventory": [
+    {
+      "file": "cpu.json",
+      "domain": "cpu"
+    },
+    {
+      "file": "cores.json",
+      "domain": "cores"
+    },
+    {
+      "file": "boards.json",
+      "domain": "boards"
+    },
+    {
+      "file": "gpu.json",
+      "domain": "gpu"
+    },
+    {
+      "file": "vm.config.json",
+      "domain": "vm-profiles"
+    },
+    {
+      "file": "passage.json",
+      "domain": "passthrough"
+    },
+    {
+      "file": "docker.json",
+      "domain": "docker"
+    },
+    {
+      "file": "qemu.json",
+      "domain": "qemu"
+    },
+    {
+      "file": "mttcg.json",
+      "domain": "mttcg"
+    },
+    {
+      "file": "mesa.json",
+      "domain": "mesa"
+    },
+    {
+      "file": "virtualhardware.json",
+      "domain": "master"
+    }
+  ]
+}

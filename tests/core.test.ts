@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { extractContent, extractReadable } from "../acquisition.js";
-import { serializeHtml, serializeResult } from "../acquisition.js";
-import { resolveFormat, extensionForFormat, buildSerializeOptions, detectContentType } from "../acquisition.js";
+import { serializeHtml, serializeResult } from "../webscrape.js";
+import { resolveFormat, extensionForFormat, buildSerializeOptions, detectContentType } from "../webscrape.js";
 
 const SAMPLE_HTML = `<!DOCTYPE html>
 <html lang="en">

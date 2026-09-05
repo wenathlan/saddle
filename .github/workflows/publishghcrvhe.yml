@@ -1,0 +1,672 @@
+# Combined container pipeline for e2ugh: validation + GHCR publication.
+#
+# Pipeline stages:
+#   validate (push)   - per-arch dry-run build + runtime validation for
+#                       every profile x architecture: 3 profiles (max,
+#                       balanced, lite) x 4 architectures (amd64, arm64,
+#                       ppc64le, s390x) = 12 legs. Each leg checks the
+#                       profile-specific spoofed CPU and the per-profile
+#                       memory plan.
+#   resolve (release) - verifies the release version from the source
+#   scan (release)    - Trivy security gate on the release image
+#   publish (release) - single multi-arch build-push per profile; every
+#                       profile ships ALL four architectures
+#                       (linux/amd64, linux/arm64, linux/ppc64le,
+#                       linux/s390x) and carries exactly ONE tag: the
+#                       version. max -> :<version>, balanced ->
+#                       :<version>-balanced, lite -> :<version>-lite.
+#                       No latest, no major.minor, no rolling profile
+#                       tag - one tag per version, one version per release.
+#   verify             - asserts each published profile index carries the
+#                       four-arch surface and the spoofing layer is active.
+#   cleanup            - deletes the gha caches this run created.
+#
+# The builder stage of the Dockerfile is profile-independent (the profile
+# identity is baked in the runtime stage), so the buildx registry cache is
+# shared across max/balanced/lite for each architecture: the first leg per
+# arch builds the heavy mesa/node layers, the other two profiles reuse them.
+#
+# Toolchain (version-tagged, same convention as DevThink / Saddle):
+# docker/build-push-action@v7.3.0, docker/setup-qemu-action@v4.2.0,
+# docker/setup-buildx-action@v4.3.0, docker/login-action@v4.6.0,
+# aquasecurity/trivy-action@v0.36.0, actions/checkout@v7.0.1.
+# No SHA pinning - the version tag is the contract.
+
+name: publish ghcr vhe
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  release:
+    types: [published]
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing e2ugh tag to publish.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # Group by (event_name, ref) - the gateway standard. The ref-only
+  # group landed the workflow_run publication run (fired ~90s after
+  # the release push, by the release completion) in the SAME lane as
+  # the push validation run started by the version-bump commit, and
+  # with cancel-in-progress it killed the in-flight validation legs
+  # on every release push, leaving a cancelled (red X) run in the
+  # actions tab for each release - the 1.2.16 and 1.2.17 pushes both
+  # show the pattern. Event-scoped groups keep every dedupe guarantee
+  # the ref-only group carried: duplicate workflow_run firings for
+  # the same release completion still cancel each other instead of
+  # racing the GHCR publish (the v1.2.13 lesson), and superseded push
+  # validations still cancel each other on rapid double-pushes -
+  # while the push validation and the release publication for the
+  # same commit now run side by side and both finish green.
+  group: publish-ghcr-${{ github.event_name }}-${{ github.ref }}
+  # Publication runs (release, workflow_dispatch) are never cancelled
+  # mid-flight - a latecomer queues behind them; only validation legs
+  # and duplicate workflow_run firings are cancellable.
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'workflow_run' }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  REGISTRY: ghcr.io
+  CACHE_IMAGE: ghcr.io/${{ github.repository }}-buildcache
+
+jobs:
+  validate:
+    name: Validate image (${{ matrix.profile }}, ${{ matrix.platform }})
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    # 240 min: a cold-cache emulated leg (QEMU ppc64le/s390x building
+    # mesa from source) is measured past the old 90-minute ceiling -
+    # the ed32fbf push validation run timed out ~1h35m in. The warm
+    # registry cache keeps the legs far under this; the ceiling only
+    # matters on cold-cache rebuilds after Dockerfile/lockfile churn.
+    timeout-minutes: 240
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3 profiles x 4 architectures = 12 validation legs; every profile
+        # is built and probed on every architecture the registry ships.
+        platform: [linux/amd64, linux/arm64, linux/ppc64le, linux/s390x]
+        profile: [max, balanced, lite]
+        include:
+          - profile: max
+            profilecpu: epyc9965
+            profilevcpus: 192
+            profilethreads: 384
+            profileram: 1024
+            profilegpu: b200
+            profilegpus: 8
+            expectcpu: EPYC 9965
+          - profile: balanced
+            profilecpu: threadripperpro9995wx
+            profilevcpus: 96
+            profilethreads: 192
+            profileram: 512
+            profilegpu: b200
+            profilegpus: 2
+            expectcpu: 9995WX
+          - profile: lite
+            profilecpu: ryzen9950x3d
+            profilevcpus: 16
+            profilethreads: 32
+            profileram: 128
+            profilegpu: rtx5090
+            profilegpus: 1
+            expectcpu: 9950X3D
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Resolve arch slug
+        id: slug
+        run: echo "slug=$(echo '${{ matrix.platform }}' | cut -d/ -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve the mesa tarball digest (GitHub-computed)
+        id: mesa
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # The mesa-cache release carries the mirrored upstream tarball and
+          # GitHub computes the sha256 digest of every release asset at
+          # upload time. Resolving it at build time keeps every source file
+          # free of hardcoded hashes (the gateway family policy): the digest
+          # is generated by GitHub's own computers and consumed here, never
+          # written into the repository sources.
+          mesa_version=$(sed -n 's/^ARG MESA_VERSION="\([0-9.]*\)"$/\1/p' Dockerfile | head -n1)
+          test -n "${mesa_version}"
+          tarball="mesa-${mesa_version}.tar.xz"
+          release="mesa-cache-${mesa_version}"
+          digest="$(gh api "repos/${GH_REPO}/releases/tags/${release}" --jq ".assets[] | select(.name == \"${tarball}\") | .digest" 2>/dev/null || true)"
+          case "${digest}" in
+            sha256:*) sha="${digest#sha256:}" ;;
+            *) sha="" ;;
+          esac
+          if [ -z "${sha}" ] || [ "${#sha}" -ne 64 ]; then
+            # legacy asset without a GitHub-computed digest: the checksum
+            # is computed on this GitHub runner (still GitHub computers,
+            # the value never enters the repository)
+            gh release download "${release}" --repo "${GH_REPO}" --pattern "${tarball}" --output "/tmp/${tarball}"
+            sha="$(sha256sum "/tmp/${tarball}" | awk '{print $1}')"
+            rm -f "/tmp/${tarball}"
+          fi
+          test "${#sha}" -eq 64
+          echo "sha256=${sha}" >> "$GITHUB_OUTPUT"
+          echo "mesa ${tarball}: ${sha} (resolved at build time)"
+
+      - name: Set up QEMU (arm64, ppc64le and s390x user-mode emulation)
+        uses: docker/setup-qemu-action@v4.2.0
+        with:
+          platforms: linux/arm64,linux/ppc64le,linux/s390x
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.3.0
+
+      - name: Log in to GHCR (registry cache)
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image (dry run, loaded locally)
+        uses: docker/build-push-action@v7.3.0
+        with:
+          context: .
+          file: ./Dockerfile
+          target: runtime
+          platforms: ${{ matrix.platform }}
+          push: false
+          load: true
+          tags: saddle-vhe-validate:${{ steps.slug.outputs.slug }}-${{ matrix.profile }}
+          build-args: |
+            VHE_PROFILE_CPU=${{ matrix.profilecpu }}
+            VHE_PROFILE_VCPUS=${{ matrix.profilevcpus }}
+            VHE_PROFILE_THREADS=${{ matrix.profilethreads }}
+            VHE_PROFILE_RAM_GB=${{ matrix.profileram }}
+            VHE_PROFILE_GPU=${{ matrix.profilegpu }}
+            VHE_PROFILE_GPUS=${{ matrix.profilegpus }}
+            MESA_SHA256=${{ steps.mesa.outputs.sha256 }}
+          cache-from: type=registry,ref=${{ env.CACHE_IMAGE }}
+          cache-to: type=registry,ref=${{ env.CACHE_IMAGE }},mode=max
+
+      - name: Validate spoofed CPU and memory (per-profile identity)
+        env:
+          SLUG: ${{ steps.slug.outputs.slug }}
+          PROFILE: ${{ matrix.profile }}
+          PLATFORM: ${{ matrix.platform }}
+          EXPECTCPU: ${{ matrix.expectcpu }}
+          PROFILERAM: ${{ matrix.profileram }}
+        run: |
+          set -euo pipefail
+          image="e2ugh-validate:${SLUG}-${PROFILE}"
+          run_contract() {
+            docker run --rm --platform "${PLATFORM}" \
+              --memory-swap=-1 --shm-size=2g "$image" "$@"
+          }
+          echo "--- Spoofed /proc/cpuinfo (expects ${EXPECTCPU} for the ${PROFILE} profile) ---"
+          cpuinfo="$(run_contract bash -lc 'grep -m1 "model name" /proc/cpuinfo')"
+          echo "$cpuinfo"
+          if ! grep -q "${EXPECTCPU}" <<< "$cpuinfo"; then
+            echo "::error::/proc/cpuinfo does not report the spoofed ${EXPECTCPU} processor; the CPU spoof layer is not active for the ${PROFILE} profile."
+            exit 1
+          fi
+          expected_kb=$(( PROFILERAM * 1024 * 1024 ))
+          window_low=$(( expected_kb - expected_kb / 16 ))
+          window_high=$(( expected_kb + expected_kb / 16 ))
+          echo "--- Spoofed memory report (free -h, expects ~${PROFILERAM} GiB plan) ---"
+          run_contract free -h
+          memtotal_kb="$(run_contract bash -lc 'grep -m1 "^MemTotal:" /proc/meminfo | tr -dc 0-9')"
+          echo "Spoofed MemTotal: ${memtotal_kb} kB (expected window: ${window_low}-${window_high} kB)"
+          if [ "$memtotal_kb" -lt "$window_low" ] || [ "$memtotal_kb" -gt "$window_high" ]; then
+            echo "::error::Spoofed MemTotal (${memtotal_kb} kB) is outside the expected ${PROFILERAM} GiB window (${window_low}-${window_high} kB); the memory spoof layer is not active for the ${PROFILE} profile."
+            exit 1
+          fi
+
+      - name: Validate OpenCL platform (clinfo / Rusticl)
+        env:
+          SLUG: ${{ steps.slug.outputs.slug }}
+          PROFILE: ${{ matrix.profile }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          image="e2ugh-validate:${SLUG}-${PROFILE}"
+          echo '--- clinfo: Rusticl on LLVMpipe (OpenCL 3.1) ---'
+          docker run --rm --platform "${PLATFORM}" \
+            --memory-swap=-1 --shm-size=2g "$image" \
+            clinfo | tee clinfo.txt | head -40
+          grep -q 'Number of platforms' clinfo.txt
+          grep -qiE 'rusticl|OpenCL 3' clinfo.txt
+
+      - name: Validate Vulkan platform (vulkaninfo / Lavapipe)
+        env:
+          SLUG: ${{ steps.slug.outputs.slug }}
+          PROFILE: ${{ matrix.profile }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          image="e2ugh-validate:${SLUG}-${PROFILE}"
+          echo '--- vulkaninfo --summary: Lavapipe (Vulkan 1.4) ---'
+          docker run --rm --platform "${PLATFORM}" \
+            --memory-swap=-1 --shm-size=2g "$image" \
+            vulkaninfo --summary | tee vulkaninfo.txt | head -40
+          grep -q 'apiVersion' vulkaninfo.txt
+          grep -qiE 'lavapipe|llvmpipe' vulkaninfo.txt
+
+  resolve:
+    name: Resolve release version
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      tag: ${{ steps.resolve.outputs.tag }}
+      proceed: ${{ steps.resolve.outputs.proceed }}
+      mesasha256: ${{ steps.mesa.outputs.sha256 }}
+    permissions:
+      # contents: write is required to keep the SHA256SUMS asset of the
+      # mesa-cache release in place (the GitHub-generated digest of the
+      # mirrored tarball, published as a release asset so local builds
+      # verify too). The tag and release mutations themselves live in
+      # the Release workflow.
+      contents: write
+      # packages: read is required to query the GHCR container package
+      # versions list (the pre-deploy existence check). The publish,
+      # scan, verify jobs below escalate to packages: write / id-token.
+      packages: read
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node (reproducible version-resolution step)
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '26.7.0'
+
+      - id: resolve
+        name: Resolve and verify the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          REQUESTED_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")
+          tag="v${version}"
+          {
+            echo "version=${version}"
+            echo "tag=${tag}"
+            echo "proceed=false"
+          } >> "$GITHUB_OUTPUT"
+
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            echo "A semantic release tag such as v1.2.14 is required." >&2
+            exit 1
+          fi
+          if ! git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "Tag ${tag} does not exist." >&2
+            exit 1
+          fi
+          if ! gh api "repos/${GH_REPO}/releases/tags/${tag}" >/dev/null 2>&1; then
+            echo "No published GitHub release for ${tag}." >&2
+            exit 0
+          fi
+          # Pre-deploy existence check (v1.2.14+): even with the unified
+          # concurrency group, a duplicate workflow_run firing that escapes
+          # cancellation would attempt to re-publish the same multi-arch
+          # manifest list. The GHCR container registry tolerates re-pushes
+          # of the same tag (it overwrites), but a duplicate publish wastes
+          # 60+ minutes of QEMU build time and risks racing the in-flight
+          # build. Query the container package versions list; if the
+          # version is already published, exit 0 (proceed=false) so the
+          # duplicate firing no-ops cleanly.
+          #
+          # Robustness note: gh api writes error JSON to STDOUT (not stderr)
+          # on 401/403/404, so `2>/dev/null` alone cannot suppress it. The
+          # `|| true` ensures the subshell exits 0, then the case statement
+          # validates the captured string is a pure non-negative integer;
+          # anything else (error JSON, empty, etc.) is treated as "not
+          # published yet" so a transient API failure does not silently
+          # skip a publish. The GHCR container package is queried via the
+          # /orgs/{owner}/packages/container/{package_name} endpoint with
+          # package_name = e2ugh (no namespace prefix) - the registry stores
+          # container packages by their repo-name slug, not the full
+          # owner/repo path.
+          api_out="$(gh api "/orgs/${OWNER}/packages/container/e2ugh/versions" --jq "[.[] | select(.metadata.container.tags[]? | startswith(\"${version}\"))] | length" 2>/dev/null || true)"
+          case "${api_out}" in
+            ''|*[!0-9]*) api_out=0 ;;
+          esac
+          if [ "${api_out}" != "0" ]; then
+            echo "GHCR container ${OWNER}/e2ugh:${version} is already published; the duplicate workflow_run firing will no-op."
+            exit 0
+          fi
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+      - id: mesa
+        name: Resolve the mesa tarball digest (GitHub-computed)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # The mesa-cache release carries the mirrored upstream tarball
+          # and GitHub computes the sha256 digest of every release asset
+          # at upload time. Resolving it at build time keeps every source
+          # file free of hardcoded hashes (the gateway family policy): the
+          # digest is generated by GitHub's own computers, handed to the
+          # docker builds as the MESA_SHA256 build-arg and published as
+          # the SHA256SUMS release asset, never written into the sources.
+          mesa_version=$(sed -n 's/^ARG MESA_VERSION="\([0-9.]*\)"$/\1/p' Dockerfile | head -n1)
+          test -n "${mesa_version}"
+          tarball="mesa-${mesa_version}.tar.xz"
+          release="mesa-cache-${mesa_version}"
+          digest="$(gh api "repos/${GH_REPO}/releases/tags/${release}" --jq ".assets[] | select(.name == \"${tarball}\") | .digest" 2>/dev/null || true)"
+          case "${digest}" in
+            sha256:*) sha="${digest#sha256:}" ;;
+            *) sha="" ;;
+          esac
+          if [ -z "${sha}" ] || [ "${#sha}" -ne 64 ]; then
+            # legacy asset without a GitHub-computed digest: the checksum
+            # is computed on this GitHub runner (still GitHub computers,
+            # the value never enters the repository)
+            gh release download "${release}" --repo "${GH_REPO}" --pattern "${tarball}" --output "/tmp/${tarball}"
+            sha="$(sha256sum "/tmp/${tarball}" | awk '{print $1}')"
+            rm -f "/tmp/${tarball}"
+          fi
+          test "${#sha}" -eq 64
+          # Keep the SHA256SUMS asset of the mesa-cache release in place so
+          # local builds (and any build without the build-arg) verify the
+          # tarball too: the checksum is GitHub-generated and published as
+          # a release asset, never hardcoded in the sources.
+          sums_count="$(gh api "repos/${GH_REPO}/releases/tags/${release}" --jq "[.assets[] | select(.name == \"SHA256SUMS\")] | length" 2>/dev/null || true)"
+          if [ "${sums_count}" != "1" ]; then
+            printf '%s  %s\n' "${sha}" "${tarball}" > SHA256SUMS
+            gh release upload "${release}" SHA256SUMS --repo "${GH_REPO}"
+            rm -f SHA256SUMS
+            echo "SHA256SUMS published to ${release}"
+          fi
+          echo "sha256=${sha}" >> "$GITHUB_OUTPUT"
+          echo "mesa ${tarball}: ${sha} (resolved at build time)"
+
+  scan:
+    name: Security gate (Trivy on the release image)
+    needs: resolve
+    if: needs.resolve.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out the verified tag
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.tag }}
+
+      - name: Set up QEMU (multi-arch emulation)
+        uses: docker/setup-qemu-action@v4.2.0
+        with:
+          platforms: linux/arm64,linux/ppc64le,linux/s390x
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.3.0
+
+      - name: Log in to GHCR (registry cache)
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image for the security scan
+        uses: docker/build-push-action@v7.3.0
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: e2ugh-release-scan:${{ needs.resolve.outputs.version }}
+          build-args: |
+            VHE_PROFILE_CPU=epyc9965
+            VHE_PROFILE_VCPUS=192
+            VHE_PROFILE_THREADS=384
+            VHE_PROFILE_RAM_GB=1024
+            VHE_PROFILE_GPU=b200
+            VHE_PROFILE_GPUS=8
+            MESA_SHA256=${{ needs.resolve.outputs.mesasha256 }}
+          cache-from: type=registry,ref=${{ env.CACHE_IMAGE }}
+          cache-to: type=registry,ref=${{ env.CACHE_IMAGE }},mode=max
+
+      - name: Scan the release image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: e2ugh-release-scan:${{ needs.resolve.outputs.version }}
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  publish:
+    name: Publish ${{ matrix.profile }} image to GHCR (4-arch)
+    needs: [resolve, scan]
+    if: needs.resolve.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    # 330 min: the four-arch leg builds three architectures under QEMU
+    # and mesa compiles from source - the cold-cache 1.2.17 publish
+    # legs ran past the old 180-minute ceiling and were killed by the
+    # timeout (a timed-out job reports conclusion "cancelled", which
+    # is what the 1.2.17 publish run shows). 5.5h stays under the 6h
+    # hosted-runner job cap with headroom for mirror races; the warm
+    # registry cache completes the legs in ~10-25 min per profile.
+    timeout-minutes: 330
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # All three profiles ship all four architectures; each carries a
+        # single version tag (max -> :<version>, balanced/lite carry the
+        # profile suffix). One tag per version, no rolling aliases.
+        include:
+          - profile: max
+            platforms: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x
+            profilecpu: epyc9965
+            profilevcpus: 192
+            profilethreads: 384
+            profileram: 1024
+            profilegpu: b200
+            profilegpus: 8
+            expectcpu: EPYC 9965
+          - profile: balanced
+            platforms: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x
+            profilecpu: threadripperpro9995wx
+            profilevcpus: 96
+            profilethreads: 192
+            profileram: 512
+            profilegpu: b200
+            profilegpus: 2
+            expectcpu: 9995WX
+          - profile: lite
+            platforms: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x
+            profilecpu: ryzen9950x3d
+            profilevcpus: 16
+            profilethreads: 32
+            profileram: 128
+            profilegpu: rtx5090
+            profilegpus: 1
+            expectcpu: 9950X3D
+    steps:
+      - name: Check out the verified tag
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.tag }}
+
+      - name: Set up QEMU (multi-arch emulation)
+        uses: docker/setup-qemu-action@v4.2.0
+        with:
+          platforms: linux/arm64,linux/ppc64le,linux/s390x
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.3.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve the single version tag
+        id: meta
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository }}
+          PROFILE: ${{ matrix.profile }}
+        run: |
+          set -euo pipefail
+          img="${IMAGE,,}"
+          ver="${VERSION}"
+          suffix=""
+          if [ "${PROFILE}" != "max" ]; then suffix="-${PROFILE}"; fi
+          # ONE tag per version: the version itself (with the profile suffix
+          # for balanced/lite). No latest, no major.minor, no rolling alias.
+          echo "tag=${img}:${ver}${suffix}" >> "$GITHUB_OUTPUT"
+          echo "resolved tag: ${img}:${ver}${suffix}"
+
+      - name: Build and push the multi-arch image
+        uses: docker/build-push-action@v7.3.0
+        with:
+          context: .
+          file: ./Dockerfile
+          target: runtime
+          platforms: ${{ matrix.platforms }}
+          push: true
+          tags: ${{ steps.meta.outputs.tag }}
+          build-args: |
+            VHE_PROFILE_CPU=${{ matrix.profilecpu }}
+            VHE_PROFILE_VCPUS=${{ matrix.profilevcpus }}
+            VHE_PROFILE_THREADS=${{ matrix.profilethreads }}
+            VHE_PROFILE_RAM_GB=${{ matrix.profileram }}
+            VHE_PROFILE_GPU=${{ matrix.profilegpu }}
+            VHE_PROFILE_GPUS=${{ matrix.profilegpus }}
+            MESA_SHA256=${{ needs.resolve.outputs.mesasha256 }}
+          labels: |
+            org.opencontainers.image.title=saddle grand-merge vhe (e2ugh virtual hardware engine)
+            org.opencontainers.image.description=100 percent software virtual hardware engine (${{ matrix.profile }} profile)
+            org.opencontainers.image.version=${{ needs.resolve.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=registry,ref=${{ env.CACHE_IMAGE }}
+          cache-to: type=registry,ref=${{ env.CACHE_IMAGE }},mode=max
+          provenance: mode=max
+          sbom: true
+
+  verify:
+    name: Verify published image (${{ matrix.profile }})
+    needs: [resolve, publish]
+    if: needs.resolve.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: max
+            suffix: ""
+            expectcpu: EPYC 9965
+          - profile: balanced
+            suffix: "-balanced"
+            expectcpu: 9995WX
+          - profile: lite
+            suffix: "-lite"
+            expectcpu: 9950X3D
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Inspect index and smoke test the spoofing layer
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+          SUFFIX: ${{ matrix.suffix }}
+          EXPECTCPU: ${{ matrix.expectcpu }}
+          PROFILE: ${{ matrix.profile }}
+        run: |
+          set -euo pipefail
+          image_ref="${IMAGE,,}:${VERSION}${SUFFIX}"
+          # Every published profile index must carry the four-arch
+          # registry surface: amd64, arm64, ppc64le and s390x.
+          echo "inspecting ${image_ref}"
+          docker buildx imagetools inspect --raw "${image_ref}" | jq -e '
+            [
+              .manifests[]
+              | select(.platform.os == "linux")
+              | .platform.architecture
+            ]
+            | sort
+            | . == ["amd64", "arm64", "ppc64le", "s390x"]
+          '
+          docker pull --quiet --platform linux/amd64 "${image_ref}"
+          actual_version="$(docker image inspect "${image_ref}" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')"
+          test "${actual_version}" = "${VERSION}"
+          cpuinfo="$(docker run --rm --platform linux/amd64 \
+            --memory-swap=-1 --shm-size=2g "${image_ref}" \
+            bash -lc 'grep -m1 "model name" /proc/cpuinfo')"
+          echo "${cpuinfo}"
+          grep -q "${EXPECTCPU}" <<< "${cpuinfo}"
+          echo "published ${image_ref} verified: 4-arch index (${PROFILE}), version label ${VERSION}, spoofing layer active (${EXPECTCPU})"
+
+  cleanup:
+    name: Clean this run's caches
+    needs: [validate]
+    if: always() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Delete the caches this pipeline created
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          deleted=0
+          while IFS=$'\t' read -r cache_id cache_key; do
+            test -n "$cache_id" || continue
+            if gh api --method DELETE "repos/${GH_REPO}/actions/caches/${cache_id}" 2>/dev/null; then
+              deleted=$((deleted + 1))
+              echo "deleted cache id=${cache_id} key=${cache_key}"
+            fi
+          done < <(gh api --paginate "repos/${GH_REPO}/actions/caches?per_page=100" --jq '.actions_caches[] | select(.key | startswith("buildkit")) | [.id, .key] | @tsv')
+          echo "cleanup: deleted ${deleted} buildkit gha caches."

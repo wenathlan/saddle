@@ -8,9 +8,50 @@
 
 	  ## [Unreleased]
 
-	    - Future changes will be recorded here after the 1.8.19 release.
+	    - Future changes will be recorded here after the 2.0.0 release.
 
-	  ## [1.8.19] - 2026-08-26
+	  ## [2.0.0] - 2026-09-05 — the grand merge: e2ugh joins saddle
+
+  - **The grand merge.** The e2ugh repository (private, v1.2.20 — the one
+    container file era) merges into saddle as the virtual-hardware engine
+    of the storage/compute engine. Every file, feature and document of
+    e2ugh lands in this repository: fifteen root engine modules, the
+    static console and self-hosted API at web/sandbox, the hardware
+    catalogs and config envelopes as package exports, the native sources
+    (virtualhardware.c, gpumonitor.cpp, virtualizationcore.cpp), the
+    python bridge (qemubridge.py), the Java/C#/Ruby/Maven envelopes and
+    the full documentation set (docs/e2ugh-engine.md,
+    docs/e2ugh-changelog.md, nine engineering documents under docs/).
+  - **The flat consolidation.** Twenty-two nested logic folders fold into
+    seventeen root-level domain files (the e2ugh family standard: one
+    optimized TypeScript file per correlated domain, ordinal sections,
+    JSDoc on every block). The legacy WebScrape toolkit generation
+    consolidates into webscrape.ts with lazy optional runtimes. The
+    public barrel and the engine root stay free of npm dependencies.
+  - **The one container file.** The merged Dockerfile carries both
+    container surfaces: the five vhe stages of e2ugh (builder,
+    python-bridge, qemu, qemu-runtime, runtime — published through the
+    publish ghcr vhe workflow across three profiles and four
+    architectures) and the saddle node-engine stages (saddle-build,
+    saddle-runtime — the publish ghcr and compose pipelines build
+    `--target saddle-runtime`).
+  - **The interface tree.** The multiplatform interface consolidates
+    inside web/: the React app, the capacitor shells (web/android,
+    web/ios), the tauri shell (web/desktop), the browser-extension
+    assets (web/extension) and the e2ugh console (web/sandbox). All
+    logic files stay at the repository root.
+  - **Registry envelopes.** The maven publish pipeline deploys both
+    artifacts (io.wenathlan:saddle and the io.github.wenathlan:e2ugh
+    carrier preserved as e2ugh.pom.xml); the nuget and rubygems
+    envelopes carry both lineages at 2.0.0.
+  - **Workflows.** The publish ghcr vhe pipeline (three profiles × four
+    architectures, QEMU legs with the 330-minute ceiling) and the
+    security policy gate join the workflow set; the composite actions
+    return to their referenced paths (.github/actions/) repairing the
+    latent reference breakage of the b7c7de8 move; the dependabot
+    configuration covers all eight ecosystems of the merged repository.
+
+  ## [1.8.19] - 2026-08-26
 
 	    - Reorganized the TypeScript-first library into twenty correlated domains behind a transport-neutral public router.
 	    - Consolidated foundation nouns, runtime execution state, API protocols and webhooks, MCP adapters, automation contracts, delivery planning and mode profiles while preserving package subpaths.

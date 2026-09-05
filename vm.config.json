@@ -1,0 +1,1910 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "meta": {
+    "name": "vm.config.json",
+    "title": "e2ugh v6 - VM Profiles and Orchestrator Configuration (canonical schema)",
+    "version": "2.0.0",
+    "date": "2026-08-22",
+    "language": "en",
+    "description": "22 VM profiles consumed by the VHE orchestrator. Each profile binds a CPU identity (cpu.json), core count (cores.json), board (boards.json), GPU profile (gpu.json) and runtime (qemu.json, docker.json, mesa.json). Accel policy: KVM preferred when /dev/kvm exists, TCG multi-thread fallback on GitHub-hosted runners (see passage.json).",
+    "sources": [
+      "https://www.qemu.org/docs/master/system/invocation.html",
+      "https://www.qemu.org/docs/master/system/i386/microvm.html",
+      "https://docs.docker.com/reference/cli/docker/container/run/",
+      "https://docs.mesa3d.org/envvars.html",
+      "pool:vm.config [S6 TOML contract, 48 sections]",
+      "pool:vm.config.toml [OMNI production example]",
+      "pool:nested_vm.config.json [hypervisors + orchestration]",
+      "pool:firecracker.json (subset of nested numbers)",
+      "pool:vm.config [SADDLE v5 INI — performance/migration/network named defaults — UNIQUE]",
+      "pool:vm.config.toml [OmniHyperCore v5 — nominal qemu feature flags + sched_alt — UNIQUE]"
+    ],
+    "mergeReport": {
+      "v5Profiles": 22,
+      "s6CpuPresets": 7,
+      "s6MemoryPresets": 8,
+      "networkModes": 6,
+      "gpuDevicesProduction": 3,
+      "hypervisors": ["firecracker", "cloud_hypervisor", "kata_containers", "gvisor"],
+      "maxVmsPerHost": 3000,
+      "conflictResolution": "3 schemas fused into 1 canonical JSON: v5 JSON profiles (base) + S6 TOML contract (odd presets 1/13/37/137, pinning, personalization.matrix) + OMNI TOML production example (zero-trust/overlay_vxlan/latency_optimization network modes, EEVDF+BORE+sched_ext, Looking Glass B7, romfile+SR-IOV GPUs). qemu 11.1.0 -> 11.1.0; firecracker 1.16.1 -> 1.16.1; buildx/compose -> 0.36.1/5.5.0; MTTCG single reference to qemu.config + mttg.config.",
+      "legacyPinsKeptForProvenance": ["vm.config S6 meta stack", "nested firecracker 1.9.0 note"],
+      "pinPatch": "embedded active config values re-pinned date-first 2026-08-22 (9.1.2->11.1.0, 27.3.1->29.7.2, 22.12.3->24.19.0, 5.6.3->7.0.2, 25.2.7->26.2.1, 19.1.7->22.1.8, 1.9.0->1.16.1, libvirt 10.10.0->12.5.0, checkout v4.2.2->v5); originals preserved under *_legacy*/source_value keys"
+    }
+  },
+  "orchestratorDefaults": {
+    "accelPolicy": {
+      "preferred": "kvm",
+      "fallback": "tcg,thread=multi",
+      "ciDefault": "tcg,thread=multi",
+      "detection": "test -e /dev/kvm (passage.json kvm section)"
+    },
+    "machineDefault": "q35",
+    "diskFormatDefault": "qcow2",
+    "networkDefault": {
+      "device": "virtio-net",
+      "backend": "user (slirp)",
+      "hostfwdExample": "hostfwd=tcp::2222-:22"
+    },
+    "firmwareDefault": "direct kernel boot (-kernel/-initrd/-append) for speed; OVMF only when UEFI is required",
+    "displayDefault": "none; headless via Xvfb :99 when GL is required (mesa.json)",
+    "tbSizeDefaultMib": 1024,
+    "profileCount": 22
+  },
+  "profiles": [
+    {
+      "id": "dev",
+      "name": "General development sandbox",
+      "category": "dev",
+      "cpu": {
+        "identity": "core-ultra-9-285k",
+        "vcpus": 4,
+        "smp": "-smp 4,sockets=1,cores=4,threads=1"
+      },
+      "ramGb": 8,
+      "gpu": {
+        "profile": "llvmpipe",
+        "count": 0,
+        "vramGb": 0
+      },
+      "disk": {
+        "sizeGb": 32,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 2
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi"
+      },
+      "machine": "q35",
+      "os": "debian-12 / ubuntu-24.04 cloud image",
+      "lifecycle": {
+        "timeoutS": 3600,
+        "snapshot": true,
+        "ephemeral": true,
+        "bootTargetMs": 4000
+      },
+      "tags": ["default", "fast-boot", "cheap"]
+    },
+    {
+      "id": "dev-large",
+      "name": "Heavy development sandbox",
+      "category": "dev",
+      "cpu": {
+        "identity": "ryzen-9-9950x3d",
+        "vcpus": 8,
+        "smp": "-smp 8,sockets=1,cores=4,threads=2"
+      },
+      "ramGb": 16,
+      "gpu": {
+        "profile": "llvmpipe",
+        "count": 0,
+        "vramGb": 0
+      },
+      "disk": {
+        "sizeGb": 64,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 4
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi"
+      },
+      "machine": "q35",
+      "os": "ubuntu-24.04",
+      "lifecycle": {
+        "timeoutS": 7200,
+        "snapshot": true,
+        "ephemeral": true,
+        "bootTargetMs": 5000
+      },
+      "tags": ["dev", "medium"]
+    },
+    {
+      "id": "build",
+      "name": "Parallel build node",
+      "category": "build",
+      "cpu": {
+        "identity": "ryzen-9-9950x3d",
+        "vcpus": 16,
+        "smp": "-smp 16,sockets=1,cores=8,threads=2"
+      },
+      "ramGb": 32,
+      "gpu": {
+        "profile": "none",
+        "count": 0,
+        "vramGb": 0
+      },
+      "disk": {
+        "sizeGb": 128,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 20
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=1024"
+      },
+      "machine": "q35",
+      "os": "ubuntu-24.04 + build-essential",
+      "lifecycle": {
+        "timeoutS": 10800,
+        "snapshot": true,
+        "ephemeral": true,
+        "bootTargetMs": 8000
+      },
+      "tags": ["build", "make", "tb-size-1024"]
+    },
+    {
+      "id": "build-large",
+      "name": "Large build node (LLVM/kernel-class builds)",
+      "category": "build",
+      "cpu": {
+        "identity": "threadripper-pro-9995wx",
+        "vcpus": 32,
+        "smp": "-smp 32,sockets=1,cores=16,threads=2"
+      },
+      "ramGb": 64,
+      "gpu": {
+        "profile": "none",
+        "count": 0,
+        "vramGb": 0
+      },
+      "disk": {
+        "sizeGb": 256,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 20
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=1024"
+      },
+      "machine": "q35",
+      "os": "ubuntu-24.04",
+      "lifecycle": {
+        "timeoutS": 14400,
+        "snapshot": true,
+        "ephemeral": true,
+        "bootTargetMs": 12000
+      },
+      "tags": ["build", "llvm", "kernel"]
+    },
+    {
+      "id": "buildfarm",
+      "name": "Buildfarm runner",
+      "category": "build",
+      "cpu": {
+        "identity": "threadripper-7980x",
+        "vcpus": 64,
+        "smp": "-smp 64,sockets=1,cores=32,threads=2"
+      },
+      "ramGb": 128,
+      "gpu": {
+        "profile": "none",
+        "count": 0,
+        "vramGb": 0
+      },
+      "disk": {
+        "sizeGb": 256,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 20
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net",
+        "mtu": 1500
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=1024"
+      },
+      "machine": "q35",
+      "os": "ubuntu-24.04",
+      "lifecycle": {
+        "timeoutS": 21600,
+        "snapshot": false,
+        "ephemeral": true,
+        "bootTargetMs": 15000
+      },
+      "tags": ["buildfarm", "distributed"]
+    },
+    {
+      "id": "buildfarm-max",
+      "name": "Maximum-density buildfarm node (EPYC 9965 identity)",
+      "category": "build",
+      "cpu": {
+        "identity": "epyc-9965",
+        "vcpus": 192,
+        "smp": "-smp 192,sockets=1,cores=96,threads=2"
+      },
+      "ramGb": 512,
+      "gpu": {
+        "profile": "none",
+        "count": 0,
+        "vramGb": 0
+      },
+      "disk": {
+        "sizeGb": 512,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 20
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=1024",
+        "note": "192 host threads under MTTCG; requires large bare-metal host, TCG fallback is 10-30x slower"
+      },
+      "machine": "q35",
+      "os": "ubuntu-24.04",
+      "lifecycle": {
+        "timeoutS": 43200,
+        "snapshot": false,
+        "ephemeral": true,
+        "bootTargetMs": 60000
+      },
+      "tags": ["buildfarm", "max", "epyc-9965", "bare-metal-recommended"]
+    },
+    {
+      "id": "ai",
+      "name": "AI development sandbox (single consumer GPU)",
+      "category": "ai",
+      "cpu": {
+        "identity": "ryzen-9-9950x3d",
+        "vcpus": 16,
+        "smp": "-smp 16,sockets=1,cores=8,threads=2"
+      },
+      "ramGb": 64,
+      "gpu": {
+        "profile": "rtx-5090",
+        "count": 1,
+        "vramGb": 32
+      },
+      "disk": {
+        "sizeGb": 256,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 20
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=1024"
+      },
+      "machine": "q35",
+      "gpuRuntime": {
+        "virtual identity": "fake-nvidia-smi + NVML shim (gpu.json)",
+        "cuda": "12.9",
+        "driver": "575.57.08"
+      },
+      "os": "ubuntu-24.04 + CUDA toolkit",
+      "lifecycle": {
+        "timeoutS": 14400,
+        "snapshot": true,
+        "ephemeral": true,
+        "bootTargetMs": 15000
+      },
+      "tags": ["ai", "cuda", "pytorch"]
+    },
+    {
+      "id": "ai-training",
+      "name": "AI training node (single professional GPU)",
+      "category": "ai",
+      "cpu": {
+        "identity": "threadripper-pro-9995wx",
+        "vcpus": 32,
+        "smp": "-smp 32,sockets=1,cores=16,threads=2"
+      },
+      "ramGb": 128,
+      "gpu": {
+        "profile": "rtx-pro-6000-blackwell",
+        "count": 1,
+        "vramGb": 96
+      },
+      "disk": {
+        "sizeGb": 512,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 20
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=1024"
+      },
+      "machine": "q35",
+      "gpuRuntime": {
+        "virtual identity": "fake-nvidia-smi + NVML shim",
+        "cuda": "12.9",
+        "driver": "575.57.08"
+      },
+      "os": "ubuntu-24.04 + CUDA toolkit",
+      "lifecycle": {
+        "timeoutS": 86400,
+        "snapshot": false,
+        "ephemeral": true,
+        "bootTargetMs": 20000
+      },
+      "tags": ["ai", "training", "96gb"]
+    },
+    {
+      "id": "ai-cluster",
+      "name": "DGX-class 8-GPU cluster node (B200)",
+      "category": "ai",
+      "cpu": {
+        "identity": "epyc-9965",
+        "vcpus": 192,
+        "smp": "-smp 192,sockets=1,cores=96,threads=2"
+      },
+      "ramGb": 1024,
+      "gpu": {
+        "profile": "b200",
+        "count": 8,
+        "vramGb": 1536
+      },
+      "disk": {
+        "sizeGb": 1024,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 20
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net",
+        "extra": "nvlink virtual identity via smi-adapter nvlink section"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=1024"
+      },
+      "machine": "q35",
+      "gpuRuntime": {
+        "virtual identity": "fake-nvidia-smi (gpu_num=8) + NVML shim + GpuAdapter --devices",
+        "cuda": "12.9",
+        "driver": "575.57.08"
+      },
+      "os": "ubuntu-24.04 + CUDA toolkit + NCCL",
+      "lifecycle": {
+        "timeoutS": 86400,
+        "snapshot": false,
+        "ephemeral": true,
+        "bootTargetMs": 60000
+      },
+      "tags": ["ai", "cluster", "dgx-b200", "max"]
+    },
+    {
+      "id": "llm",
+      "name": "CPU LLM inference node (large RAM)",
+      "category": "ai",
+      "cpu": {
+        "identity": "threadripper-pro-9995wx",
+        "vcpus": 64,
+        "smp": "-smp 64,sockets=1,cores=32,threads=2"
+      },
+      "ramGb": 512,
+      "gpu": {
+        "profile": "none",
+        "count": 0,
+        "vramGb": 0
+      },
+      "disk": {
+        "sizeGb": 512,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 20
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=1024"
+      },
+      "machine": "q35",
+      "runtimeNote": "llama.cpp/vLLM CPU mode; AVX-512 identity via cpu.json zen5 flags (execution is host SSE/AVX under TCG)",
+      "os": "ubuntu-24.04",
+      "lifecycle": {
+        "timeoutS": 86400,
+        "snapshot": true,
+        "ephemeral": false,
+        "bootTargetMs": 30000
+      },
+      "tags": ["llm", "cpu-inference", "ram-heavy"]
+    },
+    {
+      "id": "llm-inference",
+      "name": "GPU LLM inference node (MI350X)",
+      "category": "ai",
+      "cpu": {
+        "identity": "epyc-9955",
+        "vcpus": 32,
+        "smp": "-smp 32,sockets=1,cores=16,threads=2"
+      },
+      "ramGb": 128,
+      "gpu": {
+        "profile": "mi350x",
+        "count": 1,
+        "vramGb": 288
+      },
+      "disk": {
+        "sizeGb": 512,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 20
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=1024"
+      },
+      "machine": "q35",
+      "gpuRuntime": {
+        "virtual identity": "virtual rocm-smi + gfx950 target",
+        "rocm": "7.x"
+      },
+      "os": "ubuntu-24.04 + ROCm",
+      "lifecycle": {
+        "timeoutS": 86400,
+        "snapshot": false,
+        "ephemeral": true,
+        "bootTargetMs": 30000
+      },
+      "tags": ["llm", "rocm", "288gb"]
+    },
+    {
+      "id": "inference-mig",
+      "name": "MIG-sliced inference node (RTX PRO 6000 Server)",
+      "category": "ai",
+      "cpu": {
+        "identity": "ryzen-9-9950x3d",
+        "vcpus": 16,
+        "smp": "-smp 16,sockets=1,cores=8,threads=2"
+      },
+      "ramGb": 64,
+      "gpu": {
+        "profile": "rtx-pro-6000-blackwell",
+        "count": 1,
+        "vramGb": 48,
+        "migProfile": "2g.48gb",
+        "migInstances": 2
+      },
+      "disk": {
+        "sizeGb": 256,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 20
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=1024"
+      },
+      "machine": "q35",
+      "gpuRuntime": {
+        "virtual identity": "fake-nvidia-smi MIG mode 1 + CUDA_VISIBLE_DEVICES=MIG-<uuid>",
+        "cuda": "12.9"
+      },
+      "os": "ubuntu-24.04 + CUDA toolkit",
+      "lifecycle": {
+        "timeoutS": 14400,
+        "snapshot": false,
+        "ephemeral": true,
+        "bootTargetMs": 15000
+      },
+      "tags": ["ai", "mig", "multi-tenant"]
+    },
+    {
+      "id": "render",
+      "name": "3D render node (Blender/Maya class)",
+      "category": "render",
+      "cpu": {
+        "identity": "threadripper-7980x",
+        "vcpus": 16,
+        "smp": "-smp 16,sockets=1,cores=8,threads=2"
+      },
+      "ramGb": 32,
+      "gpu": {
+        "profile": "rtx-5090",
+        "count": 1,
+        "vramGb": 32
+      },
+      "disk": {
+        "sizeGb": 256,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 20
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=1024"
+      },
+      "machine": "q35",
+      "display": "Xvfb :99 -ac -screen 0 1920x1080x24 +extension GLX (mesa.json)",
+      "os": "ubuntu-24.04 + Mesa 26.2.1 (llvmpipe GL 4.6 / lavapipe Vulkan 1.4)",
+      "lifecycle": {
+        "timeoutS": 14400,
+        "snapshot": true,
+        "ephemeral": true,
+        "bootTargetMs": 15000
+      },
+      "tags": ["render", "opengl", "vulkan"]
+    },
+    {
+      "id": "render-pro",
+      "name": "Studio render node (96GB VRAM)",
+      "category": "render",
+      "cpu": {
+        "identity": "threadripper-pro-9995wx",
+        "vcpus": 32,
+        "smp": "-smp 32,sockets=1,cores=16,threads=2"
+      },
+      "ramGb": 64,
+      "gpu": {
+        "profile": "rtx-pro-6000-blackwell",
+        "count": 1,
+        "vramGb": 96
+      },
+      "disk": {
+        "sizeGb": 512,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 20
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=1024"
+      },
+      "machine": "q35",
+      "display": "Xvfb :99 -ac -screen 0 3840x2160x24 +extension GLX",
+      "os": "ubuntu-24.04 + Mesa 26.2.1",
+      "lifecycle": {
+        "timeoutS": 28800,
+        "snapshot": true,
+        "ephemeral": true,
+        "bootTargetMs": 20000
+      },
+      "tags": ["render", "8k", "96gb"]
+    },
+    {
+      "id": "gaming",
+      "name": "Cloud gaming sandbox (RX 9070 XT)",
+      "category": "gaming",
+      "cpu": {
+        "identity": "ryzen-9-9950x3d",
+        "vcpus": 8,
+        "smp": "-smp 8,sockets=1,cores=4,threads=2"
+      },
+      "ramGb": 16,
+      "gpu": {
+        "profile": "rx-9070-xt",
+        "count": 1,
+        "vramGb": 16
+      },
+      "disk": {
+        "sizeGb": 128,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 4
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net",
+        "lowLatency": true
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=512"
+      },
+      "machine": "q35",
+      "display": "Xvfb :99 1920x1080x24; optional Sunshinemoonshine-style streaming",
+      "os": "ubuntu-24.04 + Mesa 26.2.1 (RADV/lavapipe virtual identity to gfx1201)",
+      "lifecycle": {
+        "timeoutS": 7200,
+        "snapshot": true,
+        "ephemeral": true,
+        "bootTargetMs": 8000
+      },
+      "tags": ["gaming", "rdna4", "1080p"]
+    },
+    {
+      "id": "gaming-max",
+      "name": "Cloud gaming sandbox (RTX 5090)",
+      "category": "gaming",
+      "cpu": {
+        "identity": "ryzen-9-9950x3d",
+        "vcpus": 16,
+        "smp": "-smp 16,sockets=1,cores=8,threads=2"
+      },
+      "ramGb": 32,
+      "gpu": {
+        "profile": "rtx-5090",
+        "count": 1,
+        "vramGb": 32
+      },
+      "disk": {
+        "sizeGb": 256,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 8
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net",
+        "lowLatency": true
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=512"
+      },
+      "machine": "q35",
+      "gpuRuntime": {
+        "virtual identity": "fake-nvidia-smi + NVML shim + GpuAdapter",
+        "cuda": "12.9",
+        "driver": "575.57.08"
+      },
+      "display": "Xvfb :99 2560x1440x24",
+      "os": "ubuntu-24.04 + Mesa 26.2.1 (GL via llvmpipe, CUDA via shim)",
+      "lifecycle": {
+        "timeoutS": 10800,
+        "snapshot": true,
+        "ephemeral": true,
+        "bootTargetMs": 10000
+      },
+      "tags": ["gaming", "1440p", "blackwell"]
+    },
+    {
+      "id": "trading",
+      "name": "Low-latency trading / quant research node",
+      "category": "trading",
+      "cpu": {
+        "identity": "ryzen-9-9950x3d",
+        "vcpus": 8,
+        "smp": "-smp 8,sockets=1,cores=4,threads=2"
+      },
+      "ramGb": 32,
+      "gpu": {
+        "profile": "h100",
+        "count": 1,
+        "vramGb": 80
+      },
+      "disk": {
+        "sizeGb": 128,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 8
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net",
+        "note": "pin vCPU threads to host cores; avoid -icount (mttcg.json)"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=512"
+      },
+      "machine": "q35",
+      "gpuRuntime": {
+        "virtual identity": "fake-nvidia-smi h100 profile (81559 MiB / 700 W)",
+        "cuda": "12.9",
+        "driver": "575.57.08"
+      },
+      "os": "ubuntu-24.04 minimal + pinned NUMA (CCD0 3D V-Cache affinity)",
+      "lifecycle": {
+        "timeoutS": 86400,
+        "snapshot": true,
+        "ephemeral": false,
+        "bootTargetMs": 8000
+      },
+      "tags": ["trading", "latency", "h100"]
+    },
+    {
+      "id": "mobile",
+      "name": "Mobile development sandbox (Android emulator)",
+      "category": "mobile",
+      "cpu": {
+        "identity": "core-ultra-9-285k",
+        "vcpus": 4,
+        "smp": "-smp 4,sockets=1,cores=4,threads=1"
+      },
+      "ramGb": 8,
+      "gpu": {
+        "profile": "llvmpipe",
+        "count": 0,
+        "vramGb": 0,
+        "note": "SwiftShader/ANGLE fallback inside guest for emulator rendering"
+      },
+      "disk": {
+        "sizeGb": 64,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 2
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi"
+      },
+      "machine": "q35",
+      "display": "headless emulator -no-window; Xvfb for screenshots",
+      "os": "android-sdk image / ubuntu-24.04 host of emulator",
+      "lifecycle": {
+        "timeoutS": 7200,
+        "snapshot": true,
+        "ephemeral": true,
+        "bootTargetMs": 20000
+      },
+      "tags": ["mobile", "android", "emulator"]
+    },
+    {
+      "id": "edge",
+      "name": "Edge microVM (fast boot)",
+      "category": "edge",
+      "cpu": {
+        "identity": "core-ultra-9-285k",
+        "vcpus": 2,
+        "smp": "-smp 2,sockets=1,cores=2,threads=1"
+      },
+      "ramGb": 4,
+      "gpu": {
+        "profile": "none",
+        "count": 0,
+        "vramGb": 0
+      },
+      "disk": {
+        "sizeGb": 8,
+        "format": "raw",
+        "driver": "virtio-blk (virtio-mmio under microvm)",
+        "tmpfsGb": 0
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi"
+      },
+      "machine": "microvm",
+      "qemuFlags": "-machine microvm -nodefaults -no-reboot -kernel bzImage -initrd initrd -append 'console=ttyS0 reboot=t panic=-1'",
+      "os": "alpine / minimal linux (direct kernel boot)",
+      "lifecycle": {
+        "timeoutS": 1800,
+        "snapshot": false,
+        "ephemeral": true,
+        "bootTargetMs": 1000
+      },
+      "tags": ["edge", "microvm", "fast-boot"]
+    },
+    {
+      "id": "edge-tiny",
+      "name": "Tiny edge microVM (1 vCPU)",
+      "category": "edge",
+      "cpu": {
+        "identity": "core-ultra-9-285k",
+        "vcpus": 1,
+        "smp": "-smp 1,sockets=1,cores=1,threads=1"
+      },
+      "ramGb": 2,
+      "gpu": {
+        "profile": "none",
+        "count": 0,
+        "vramGb": 0
+      },
+      "disk": {
+        "sizeGb": 4,
+        "format": "raw",
+        "driver": "virtio-blk (virtio-mmio)",
+        "tmpfsGb": 0
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg"
+      },
+      "machine": "microvm",
+      "os": "alpine (direct kernel boot)",
+      "lifecycle": {
+        "timeoutS": 900,
+        "snapshot": false,
+        "ephemeral": true,
+        "bootTargetMs": 600
+      },
+      "tags": ["edge", "tiny", "firecracker-class"],
+      "note": "Firecracker 1.16.1 equivalent (125 ms cold boot) requires KVM; on GH-hosted runners this profile uses QEMU microvm+TCG"
+    },
+    {
+      "id": "database",
+      "name": "Database / stateful node",
+      "category": "data",
+      "cpu": {
+        "identity": "epyc-9955",
+        "vcpus": 16,
+        "smp": "-smp 16,sockets=1,cores=8,threads=2"
+      },
+      "ramGb": 128,
+      "gpu": {
+        "profile": "none",
+        "count": 0,
+        "vramGb": 0
+      },
+      "disk": {
+        "sizeGb": 512,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "cache": "writeback",
+        "tmpfsGb": 0
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi,tb-size=512"
+      },
+      "machine": "q35",
+      "memoryBackend": "memory-backend-ram with pc-dimm slots for hotplug (passage.json)",
+      "os": "debian-12 + postgres-17",
+      "lifecycle": {
+        "timeoutS": 86400,
+        "snapshot": true,
+        "ephemeral": false,
+        "bootTargetMs": 20000
+      },
+      "tags": ["database", "stateful", "ram-heavy"]
+    },
+    {
+      "id": "e2e-browser",
+      "name": "Browser E2E test runner (headless Chromium/Playwright)",
+      "category": "ci",
+      "cpu": {
+        "identity": "core-ultra-9-285k",
+        "vcpus": 8,
+        "smp": "-smp 8,sockets=1,cores=8,threads=1"
+      },
+      "ramGb": 16,
+      "gpu": {
+        "profile": "llvmpipe",
+        "count": 0,
+        "vramGb": 0
+      },
+      "disk": {
+        "sizeGb": 64,
+        "format": "qcow2",
+        "driver": "virtio-blk",
+        "tmpfsGb": 8
+      },
+      "network": {
+        "mode": "user",
+        "device": "virtio-net"
+      },
+      "accel": {
+        "preferred": "kvm",
+        "fallback": "tcg,thread=multi"
+      },
+      "machine": "q35",
+      "display": "Xvfb :99 -ac -screen 0 1920x1080x24 +extension GLX +render -noreset; LIBGL_ALWAYS_SOFTWARE=true",
+      "os": "ubuntu-24.04 + node 24.19.0 LTS",
+      "lifecycle": {
+        "timeoutS": 3600,
+        "snapshot": true,
+        "ephemeral": true,
+        "bootTargetMs": 10000
+      },
+      "tags": ["ci", "browser", "playwright"]
+    }
+  ],
+  "profileIndex": {
+    "byCategory": {
+      "dev": ["dev", "dev-large"],
+      "build": ["build", "build-large", "buildfarm", "buildfarm-max"],
+      "ai": ["ai", "ai-training", "ai-cluster", "llm", "llm-inference", "inference-mig"],
+      "render": ["render", "render-pro"],
+      "gaming": ["gaming", "gaming-max"],
+      "trading": ["trading"],
+      "mobile": ["mobile"],
+      "edge": ["edge", "edge-tiny"],
+      "data": ["database"],
+      "ci": ["e2e-browser"]
+    },
+    "maxVcpus": 192,
+    "maxRamGb": 1024,
+    "maxVramGb": 1536,
+    "migVramSlicesGb": [24, 48, 96]
+  },
+  "cpuPresets": {
+    "tiny1": {
+      "vcpu": 1,
+      "topology": "1x1x1x1",
+      "ramMb": 512,
+      "note": "Observer reports 1 vCPU / 512 MiB minimal CI, GitHub Actions checkout@v7.0.1 compatible, setup-node@v7.0.0 44px button ready",
+      "useCase": "ci-smoke"
+    },
+    "odd13": {
+      "vcpu": 13,
+      "topology": "1x1x13x1",
+      "note": "Prime 13 validates modular step=1, exposes scheduler imbalance detection",
+      "useCase": "scheduler-fuzzer"
+    },
+    "odd37": {
+      "vcpu": 37,
+      "topology": "1x1x37x1",
+      "numaNodes": 1,
+      "note": "Prime 37 for qemu 11.1.0 max_cpus handling validation",
+      "useCase": "topology-edge"
+    },
+    "odd137": {
+      "vcpu": 137,
+      "topology": "1x1x137x1",
+      "numaNodes": 2,
+      "note": "Large prime 137 requires 2 NUMA nodes, tests hmatEnabled + distance 22",
+      "useCase": "large-prime-numa"
+    },
+    "workstation192": {
+      "vcpu": 192,
+      "topology": "2x1x48x2",
+      "numaNodes": 2,
+      "ramMb": 262144,
+      "note": "2 socket x 48 cores x 2 threads maps to EPYC 9654 96C192T host for feeding 8x NVIDIA B200 Blackwell",
+      "useCase": "ml-dataloader"
+    },
+    "hyperscale1024": {
+      "vcpu": 1024,
+      "topology": "8x2x64x1",
+      "numaNodes": 8,
+      "ramMb": 2097152,
+      "note": "1024 vCPU requires OVMF 2025.08 + qemu 11.1.0 -machine q35,hmat=on, host 2TB+ RAM, observer flags error catcher on boot",
+      "useCase": "hyperscale-db"
+    },
+    "creatorX3D": {
+      "vcpu": 32,
+      "topology": "1x1x16x2",
+      "note": "1:1 mapping Ryzen 9 9950X3D 16C32T, topoext flag on, 44px ui orchestration",
+      "useCase": "creator"
+    }
+  },
+  "cpuTopologyPinning": {
+    "mode": "modular-unlimited",
+    "description": "Third person observer reports unlimited modular vCPU topology",
+    "min": 1,
+    "max": 4096,
+    "step": 1,
+    "default": 32,
+    "baseline": 16,
+    "overcommitRatio": 4.5,
+    "examples": [1, 13, 37, 137, 192, 1024],
+    "extremeExamples": [
+      1, 2, 3, 7, 13, 19, 23, 37, 73, 127, 137, 192, 256, 384, 512, 768, 1024, 2048, 4096
+    ],
+    "validator": "value % step == 0 && min <= value && value <= max",
+    "schedulerClass": "sched_ext",
+    "cpuWeight": 1024,
+    "topology": {
+      "sockets": 2,
+      "diesPerSocket": 1,
+      "coresPerDie": 16,
+      "threadsPerCore": 2,
+      "hotplug": true,
+      "hotplugMaxAdditional": 4032,
+      "hotplugStrategy": "numa-interleaved",
+      "cpuModel": "host",
+      "enableMigratable": false
+    },
+    "pinning": {
+      "enabled": true,
+      "strategy": "numa-aware",
+      "isolateHostCores": "auto",
+      "emulatorPin": "0-1",
+      "iothreadPin": "2-3",
+      "vcpuPinMap": [],
+      "pinGenerationAlgorithm": "modulo-numa"
+    },
+    "numa": {
+      "enabled": true,
+      "nodes": 2,
+      "autoBalance": true,
+      "distances": [[10, 22], [22, 10]],
+      "memdevPerNode": true,
+      "cpuPerNodePolicy": "bind",
+      "hmatEnabled": true
+    },
+    "features": {
+      "flags": "+topoext,+svm,+invtsc,+avx512bw,+amx-bf16,+host-phys-bits:true,+ssbd",
+      "hiddenKvm": false,
+      "hypervEnlightenments": true,
+      "svmNestedVirtualization": true,
+      "migratableModel": false,
+      "kvm64Baseline": false
+    }
+  },
+  "memoryPresets": {
+    "ref": "memory.json#ram_presets",
+    "presets": {
+      "tiny512": {
+        "ramMb": 512,
+        "hugepages": "none",
+        "note": "512 MiB alpine boot, observer measures <2s BIOS time",
+        "useCase": "alpine-tiny"
+      },
+      "odd7919": {
+        "ramMb": 7919,
+        "note": "Prime MiB 7919 validates 1 MiB step, passage bridge handles non-aligned size",
+        "useCase": "prime-mem-test"
+      },
+      "odd1337": {
+        "ramMb": 1337,
+        "note": "Leet 1337 MiB odd custom, used for v6 documentation screenshot 44px card",
+        "useCase": "custom-odd"
+      },
+      "standard64g": {
+        "ramMb": 65536,
+        "hugepageSize": "2MiB",
+        "note": "64GiB standard, 2MiB hugepages auto",
+        "useCase": "standard"
+      },
+      "creator128g": {
+        "ramMb": 131072,
+        "hugepageSize": "1GiB",
+        "locked": false,
+        "note": "128GiB creator WS, 1GiB hugepages reduces TLB pressure for video encode",
+        "useCase": "creator"
+      },
+      "ml256g": {
+        "ramMb": 262144,
+        "hugepageSize": "1GiB",
+        "locked": true,
+        "prealloc": true,
+        "note": "256GiB for 8x B200 Blackwell dataloader, locked + prealloc low latency",
+        "useCase": "ml-training"
+      },
+      "database2t": {
+        "ramMb": 2097152,
+        "hugepages": "1GiB",
+        "locked": true,
+        "prealloc": true,
+        "note": "2TiB in-memory DB, requires host with 1G hugepages + OVMF secure, observer error catcher triggers on NVDIMM failure",
+        "useCase": "in-memory-db"
+      },
+      "max4t": {
+        "ramMb": 4194304,
+        "hugepages": "1GiB",
+        "numaNodes": 8,
+        "tieredEnabled": true,
+        "note": "SADDLE v6 absolute max 4TiB, 8 NUMA nodes, CXL tier enabled, QEMU 11.1.0 host limit",
+        "useCase": "max-capacity"
+      }
+    }
+  },
+  "hypervisors": {
+    "firecracker": {
+      "binary": "/usr/bin/firecracker",
+      "version": "1.16.1",
+      "bootTimeMs": 125,
+      "bootPerSecond": 150,
+      "restoreMs": 5,
+      "memoryOverheadMib": 4.8,
+      "warmPool": {
+        "enabled": true,
+        "size": 8,
+        "restoreLatencyMs": "3-5",
+        "preboot": true,
+        "snapshotType": "full+diff",
+        "vsockPort": 52
+      },
+      "kernel": "vmlinux-5.10.223-fc",
+      "rootfs": "ubuntu-24.04.ext4",
+      "jailer": true,
+      "seccompLevel": 2,
+      "apiSocket": "/tmp/fc-${id}.sock",
+      "legacyPinSource": "1.9.0 (nested_vm.config.json) re-pinned to 1.16.1 per date-first doctrine 2026-08-22"
+    },
+    "cloudHypervisor": {
+      "version": "44.0",
+      "binary": "cloud-hypervisor",
+      "vfio": true,
+      "iommufd": true,
+      "vhostUserNet": true,
+      "vhostUserFs": true,
+      "memHotplug": true,
+      "cpuHotplug": true,
+      "bootMs": 180,
+      "deviceTree": false
+    },
+    "kataContainers": {
+      "version": "3.12.0",
+      "runtime": "kata-qemu-virtiofs",
+      "hypervisor": "qemu",
+      "sharedFs": "virtiofsd",
+      "isolation": "vm",
+      "kernelPath": "/opt/kata/share/kata-containers/vmlinux.container"
+    },
+    "gvisor": {
+      "runtime": "runsc",
+      "version": "20250428.0",
+      "platform": "kvm",
+      "network": "host",
+      "fileAccess": "exclusive",
+      "overlay": true
+    }
+  },
+  "orchestration": {
+    "maxVmsPerHost": 3000,
+    "overcommit": "2x"
+  },
+  "productionExample": {
+    "description": "OMNI production VM: 16 vCPU DiamondRapids, 64G, RTX4090 + RX9070XT + Intel UHD SR-IOV passthrough",
+    "meta": {
+      "id": "omni-vm-prod-001",
+      "name": "omni-hypercore-v5-primary",
+      "version": "5.0.0",
+      "generated": "2026-08-22T00:00:00Z",
+      "qemuVersion": "11.1.0",
+      "qemuCommits": 3200,
+      "qemuBranch": "master",
+      "dockerVersion": "29.7.2",
+      "dockerBuildx": "0.36.0",
+      "dockerCompose": "5.3.0",
+      "kernelStable": "7.1.9",
+      "kernelLts": "6.18.45",
+      "libvirtVersion": "12.5.0",
+      "nodeLts": "24.19.0",
+      "nodeCurrent": "26.7.0",
+      "typescript": "7.0.2",
+      "runnerVersion": "2.336.0",
+      "checkoutAction": "v6",
+      "setupNodeAction": "v6",
+      "license": "MIT",
+      "schemaUrl": "https://omni-hypercore.dev/schemas/vm.config.json"
+    },
+    "vm": {
+      "id": "omni-vm-prod-001",
+      "type": "kvm",
+      "hypervisor": "qemu-kvm",
+      "machine": "q35-9.2",
+      "machineOptions": "smm=on,accel=kvm,kernel-irqchip=split",
+      "accel": "kvm:nitro",
+      "accelOptions": "nitro-trust=on,split-irqchip=on",
+      "bios": "OVMF",
+      "ovmfCode": "/usr/share/OVMF/OVMF_CODE_4M.secboot.fd",
+      "ovmfVars": "/usr/share/OVMF/OVMF_VARS_4M.secboot.fd",
+      "ovmfVarsTemplate": "/usr/share/OVMF/OVMF_VARS_4M.secboot.fd",
+      "ovmfBuild": "202605",
+      "ovmfBuildVersion": "edk2-stable202605",
+      "secureBoot": true,
+      "smm": true,
+      "tpmVersion": "2.0",
+      "tpmBackend": "swtpm",
+      "tpmPath": "/var/lib/omni/tpm/omni-vm-prod-001/swtpm.sock",
+      "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "bootOrder": "n",
+      "bootMenu": false,
+      "rebootTimeout": 5000,
+      "cpu": {
+        "model": "DiamondRapids",
+        "vendor": "Intel",
+        "family": "Diamond Rapids",
+        "arch": "x86_64-v4",
+        "vcpus": 16,
+        "sockets": 1,
+        "dies": 1,
+        "cores": 8,
+        "threads": 2,
+        "topology": {
+          "sockets": 1,
+          "dies": 1,
+          "cores": 8,
+          "threads": 2
+        },
+        "maxVcpus": 32,
+        "hotplug": true,
+        "hostPassthrough": false,
+        "kvmHints": "kvm=on,hypervisor=on,hv_spinlocks=0x1fff,hv_vapic,hv_time",
+        "features": [
+          "pdpe1gb",
+          "lahf_lm",
+          "svm",
+          "vmx",
+          "aes",
+          "avx2",
+          "avx512f",
+          "avx512bw",
+          "avx512vl",
+          "amx-bf16",
+          "amx-tile",
+          "amx-int8"
+        ],
+        "migratable": true,
+        "l3CacheEmulation": true
+      },
+      "memory": {
+        "total": "64G",
+        "sizeMib": 65536,
+        "unit": "MiB",
+        "hugepagesMode": "1G",
+        "hugepagesPath": "/dev/hugepages",
+        "hugepagesSize": "1G",
+        "hugepagesCount": 64,
+        "hugepagesMountOptions": "pagesize=1G,size=64G",
+        "prealloc": true,
+        "share": true,
+        "shareMode": "memfd",
+        "backend": "memory-backend-memfd",
+        "spMem": true,
+        "spMemBackend": "memory-backend-memfd",
+        "spMemOptions": "hugetlb=on,hugetlbsize=1G,prealloc=on,share=on",
+        "balloon": false,
+        "merge": false,
+        "nvdimm": false,
+        "dumpGuestCore": false
+      },
+      "storage": {
+        "driver": "nvme",
+        "scsiController": "virtio-scsi-pci",
+        "scsiQueues": 8,
+        "cache": "none",
+        "io": "io_uring",
+        "discard": "unmap",
+        "detectZeroes": "unmap",
+        "nvmeHotplugQmp": true,
+        "bootOrderNvme": true,
+        "disks": [
+          {
+            "name": "boot",
+            "type": "nvme",
+            "path": "/var/lib/omni/vms/omni-vm-prod-001/boot.qcow2",
+            "format": "qcow2",
+            "size": "120G",
+            "bootindex": 0,
+            "serial": "OMNI-BOOT-001",
+            "queues": 8,
+            "queueDepth": 128,
+            "cache": "none",
+            "io": "io_uring",
+            "discard": "unmap"
+          },
+          {
+            "name": "data",
+            "type": "nvme",
+            "path": "/var/lib/omni/vms/omni-vm-prod-001/data.qcow2",
+            "format": "qcow2",
+            "size": "1T",
+            "bootindex": 1,
+            "serial": "OMNI-DATA-001",
+            "queues": 8,
+            "queueDepth": 256,
+            "cache": "none",
+            "io": "io_uring"
+          }
+        ]
+      },
+      "qemu": {
+        "version": "11.1.0",
+        "commits": 3200,
+        "binary": "/usr/bin/qemu-system-x86_64",
+        "machine": "q35",
+        "accel": "kvm:nitro",
+        "cpuModels": ["DiamondRapids", "GraniteRapids", "EmeraldRapids", "host", "max"],
+        "features": [
+          "nvme-hotplug-qmp",
+          "sp-mem-memfd",
+          "tdx-live-update",
+          "sev-snp-reset-fix",
+          "virtio-gpu-native-context",
+          "kvm-nitro-trust",
+          "qmp-v2",
+          "io_uring-zcrx"
+        ],
+        "argsExtra": [
+          "-object",
+          "memory-backend-memfd,id=ram1,size=64G,hugetlb=on,hugetlbsize=1G,prealloc=on,share=on",
+          "-machine",
+          "memory-backend=ram1"
+        ]
+      },
+      "gpu": {
+        "passthrough": true,
+        "vfioDriver": "vfio-pci",
+        "driverctlVersion": "0.112",
+        "vendorReset": true,
+        "vendorResetVersion": "0.1.1-20260310",
+        "lookingGlass": "B7",
+        "lookingGlassVersion": "B7-6-gf6d2b7e",
+        "lookingGlassShm": "/dev/shm/looking-glass",
+        "lookingGlassSize": "32M",
+        "vramModular": true,
+        "unlimitedScaling": true,
+        "multifunction": "on",
+        "romfileEnabled": true,
+        "devices": [
+          {
+            "id": "gpu-0",
+            "name": "RTX4090",
+            "pciAddress": "0000:01:00.0",
+            "vendor": "nvidia",
+            "vendorId": "10de",
+            "deviceId": "2684",
+            "fullId": "10de:2684",
+            "subsystemId": "10de:16f7",
+            "class": "0300",
+            "className": "VGA compatible controller",
+            "driver": "vfio-pci",
+            "vram": "24G",
+            "vramModular": true,
+            "scaling": "unlimited",
+            "primary": true,
+            "multifunction": "on",
+            "romfile": "/usr/share/vgabios/rtx4090.rom",
+            "xVga": true,
+            "qemuArgs": "-device vfio-pci,host=01:00.0,multifunction=on,romfile=/usr/share/vgabios/rtx4090.rom,x-vga=on,display=off"
+          },
+          {
+            "id": "gpu-1",
+            "name": "RX9070XT",
+            "pciAddress": "0000:02:00.0",
+            "vendor": "amd",
+            "vendorId": "1002",
+            "deviceId": "744c",
+            "fullId": "1002:744c",
+            "arch": "Navi48",
+            "codename": "RX 9070 XT",
+            "driver": "vfio-pci",
+            "vram": "16G",
+            "scaling": "unlimited",
+            "multifunction": "on",
+            "qemuArgs": "-device vfio-pci,host=02:00.0,multifunction=on,display=off"
+          },
+          {
+            "id": "gpu-2",
+            "name": "Intel UHD",
+            "pciAddress": "0000:00:02.0",
+            "vendor": "intel",
+            "vendorId": "8086",
+            "deviceId": "a7a0",
+            "driver": "i915",
+            "sriov": true,
+            "vfs": 7,
+            "vfDriver": "i915",
+            "vram": "modular",
+            "vramModular": true,
+            "scaling": "unlimited",
+            "qemuArgs": "-device vfio-pci,host=00:02.0,display=on"
+          }
+        ]
+      },
+      "network": {
+        "engine": "passage",
+        "version": "5.0.0",
+        "passage": {
+          "mode": "bridge",
+          "bridgeName": "br0",
+          "interface": "virtio-net-pci",
+          "model": "virtio-net",
+          "mac": "52:54:00:ab:cd:01",
+          "mq": 8,
+          "vectors": 18,
+          "driver": "vhost=on",
+          "bridge": "br0",
+          "ebpfVersion": "libbpf 1.6.0",
+          "xdp": true,
+          "xdpDriver": "native",
+          "ioUringZcrx": true,
+          "dpdk": "26.07.0",
+          "ovs": "3.7.1",
+          "wireguard": "mainline (in-tree since 5.6)",
+          "qemuNetArgs": "-netdev tap,id=net0,ifname=tap0,br=br0,vhost=on -device virtio-net-pci,netdev=net0,mac=52:54:00:ab:cd:01,mq=on,vectors=18",
+          "modes": {
+            "direct": {
+              "enabled": true,
+              "backend": "macvtap",
+              "passthrough": true,
+              "driver": "macvtap"
+            },
+            "bridge": {
+              "enabled": true,
+              "backend": "linux-bridge",
+              "vhost": true,
+              "stp": false,
+              "mtu": 9000
+            },
+            "nat": {
+              "enabled": true,
+              "backend": "slirp",
+              "net": "10.0.2.0/24",
+              "dhcpStart": "10.0.2.15"
+            },
+            "overlayVxlan": {
+              "enabled": true,
+              "vni": 100,
+              "remote": "12.5.0.0/16",
+              "ovsBridge": "ovs-br0",
+              "ovsVersion": "3.7.1"
+            },
+            "zeroTrust": {
+              "enabled": true,
+              "wireguard": true,
+              "wireguardVersion": "kernel mainline (in-tree since 5.6)",
+              "mtls": true,
+              "ebpfPolicy": true,
+              "libbpf": "1.6.0"
+            },
+            "latencyOptimization": {
+              "enabled": true,
+              "xdpRedirect": true,
+              "busyPoll": 50,
+              "ioUring": true,
+              "zcrx": true
+            }
+          }
+        }
+      },
+      "mttg": {
+        "engine": "mttg",
+        "version": "5.0.0",
+        "cgroupVersion": "v2",
+        "cgroupPath": "/sys/fs/cgroup/omni.slice/omni-vm-prod-001",
+        "cpuWeightMin": 1,
+        "cpuWeightMax": 10000,
+        "cpuWeightDefault": 100,
+        "cpuMaxQuota": "max",
+        "cpuMaxPeriod": 100000,
+        "cpuMaxBurst": 0,
+        "cpuset": "0-15",
+        "cpusetMems": "0",
+        "memoryHigh": "60G",
+        "memoryMax": "64G",
+        "memorySwapMax": "0",
+        "ioWeight": 100,
+        "ioMax": "rbps=1073741824 wbps=1073741824 rbps=1000 wiops=1000",
+        "pidsMax": 4096,
+        "numaBalancing": true,
+        "scheduler": "EEVDF",
+        "schedulerVersion": "kernel-7.1.9-eevdf",
+        "schedulerAlt": ["BORE-6.12.15", "sched_ext-bp-1.2.0"],
+        "qosClassesList": ["guaranteed", "burstable", "besteffort", "idle"],
+        "tenants": {
+          "gold": {
+            "weight": 10000,
+            "cpuMax": "1600000 100000",
+            "memoryHigh": "60G",
+            "memoryMax": "64G",
+            "ioWeight": 1000,
+            "pidsMax": 8192,
+            "qos": "guaranteed",
+            "cpuset": "0-15"
+          },
+          "silver": {
+            "weight": 5000,
+            "cpuMax": "800000 100000",
+            "memoryHigh": "30G",
+            "memoryMax": "32G",
+            "ioWeight": 500,
+            "pidsMax": 4096,
+            "qos": "burstable",
+            "cpuset": "0-7"
+          },
+          "bronze": {
+            "weight": 100,
+            "cpuMax": "200000 100000",
+            "memoryHigh": "8G",
+            "memoryMax": "16G",
+            "ioWeight": 100,
+            "pidsMax": 1024,
+            "qos": "besteffort",
+            "cpuset": "0-3"
+          }
+        },
+        "qosClasses": {
+          "guaranteed": {
+            "cpuWeight": 10000,
+            "cpuGuarantee": "100%",
+            "memoryPolicy": "no-overcommit",
+            "ioPolicy": "high-priority",
+            "description": "Guaranteed QoS: full CPU reservation, no memory overcommit, high-priority IO"
+          },
+          "burstable": {
+            "cpuWeight": 5000,
+            "cpuGuarantee": "50%",
+            "memoryPolicy": "bounded-overcommit",
+            "ioPolicy": "normal",
+            "description": "Burstable: baseline 50% CPU with burst to 100%, bounded memory overcommit"
+          },
+          "besteffort": {
+            "cpuWeight": 100,
+            "cpuGuarantee": "0%",
+            "memoryPolicy": "overcommit",
+            "ioPolicy": "low-priority",
+            "description": "Best-effort: opportunistic scheduling, full overcommit allowed"
+          },
+          "idle": {
+            "cpuWeight": 1,
+            "cpuGuarantee": "0%",
+            "memoryPolicy": "reclaim-first",
+            "ioPolicy": "idle",
+            "description": "Idle: lowest priority, first to be reclaimed under pressure"
+          }
+        }
+      }
+    },
+    "docker": {
+      "engine": "29.7.2",
+      "buildx": "0.36.1",
+      "compose": "5.5.0",
+      "runc": "1.3.1",
+      "containerd": "2.3.4",
+      "buildkit": "0.24.0",
+      "rootless": false,
+      "cgroupDriver": "systemd",
+      "storageDriver": "overlay2",
+      "logDriver": "json-file",
+      "legacyPinsSource": {
+        "buildx": "0.36.0",
+        "compose": "5.3.0"
+      }
+    },
+    "toolchain": {
+      "nodeLts": "24.19.0",
+      "nodeCurrent": "26.7.0",
+      "typescript": "7.0.2",
+      "checkout": "v6",
+      "setupNode": "v6",
+      "setupNodeVersion": "6.2.0",
+      "checkoutVersion": "6.0.1",
+      "runner": "2.336.0",
+      "libvirt": "12.5.0",
+      "kernelStable": "7.1.9",
+      "kernelLts": "6.18.45",
+      "qemu": "11.1.0"
+    }
+  },
+  "passage": {
+    "enabled": true,
+    "configRef": "./passage.config",
+    "serviceName": "saddle-v6-vm-primary",
+    "description": "Observer reports passage as control plane for vm-to-forgе-mirror",
+    "date": "2026-08-22",
+    "version": "6.0.0",
+    "bridgeMode": "virtio-vsock",
+    "numaAwareRouting": true,
+    "balloonAwareRouting": true,
+    "bridge": {
+      "type": "virtio-vsock",
+      "cid": 3,
+      "port": 5000,
+      "maxConnections": 1024,
+      "bufferSizeKb": 8192,
+      "zeroCopy": true,
+      "fallback": "unix-socket",
+      "fallbackSocket": "/tmp/saddle-v6-vsock.sock",
+      "encryption": "none",
+      "protocolVersion": "2026.08.22",
+      "modeFolders": ["boards", "cores", "processors", "gpus", "vcpus", "vram"],
+      "forgeMirrors": ["forge-qemu", "forge-gpu", "forge-passage"],
+      "libraryFirst": true
+    },
+    "numa": {
+      "enabled": true,
+      "strategy": "bind-passage-to-numa-node",
+      "hmatSync": true,
+      "tieringMode": "dram-preferred",
+      "migrationAllowed": false,
+      "policy": "bind",
+      "observerChecksLatency": true
+    },
+    "balloon": {
+      "enabled": true,
+      "link": "vm.memory.balloon",
+      "backpressureSignal": true,
+      "signalName": "memory-pressure",
+      "thresholdPercent": 85,
+      "releaseStrategy": "deflate-on-demand",
+      "syncPeriodSec": 8,
+      "errorCatcher": true,
+      "errorCatcherCode": "E_VM_PASSAGE_BALLOON_001"
+    },
+    "health": {
+      "exposePorts": [22, 8080, 8443, 6006, 9090],
+      "healthcheckPath": "/healthz",
+      "healthcheckInterval": "12s",
+      "heartbeat": "4s",
+      "timeout": "3s",
+      "retries": 3,
+      "failurePolicy": "restart-passage-not-vm"
+    },
+    "personalization": {
+      "matrix": {
+        "allowOddPrime": true,
+        "allowNonPowerOfTwoRam": true,
+        "allowUnalignedNuma": false,
+        "allowCxlTier": true,
+        "maxCustomPresets": 50,
+        "customValidation": "js"
+      }
+    }
+  },
+  "storage": {
+    "driver": "virtio-blk",
+    "cache": "writeback",
+    "discard": "unmap",
+    "ioThread": 2,
+    "ioUring": true,
+    "disks": [
+      {
+        "id": "sys",
+        "sizeGb": 160,
+        "type": "qcow2",
+        "bus": "virtio0",
+        "iothread": 0,
+        "cache": "writeback"
+      },
+      {
+        "id": "data",
+        "sizeGb": 2048,
+        "type": "raw",
+        "bus": "virtio1",
+        "optional": true,
+        "discard": "unmap"
+      }
+    ]
+  },
+  "network": {
+    "model": "virtio-net",
+    "macPrefix": "52:54:00:6a:7e",
+    "vhost": true,
+    "queues": 4,
+    "mtu": 9000,
+    "bridge": "br0",
+    "allowOddVcpuQueues": true
+  },
+  "qemu": {
+    "configRef": "./qemu.config",
+    "version": "11.1.0",
+    "accelPreference": ["kvm", "hvf", "whpx", "tcg"],
+    "argsAppend": ["-cpu host,host-phys-bits=true", "-machine q35,hmat=on"],
+    "overcommitCheck": true
+  },
+  "gpu": {
+    "configRef": "./gpu.config",
+    "gpusRef": "./gpus.json",
+    "vramRef": "./vram.json",
+    "blackwellRef": "./nvidiablackwell.json",
+    "ryzenRef": "./amdryzenxseries.json",
+    "passthrough": true,
+    "mdev": false
+  },
+  "docker": {
+    "configRef": "./docker.config",
+    "composeRef": "./dockercompose.yml",
+    "version": "29.7.2",
+    "runtime": "runc",
+    "cgroupParent": "saddle-v6.slice"
+  },
+  "security": {
+    "secureBoot": true,
+    "attestation": true,
+    "nativeCrypto": "node:crypto",
+    "nativeFs": "node:fs",
+    "nativeHttp": "node:http",
+    "nativePath": "node:path",
+    "disableLegacyCrypto": true
+  },
+  "observability": {
+    "metrics": true,
+    "metricsPort": 9090,
+    "pprof": true,
+    "tracing": "otel",
+    "logParser": "typescript",
+    "internalMemoryPriority": true,
+    "coreDump": false,
+    "perfEvents": ["cache-misses", "dTLB-load-misses", "KVM_EXIT"]
+  },
+  "compatibility": {
+    "modeFiles": [
+      "boards.json",
+      "cores.json",
+      "processors.json",
+      "gpus.json",
+      "vcpus.json",
+      "vram.json",
+      "amdryzenxseries.json",
+      "nvidiablackwell.json"
+    ],
+    "forgeFiles": [
+      "package.json",
+      "tsconfig.json",
+      "pyproject.toml",
+      "dockerfile",
+      "dockercompose.yml",
+      "index.ts",
+      "coreorchestrator.ts",
+      "virtualizationcore.hpp",
+      "virtualizationcore.cpp",
+      "qemubridge.py",
+      "pipelinememorypassage.ts"
+    ],
+    "rootConfigs": [
+      "vm.config",
+      "gpu.config",
+      "passage.config",
+      "qemu.config",
+      "mttg.config",
+      "docker.config"
+    ]
+  },
+  "errorhandling": {
+    "catcherEnabled": true,
+    "cardHeightPx": 44,
+    "cardStyle": "rounded-full-border",
+    "logLevel": "info",
+    "panicOnInvalidVcpu": true,
+    "panicOnInvalidMem": true,
+    "fallbackPreset": "tiny1",
+    "reportPath": "/var/log/saddle-v6/vm-error.log",
+    "otelSpan": "vm.config.validation",
+    "errorCodes": [
+      "E_VM_CPU_RANGE_001",
+      "E_VM_MEM_RANGE_002",
+      "E_VM_PASSAGE_BRIDGE_003",
+      "E_VM_NUMA_MISMATCH_004",
+      "E_VM_BALLOON_OOM_005"
+    ]
+  },
+  "saddleV6ContractRootFields": {
+    "id": "saddle-v6-primary-vm",
+    "hostname": "saddle-v6-node-01",
+    "domain": "saddle.local",
+    "ostype": "linux",
+    "arch": "x86_64",
+    "bios": "ovmf",
+    "bootOrder": "nvdsk",
+    "rebootPolicy": "always",
+    "shutdownTimeoutSec": 180,
+    "machineType": "q35",
+    "firmwareSecureBoot": true,
+    "tpm": true,
+    "tpmVersion": "2.0"
+  },
+  "saddleV6Meta": {
+    "project": "saddle-v6",
+    "version": "6.0.0-blindada-r1",
+    "schemaVersion": "2026.08.22",
+    "date": "2026-08-22",
+    "observer": "v6-07-vmconfig - third person observer reports configuration state",
+    "engine": "qemu 11.1.0 + kvm + hvf + whpx + tcg fallback",
+    "node": "26.7.0-current",
+    "typescript": "7.0.2",
+    "python": "3.14.7",
+    "docker": "29.7.2",
+    "qemu": "11.1.0",
+    "ovmf": "2025.08-4",
+    "githubActionsCheckout": "v7.0.1",
+    "githubActionsSetupNode": "v7.0.0",
+    "githubActionsSetupPython": "v7.0.0",
+    "githubActionsSetupDocker": "v4.3.0",
+    "compatibility": [
+      "gpu.config",
+      "passage.config",
+      "qemu.config",
+      "mttg.config",
+      "docker.config",
+      "boards.json",
+      "cores.json",
+      "processors.json",
+      "gpus.json",
+      "vcpus.json",
+      "vram.json"
+    ]
+  },
+  "performance": {
+    "description": "Named performance defaults of the pool saddle v5 INI (vm.config [performance] + [defaults] + [migration]) that had no nominal equivalent in the v3 schema; the canonical v3 memory machinery (2M/1G hugepages, THP, memfd) lives in cores.json memory.hugepages and virtualmemory.ts.",
+    "hugepagesFormat": "2048MB",
+    "hugepagesNote": "the v5 INI spelled the 2 MiB page as 2048MB; the repo canonical spelling is 2M with 1G companions (cores.json hugepages presets)",
+    "numaBalancing": true,
+    "cpuPinning": "dynamic",
+    "ioUring": "enabled",
+    "virtiofsCache": "always",
+    "ioThreads": 4,
+    "defaultsNote": "pool [defaults] vcpu 8 / ram 16384 MB / disk 100 GB / io_threads 4 / cpu host-passthrough topology sockets=1,cores=8,threads=2 — the v3 defaults live in orchestrator_defaults and profiles",
+    "migration": {
+      "liveMigration": true,
+      "compression": "zstd",
+      "maxDowntimeMs": 150,
+      "maxDowntimeNote": "150 ms downtime budget for live migration convergence (CRIU/QEMU multipart); feeds aimigrationpredictor of compute.ts which defaults to a 50 ms budget for the pre-copy predictor"
+    },
+    "networkBridgeLegacy": {
+      "bridge": "br-saddle0",
+      "model": "virtio-net-pci",
+      "mtu": 9000,
+      "note": "the v5 INI bound passage networking to the named bridge br-saddle0; the v3 canonical bridge is br0 (network.bridge) with docker-compose br-passage0 for the container plane"
+    }
+  },
+  "featureflags": {
+    "description": "Nominal feature-flag names of the pool OmniHyperCore v5 TOML ([vm.qemu] features list and the scheduler_alt spellings). the underlying capabilities exist in the v3 schema (qemu section, TDX/SEV-SNP objects, virtio-gpu venus, io_uring, memory memfd); this table preserves the literal flag spellings as provenance so tooling written against the v5 names keeps resolving.",
+    "flags": {
+      "nvmeHotplugQmp": "nvme hotplug driven through the QMP monitor",
+      "spMemMemfd": "shared-polled memory on memory-backend-memfd",
+      "tdxLiveUpdate": "Intel TDX live update path",
+      "sevSnpResetFix": "AMD SEV-SNP reset bug workaround (header 127 after D3cold)",
+      "virtioGpuNativeContext": "virtio-gpu venus native context (hostmem blob)",
+      "kvmNitroTrust": "kvm:nitro accelerator trust handshake",
+      "qmpV2": "QMP protocol v2 monitor",
+      "ioUringZcrx": "io_uring zero-copy receive"
+    },
+    "schedAlt": ["BORE-6.12.15", "sched_ext-bp-1.2.0"],
+    "schedAltNote": "alternate scheduler spellings beside the canonical EEVDF default; the 7.2.1/6.12.15 kernel pins these names implied were rejected by the repo (readme date-first corrections) — flags kept as names only",
+    "miscLegacy": {
+      "rebootTimeoutMs": 5000,
+      "scsiQueues": 8,
+      "queueDepthRange": "128-256"
+    }
+  }
+}

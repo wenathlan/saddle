@@ -69,11 +69,11 @@ jobs:
       - name: generate Android icons
         shell: bash
         run: |
-          npx --yes @tauri-apps/cli@2.11.4 icon desktop/icon.svg --output build/generated-icons
+          npx --yes @tauri-apps/cli@2.11.4 icon web/desktop/icon.svg --output build/generated-icons
           for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            cp "build/generated-icons/android/mipmap-${density}/ic_launcher.png" "android/res/mipmap-${density}/ic_launcher.png"
-            cp "build/generated-icons/android/mipmap-${density}/ic_launcher_foreground.png" "android/res/mipmap-${density}/ic_launcher_foreground.png"
-            cp "build/generated-icons/android/mipmap-${density}/ic_launcher_round.png" "android/res/mipmap-${density}/ic_launcher_round.png"
+            cp "build/generated-icons/android/mipmap-${density}/ic_launcher.png" "web/android/res/mipmap-${density}/ic_launcher.png"
+            cp "build/generated-icons/android/mipmap-${density}/ic_launcher_foreground.png" "web/android/res/mipmap-${density}/ic_launcher_foreground.png"
+            cp "build/generated-icons/android/mipmap-${density}/ic_launcher_round.png" "web/android/res/mipmap-${density}/ic_launcher_round.png"
           done
       - name: derive android version values
         shell: bash
@@ -102,7 +102,7 @@ jobs:
               printf 'storePassword=%s\n' "$ANDROID_STORE_PASSWORD"
               printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
               printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
-            } > android/keystore.properties
+            } > web/android/keystore.properties
             echo "SADDLE_SIGNING=caller-owned" >> "$GITHUB_ENV"
           elif [ "${{ github.event_name }}" = "release" ] || [ "${{ inputs.allow_test_signing }}" = "true" ]; then
             keytool -genkeypair -v -keystore "$RUNNER_TEMP/saddle-test.jks" -storepass changeit -keypass changeit -alias saddle-test -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Saddle CI Test,O=Saddle,C=US"
@@ -111,7 +111,7 @@ jobs:
               printf 'storePassword=changeit\n'
               printf 'keyAlias=saddle-test\n'
               printf 'keyPassword=changeit\n'
-            } > android/keystore.properties
+            } > web/android/keystore.properties
             echo "SADDLE_SIGNING=ci-test-key" >> "$GITHUB_ENV"
           else
             echo "Manual Android builds require production signing secrets or allow_test_signing=true."
@@ -120,7 +120,7 @@ jobs:
       - name: build optimized android release
         shell: bash
         run: |
-          chmod +x android/gradlew
+          chmod +x web/android/gradlew
           cd android
           ./gradlew --no-daemon --stacktrace assembleRelease bundleRelease
       - name: collect android artifacts
@@ -132,8 +132,8 @@ jobs:
           aab="saddle.aab.${version}.aab"
           checksums="sha256.android.${version}"
           manifest="manifest.android.${version}.json"
-          apk_source="$(find android/build/outputs/apk/release -type f \( -name 'android-release*.apk' -o -name 'app-release*.apk' \) -print -quit)"
-          aab_source="$(find android/build/outputs/bundle/release -type f \( -name 'android-release*.aab' -o -name 'app-release*.aab' \) -print -quit)"
+          apk_source="$(find web/android/build/outputs/apk/release -type f \( -name 'android-release*.apk' -o -name 'app-release*.apk' \) -print -quit)"
+          aab_source="$(find web/android/build/outputs/bundle/release -type f \( -name 'android-release*.aab' -o -name 'app-release*.aab' \) -print -quit)"
           test -n "$apk_source" && test -n "$aab_source"
           cp "$apk_source" "build/release-assets/android/${apk}"
           cp "$aab_source" "build/release-assets/android/${aab}"
@@ -188,8 +188,8 @@ jobs:
       - name: generate iOS icons
         shell: bash
         run: |
-          npx --yes @tauri-apps/cli@2.11.4 icon desktop/icon.svg --output build/generated-icons
-          iconroot=ios/App/App/Assets.xcassets/AppIcon.appiconset
+          npx --yes @tauri-apps/cli@2.11.4 icon web/desktop/icon.svg --output build/generated-icons
+          iconroot=web/ios/App/App/Assets.xcassets/AppIcon.appiconset
           cp build/generated-icons/ios/AppIcon-20x20@1x.png "$iconroot/AppIcon-20.png"
           cp build/generated-icons/ios/AppIcon-20x20@2x.png "$iconroot/AppIcon-40.png"
           cp build/generated-icons/ios/AppIcon-20x20@3x.png "$iconroot/AppIcon-60.png"
@@ -245,9 +245,9 @@ jobs:
           echo "SADDLE_VERSION=$version" >> "$GITHUB_ENV"
           echo "SADDLE_VERSION_CODE=$version_code" >> "$GITHUB_ENV"
       - name: archive ios app
-        run: xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -archivePath "$RUNNER_TEMP/Saddle.xcarchive" archive MARKETING_VERSION="$SADDLE_VERSION" CURRENT_PROJECT_VERSION="$SADDLE_VERSION_CODE"
+        run: xcodebuild -project web/ios/App/App.xcodeproj -scheme App -configuration Release -archivePath "$RUNNER_TEMP/Saddle.xcarchive" archive MARKETING_VERSION="$SADDLE_VERSION" CURRENT_PROJECT_VERSION="$SADDLE_VERSION_CODE"
       - name: export ipa
-        run: xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Saddle.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/SaddleExportOptions.plist" -exportPath "$RUNNER_TEMP/SaddleExport"
+        run: xcodebuild 
       - name: collect ios artifacts
         shell: bash
         run: |

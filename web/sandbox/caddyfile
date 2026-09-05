@@ -1,0 +1,59 @@
+# static edge only; the sandbox api is self-hosted node (server.js); no
+# serverless functions per project rules.
+#
+# e2ugh web sandbox behind caddy on the self-hosted main node
+# (devthink.pro pattern):
+#   1. run the api once:  node web/server.js --port 39721   (or PORT=39721)
+#      it logs the chosen endpoint; the default port is random in
+#      30000-59999 — document whatever it picks right here
+#   2. point E2UGH_API_UPSTREAM at that port (the default below is the
+#      documented example)
+#   3. E2UGH_SITE_ADDRESS=devthink.pro caddy run --config web/caddyfile
+#      (the placeholder defaults already encode devthink.pro; override for
+#      any other domain without touching this file)
+#
+# the /api/* subtree proxies to the node process (auth cookie e2ughsession
+# included — the session stays between the browser and this one origin);
+# every other path serves the static web/ directory straight from caddy
+# (html revalidates, assets cache for an hour). no host or port is
+# hardcoded: both come from environment placeholders with the documented
+# defaults. tls is automatic on caddy for public domains (acme + http-01);
+# the explicit tls block below stays commented for the rare case an
+# operator needs a custom certificate chain.
+
+{$E2UGH_SITE_ADDRESS:devthink.pro} {
+	encode zstd gzip
+
+	@apipath path /api/*
+	handle @apipath {
+		# self-hosted node backend (never a serverless function)
+		reverse_proxy {$E2UGH_API_UPSTREAM:127.0.0.1:39721}
+	}
+
+	handle {
+		root * web
+		try_files {path} /index.html
+		file_server
+
+		header /index.html Cache-Control "no-cache, must-revalidate"
+		header /*.js Cache-Control "public, max-age=3600, must-revalidate"
+		header /*.svg Cache-Control "public, max-age=3600, must-revalidate"
+	}
+
+	# security headers mirroring web/server.js and web/netlify.toml
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	}
+
+	# automatic tls (caddy default for public sites) is enough for
+	# devthink.pro; uncomment only for a custom chain:
+	# tls /etc/ssl/devthink.fullchain.pem /etc/ssl/devthink.key.pem
+}
+
+# www alias: redirect everything to the canonical main node origin
+{$E2UGH_WWW_ADDRESS:www.devthink.pro} {
+	redir https://devthink.pro{uri} permanent
+}

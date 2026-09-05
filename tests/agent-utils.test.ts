@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatForAgent, buildContext } from "../acquisition.js";
-import { slugify, truncate, legacyestimatetokens, legacychunktext, isValidUrl, isInternalUrl } from "../acquisition.js";
+import { formatForAgent, buildContext } from "../webscrape.js";
+import { slugify, truncate, legacyestimatetokens, legacychunktext, isValidUrl, isInternalUrl } from "../webscrape.js";
 
 const SAMPLE_RESULT = {
   url: 'https://example.com',

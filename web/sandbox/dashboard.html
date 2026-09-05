@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="e2ugh dashboard: your sandboxes, bus events and account, plus the admin overview on the main node">
+<title>e2ugh · dashboard</title>
+<style>
+  /* dark terminal theme shared with index.html: no build, no cdn */
+  :root {
+    --bg: #0a0e14;
+    --panel: #10161f;
+    --panel2: #0d121a;
+    --border: #212b38;
+    --text: #dce5f0;
+    --dim: #8b98a9;
+    --accent: #56d364;
+    --accent2: #6cb6ff;
+    --warn: #e3b341;
+    --err: #f85149;
+    --mono: ui-monospace, "sf mono", "cascadia code", menlo, consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  a { color: var(--accent2); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent2);
+    outline-offset: 2px;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px; }
+
+  /* top bar */
+  header.topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    padding: 8px 4px 14px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  header.topbar h1 { margin: 0; font-size: 24px; letter-spacing: 1px; font-weight: 700; }
+  header.topbar h1 a { color: var(--accent); text-decoration: none; }
+  header.topbar .tagline { color: var(--dim); font-size: 13px; }
+  .rolebadge, .userbadge {
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    color: var(--dim);
+  }
+  .rolebadge.main { color: var(--accent); border-color: var(--accent); }
+  .rolebadge.clone { color: var(--accent2); border-color: var(--accent2); }
+  .userbadge { color: var(--text); }
+  header.topbar .spacer { margin-left: auto; }
+
+  /* tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tabs [role="tab"] {
+    min-height: 44px;
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel2);
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .tabs [role="tab"][aria-selected="true"] {
+    color: #04140a;
+    background: var(--accent);
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* panels and grid */
+  section.panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  section.panel > h2 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--dim);
+    font-weight: 600;
+  }
+  h3 {
+    margin: 14px 0 8px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--dim);
+  }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+  @media (max-width: 1000px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+
+  /* forms: every control 44px */
+  .field { margin-bottom: 12px; }
+  .field label { display: block; color: var(--dim); font-size: 12px; margin-bottom: 6px; }
+  input[type="text"], input[type="number"], input[type="search"], select {
+    width: 100%;
+    min-height: 44px;
+    background: var(--panel2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+  .formrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  button, .btn {
+    display: inline-flex;
+    /* the [hidden] attribute must always win over the flex display:
+     * the admin tab ships hidden and is revealed only for admin
+     * sessions (the CSS specificity trap that showed it to everyone). */
+    &[hidden] { display: none !important; }
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn { color: var(--accent2); }
+  button:hover:not(:disabled), .btn:hover { border-color: var(--accent); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #04140a; font-weight: 700; }
+  button.danger { color: var(--err); }
+  button.mini { min-height: 36px; padding: 4px 12px; font-size: 12px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+
+  /* cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .card {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .card .k { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  .card .v { font-size: 20px; font-weight: 700; color: var(--accent2); word-break: break-all; }
+
+  /* tables */
+  .tablescroll { overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--dim); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; position: sticky; top: 0; background: var(--panel2); }
+  tr:last-child td { border-bottom: none; }
+  td.wrapcell { white-space: normal; word-break: break-all; }
+
+  /* state chips */
+  .chip {
+    display: inline-block;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 11px;
+    color: var(--dim);
+  }
+  .chip.running, .chip.ok, .chip.healthy, .chip.online, .chip.active { color: var(--accent); border-color: var(--accent); }
+  .chip.created, .chip.starting, .chip.degraded { color: var(--warn); border-color: var(--warn); }
+  .chip.destroyed, .chip.expired, .chip.offline, .chip.error, .chip.down { color: var(--err); border-color: var(--err); }
+  .chip.admin { color: var(--accent2); border-color: var(--accent2); }
+
+  /* sandbox list */
+  ul.boxlist { list-style: none; margin: 0; padding: 0; }
+  ul.boxlist li {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: var(--panel2);
+  }
+  ul.boxlist .rowtop { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  ul.boxlist .id { color: var(--accent2); font-weight: 700; word-break: break-all; }
+  ul.boxlist .specs { color: var(--text); font-size: 12px; display: block; margin-top: 4px; }
+  ul.boxlist .meta { color: var(--dim); font-size: 11px; display: block; margin-top: 2px; }
+  ul.boxlist .rowactions { margin-left: auto; display: flex; gap: 8px; }
+
+  /* events timeline */
+  ol.timeline { list-style: none; margin: 0; padding: 0; max-height: 480px; overflow: auto; }
+  ol.timeline li {
+    padding: 8px 4px 8px 12px;
+    border-left: 2px solid var(--border);
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+  ol.timeline li.lifecycle { border-left-color: var(--accent); }
+  ol.timeline li.exec { border-left-color: var(--accent2); }
+  ol.timeline li.mesh { border-left-color: var(--warn); }
+  ol.timeline li .topic { color: var(--text); font-weight: 700; }
+  ol.timeline li .time { color: var(--dim); }
+  ol.timeline li .detail { color: var(--dim); display: block; word-break: break-word; }
+
+  /* key-value info */
+  dl.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 12px; }
+  dl.kv dt { color: var(--dim); }
+  dl.kv dd { margin: 0; word-break: break-all; }
+
+  /* empty, error, loading */
+  .empty { color: var(--dim); font-size: 12px; padding: 12px 4px; }
+  .panelerror {
+    color: var(--err);
+    border: 1px solid var(--err);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    margin: 8px 0;
+  }
+  .skeleton {
+    height: 14px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #131a24 25%, #1b2532 50%, #131a24 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite linear;
+    margin: 10px 4px;
+  }
+  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton { animation: none; }
+  }
+  .fatal { border-color: var(--err); }
+  .fatal p { margin: 6px 0; }
+
+  .statusnote { color: var(--dim); font-size: 11px; margin-top: 8px; }
+
+  footer.site {
+    margin-top: 8px;
+    padding: 16px 4px 8px;
+    border-top: 1px solid var(--border);
+    color: var(--dim);
+    font-size: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="topbar">
+    <h1><a href="index.html">e2ugh</a></h1>
+    <span class="tagline">dashboard</span>
+    <span class="rolebadge" id="rolebadge" aria-live="polite">node: ...</span>
+    <span class="spacer"></span>
+    <span class="userbadge" id="userbadge">...</span>
+    <button type="button" id="logoutbtn" aria-label="end the session and return to the sign in page">logout</button>
+  </header>
+
+  <div id="fatal" class="panel fatal" hidden aria-live="polite">
+    <h2>session required</h2>
+    <p id="fatalmessage">this page needs a signed in session.</p>
+    <div class="actions">
+      <a class="btn" href="login.html?next=dashboard.html">sign in</a>
+      <a class="btn" href="index.html">back to the sandbox</a>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="dashboard views">
+    <button type="button" role="tab" id="tab-user" aria-selected="true" aria-controls="panel-user">user</button>
+    <button type="button" role="tab" id="tab-admin" aria-selected="false" aria-controls="panel-admin" tabindex="-1" hidden>admin</button>
+  </div>
+
+  <!-- ============================ user view ============================ -->
+  <div role="tabpanel" id="panel-user" aria-labelledby="tab-user">
+    <div class="grid2">
+      <div>
+        <section class="panel" aria-labelledby="boxtitle">
+          <h2 id="boxtitle">my sandboxes</h2>
+          <form id="createform" novalidate aria-label="create a new sandbox">
+            <div class="formrow">
+              <div class="field">
+                <label for="newmodel">cpu model</label>
+                <select id="newmodel" aria-label="virtual cpu model"></select>
+              </div>
+              <div class="field">
+                <label for="newvcpus">vcpus</label>
+                <input type="number" id="newvcpus" min="1" max="192" value="8" aria-label="virtual cpu count">
+              </div>
+              <div class="field">
+                <label for="newram">ram (gb)</label>
+                <input type="number" id="newram" min="1" max="1024" value="32" aria-label="virtual memory in gigabytes">
+              </div>
+              <div class="field">
+                <label for="newgpu">gpu</label>
+                <select id="newgpu" aria-label="virtual gpu model"></select>
+              </div>
+              <div class="field">
+                <label for="newmig">mig profile</label>
+                <select id="newmig" aria-label="gpu mig slicing profile">
+                  <option value="off" selected>off</option>
+                  <option value="1g.24gb">1g.24gb</option>
+                  <option value="2g.48gb">2g.48gb</option>
+                  <option value="4g.96gb">4g.96gb</option>
+                </select>
+              </div>
+            </div>
+            <p class="panelerror" id="createerror" role="alert" hidden></p>
+            <div class="actions">
+              <button type="submit" class="primary" id="createbtn" aria-label="create a new sandbox">create sandbox</button>
+              <button type="button" id="refreshbtn" aria-label="reload the sandbox list">refresh</button>
+            </div>
+          </form>
+          <h3>running list</h3>
+          <div id="boxskeleton" aria-hidden="true">
+            <div class="skeleton"></div><div class="skeleton" style="width:88%"></div><div class="skeleton" style="width:70%"></div>
+          </div>
+          <ul class="boxlist" id="boxlist" aria-live="polite" aria-label="my sandboxes"></ul>
+          <p class="empty" id="boxempty" hidden>no sandboxes yet; create one above or boot the local engine from the <a href="index.html">console</a>.</p>
+          <p class="panelerror" id="boxerror" hidden></p>
+        </section>
+      </div>
+
+      <div>
+        <section class="panel" aria-labelledby="infotitle">
+          <h2 id="infotitle">my account</h2>
+          <dl class="kv" id="infolist">
+            <dt>username</dt><dd>...</dd>
+          </dl>
+        </section>
+
+        <section class="panel" aria-labelledby="eventstitle">
+          <h2 id="eventstitle">bus events</h2>
+          <ol class="timeline" id="eventlist" role="log" aria-live="polite" aria-label="mesh bus event timeline">
+            <li class="empty" id="eventempty">waiting for events...</li>
+          </ol>
+          <p class="statusnote">polls /api/v1/events every 10 s while the tab is visible.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ admin view ============================ -->
+  <div role="tabpanel" id="panel-admin" aria-labelledby="tab-admin" hidden>
+    <section class="panel" aria-labelledby="overtitle">
+      <h2 id="overtitle">overview</h2>
+      <div class="cards" id="overviewcards">
+        <div class="card"><div class="k">users</div><div class="v" id="ov-users">...</div></div>
+        <div class="card"><div class="k">nodes</div><div class="v" id="ov-nodes">...</div></div>
+        <div class="card"><div class="k">sandboxes</div><div class="v" id="ov-sandboxes">...</div></div>
+        <div class="card"><div class="k">sessions</div><div class="v" id="ov-sessions">...</div></div>
+        <div class="card"><div class="k">events</div><div class="v" id="ov-events">...</div></div>
+        <div class="card"><div class="k">uptime</div><div class="v" id="ov-uptime">...</div></div>
+      </div>
+      <div class="actions">
+        <button type="button" id="adminrefresh" aria-label="reload every admin table">refresh all</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="nodestitle">
+      <h2 id="nodestitle">mesh nodes</h2>
+      <p class="statusnote">ping goes through /api/v1/mesh (hmac signed server side); this page never holds mesh keys.</p>
+      <div class="tablescroll" tabindex="0" role="region" aria-label="mesh nodes table">
+        <table id="nodestable">
+          <caption class="empty" id="nodesempty" hidden>no nodes registered yet.</caption>
+          <thead>
+            <tr><th scope="col">url</th><th scope="col">region</th><th scope="col">status</th><th scope="col">last heartbeat</th><th scope="col">ping</th></tr>
+          </thead>
+          <tbody id="nodesbody"></tbody>
+        </table>
+      </div>
+      <p class="panelerror" id="nodeserror" hidden></p>
+    </section>
+
+    <section class="panel" aria-labelledby="userstitle">
+      <h2 id="userstitle">users</h2>
+      <div class="field" style="max-width:340px">
+        <label for="usersearch">search by username</label>
+        <input type="search" id="usersearch" placeholder="filter..." aria-label="filter the users table by username">
+      </div>
+      <div class="tablescroll" tabindex="0" role="region" aria-label="users table">
+        <table id="userstable">
+          <caption class="empty" id="usersempty" hidden>no users match.</caption>
+          <thead>
+            <tr><th scope="col">username</th><th scope="col">role</th><th scope="col">last login</th><th scope="col">created</th></tr>
+          </thead>
+          <tbody id="usersbody"></tbody>
+        </table>
+      </div>
+      <p class="statusnote">password hashes and salts never leave the api; this table renders account fields only.</p>
+      <p class="panelerror" id="userserror" hidden></p>
+    </section>
+
+    <section class="panel" aria-labelledby="boxestitle">
+      <h2 id="boxestitle">sandboxes (global)</h2>
+      <div class="tablescroll" tabindex="0" role="region" aria-label="global sandboxes table">
+        <table id="boxestable">
+          <caption class="empty" id="boxesempty" hidden>no sandboxes on this node.</caption>
+          <thead>
+            <tr><th scope="col">id</th><th scope="col">owner</th><th scope="col">state</th><th scope="col">spec</th><th scope="col">created</th><th scope="col">expires</th></tr>
+          </thead>
+          <tbody id="boxesbody"></tbody>
+        </table>
+      </div>
+      <p class="panelerror" id="boxeserror" hidden></p>
+    </section>
+
+    <section class="panel" aria-labelledby="audittitle">
+      <h2 id="audittitle">audit log</h2>
+      <div class="tablescroll" tabindex="0" role="region" aria-label="audit log table">
+        <table id="audittable">
+          <caption class="empty" id="auditempty" hidden>no audit entries yet.</caption>
+          <thead>
+            <tr><th scope="col">action</th><th scope="col">username</th><th scope="col">ip</th><th scope="col">when</th></tr>
+          </thead>
+          <tbody id="auditbody"></tbody>
+        </table>
+      </div>
+      <p class="panelerror" id="auditerror" hidden></p>
+    </section>
+  </div>
+
+  <footer class="site">
+    <span>session cookie: e2ughsession (httponly)</span>
+    <span>nothing sensitive in localstorage</span>
+    <span style="margin-left:auto">self-hosted node api &middot; no serverless functions</span>
+  </footer>
+
+</div>
+
+<script src="localauth.js" defer></script>
+  <script src="dashboard.js" defer></script>
+</body>
+</html>

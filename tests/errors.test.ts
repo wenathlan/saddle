@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  WebScrapeError, ValidationError, TimeoutError, BlockedError,
-  RateLimitError, ProxyError, ParseError, AuthError, NetworkError,
-  BrowserNotAvailableError, ErrorCode
-} from "../acquisition.js";
+import { WebScrapeError, ValidationError, TimeoutError, BlockedError, RateLimitError, ProxyError, ParseError, AuthError, NetworkError, BrowserNotAvailableError, ErrorCode } from "../webscrape.js";
 
 describe('WebScrapeError', () => {
   it('creates error with all properties', () => {

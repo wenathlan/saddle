@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <PackageId>E2ugh</PackageId>
+    <Version>2.0.0</Version>
+    <Authors>wenathlan</Authors>
+    <Description>.NET process adapter for the e2ugh virtual hardware engine CLI.</Description>
+    <PackageProjectUrl>https://github.com/wenathlan/saddle</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/wenathlan/saddle</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>readme.md</PackageReadmeFile>
+    <PackageTags>e2ugh;virtual-hardware;qemu;mesa;container</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="E2ughCli.cs" />
+    <None Include="readme.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

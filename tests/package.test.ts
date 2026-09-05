@@ -21,7 +21,14 @@ test("imports every declared package export target in Node", async () => {
   const packagejson = JSON.parse(await readFile(resolve(root, "../package.json"), "utf8"));
   for (const target of Object.values(packagejson.exports)) {
     assert.equal(typeof target, "string");
-    await import(pathToFileURL(resolve(root, "..", target)).href);
+    const resolved = resolve(root, "..", target);
+    /* the virtual-hardware envelope carriers (.config data documents, .json
+       hardware specs) are data files: assert readability, not module import */
+    if (/\.(?:config|json)$/.test(target)) {
+      await readFile(resolved, "utf8");
+      continue;
+    }
+    await import(pathToFileURL(resolved).href);
   }
 });
 

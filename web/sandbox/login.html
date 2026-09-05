@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="e2ugh sign in: username and password only, session carried by the e2ughsession cookie">
+<title>e2ugh · sign in</title>
+<style>
+  /* dark terminal theme shared with index.html: no build, no cdn */
+  :root {
+    --bg: #0a0e14;
+    --panel: #10161f;
+    --panel2: #0d121a;
+    --border: #212b38;
+    --text: #dce5f0;
+    --dim: #8b98a9;
+    --accent: #56d364;
+    --accent2: #6cb6ff;
+    --warn: #e3b341;
+    --err: #f85149;
+    --mono: ui-monospace, "sf mono", "cascadia code", menlo, consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.55;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  a { color: var(--accent2); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent2);
+    outline-offset: 2px;
+  }
+  .wrap { width: 100%; max-width: 460px; margin: 0 auto; padding: 20px; flex: 1; }
+
+  header.site {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 4px 14px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 26px;
+  }
+  header.site h1 {
+    margin: 0;
+    font-size: 26px;
+    letter-spacing: 1px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  header.site .tagline { color: var(--dim); font-size: 13px; }
+
+  section.panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  h2 {
+    margin: 0 0 14px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--dim);
+    font-weight: 600;
+  }
+
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    color: var(--dim);
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    min-height: 44px;
+    background: var(--panel2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+  input[aria-invalid="true"] { border-color: var(--err); }
+  .hint { color: var(--dim); font-size: 11px; margin-top: 4px; min-height: 16px; }
+
+  button {
+    min-height: 44px;
+    min-width: 44px;
+    width: 100%;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #04140a;
+    font-weight: 700;
+  }
+
+  .formerror {
+    display: none;
+    min-height: 20px;
+    margin: 4px 0 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--err);
+    border-radius: 8px;
+    color: var(--err);
+    font-size: 12px;
+  }
+  .formerror.show { display: block; }
+
+  .statusline {
+    margin-top: 14px;
+    color: var(--dim);
+    font-size: 11px;
+    word-break: break-all;
+  }
+
+  footer.site {
+    padding: 14px 4px 8px;
+    border-top: 1px solid var(--border);
+    color: var(--dim);
+    font-size: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <h1>e2ugh</h1>
+    <span class="tagline">sign in</span>
+  </header>
+
+  <main>
+    <section class="panel" aria-labelledby="formtitle">
+      <h2 id="formtitle">account</h2>
+      <form id="loginform" novalidate>
+        <div class="field">
+          <label for="username">username</label>
+          <input type="text" id="username" name="username" autocomplete="username"
+                 spellcheck="false" autocapitalize="none" required
+                 aria-describedby="usernamehint">
+          <p class="hint" id="usernamehint">username only; this project has no e-mail field.</p>
+        </div>
+        <div class="field">
+          <label for="password">password</label>
+          <input type="password" id="password" name="password"
+                 autocomplete="current-password" required>
+        </div>
+        <p class="formerror" id="formerror" role="alert" aria-live="polite"></p>
+        <button class="primary" type="submit" id="submitbtn">sign in</button>
+      </form>
+      <p class="statusline" id="apistatus">api: same origin</p>
+      <p class="statusline">
+        no account? <a href="register.html">create one</a> &middot;
+        <a href="index.html">back to the sandbox</a>
+      </p>
+    </section>
+  </main>
+
+  <footer class="site">
+    <span>session cookie: e2ughsession (httponly)</span>
+    <span style="margin-left:auto">self-hosted node api &middot; no serverless functions</span>
+  </footer>
+
+</div>
+
+<script src="localauth.js" defer></script>
+  <script src="login.js" defer></script>
+</body>
+</html>

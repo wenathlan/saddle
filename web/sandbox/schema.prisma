@@ -1,0 +1,102 @@
+// schema.prisma — e2ugh v7 schema mirror (worklog task v7-BACK).
+//
+// prisma view of the exact tables created by web/init.sql
+// and web/db.js. the map attributes pin the column names so prisma and
+// the zero-dependency node:sqlite layer share one database file
+// without drift. usage: point E2UGH_DB at the same file used by
+// web/server.js and run prisma db pull / db push as usual.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("E2UGH_DB")
+}
+
+/// credentials holder; the first user of an empty node is promoted to
+/// admin by the bootstrap rule documented in web/auth.js.
+model User {
+  id           String          @id
+  username     String          @unique
+  passwordhash String          @map("passwordhash")
+  salt         String          @map("salt")
+  role         String          @default("user") @map("role")
+  createdat    String          @map("createdat")
+  lastlogin    String?         @map("lastlogin")
+  sessions     Session[]
+  sandboxes    SandboxRecord[]
+
+  @@index([username])
+  @@map("users")
+}
+
+/// one row per live session; only the sha256 token hash is stored.
+model Session {
+  tokenhash String @id @map("tokenhash")
+  userid    String @map("userid")
+  createdat String @map("createdat")
+  expiresat String @map("expiresat")
+  ip        String? @map("ip")
+  useragent String? @map("useragent")
+  user      User    @relation(fields: [userid], references: [id])
+
+  @@index([expiresat])
+  @@map("sessions")
+}
+
+/// the mesh registry: clone and main nodes announce themselves here.
+model Node {
+  id            String  @id
+  url           String  @map("url")
+  rolename      String? @map("rolename")
+  region        String? @map("region")
+  lastheartbeat String? @map("lastheartbeat")
+  status        String? @map("status")
+  registeredat  String  @map("registeredat")
+  meta          String? @map("meta")
+
+  @@map("nodes")
+}
+
+/// the sqlite mirror of the in-memory sandbox lifecycle.
+model SandboxRecord {
+  id        String  @id
+  userid    String? @map("userid")
+  model     String? @map("model")
+  vcpus     Int?    @map("vcpus")
+  ramgb     Int?    @map("ramgb")
+  gpu       String? @map("gpu")
+  state     String? @map("state")
+  createdat String? @map("createdat")
+  expiresat String? @map("expiresat")
+  user      User?   @relation(fields: [userid], references: [id])
+
+  @@index([userid])
+  @@map("sandboxes")
+}
+
+/// the durable local event bus consumed by /api/v1/events?since=.
+model EventRecord {
+  id        Int     @id @default(autoincrement())
+  topic     String? @map("topic")
+  payload   String? @map("payload")
+  nodeid    String? @map("nodeid")
+  createdat String  @map("createdat")
+
+  @@index([createdat])
+  @@map("events")
+}
+
+/// the audit trail (register, login, logout, sandbox, mesh actions).
+model AuditRecord {
+  id        Int     @id @default(autoincrement())
+  userid    String? @map("userid")
+  action    String? @map("action")
+  detail    String? @map("detail")
+  ip        String? @map("ip")
+  createdat String  @map("createdat")
+
+  @@map("audit")
+}

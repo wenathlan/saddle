@@ -1,0 +1,153 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.11/schema.json",
+  "vcs": {
+    "enabled": false
+  },
+  "files": {
+    "includes": [
+      "alternatives.ts",
+      "compute.ts",
+      "index.ts",
+      "media.ts",
+      "orchestrator.ts",
+      "performance.ts",
+      "quantum.ts",
+      "render.ts",
+      "scheduler.ts",
+      "security.ts",
+      "tiers.ts",
+      "virtualcpu.ts",
+      "virtualgpu.ts",
+      "virtualization.ts",
+      "virtualmemory.ts",
+      "tests/virtualengine.test.ts",
+      "tests/features.test.ts",
+      "tests/media.test.ts",
+      "tests/render.test.ts",
+      "tests/simulation.test.ts",
+      "tests/specs.test.ts",
+      "tests/virtualcpu.test.ts",
+      "tests/virtualgpu.test.ts",
+      "tests/virtualmemory.test.ts",
+      "tests/web.test.ts",
+      "tests/workflow.test.ts",
+      "boards.json",
+      "cores.json",
+      "gpus.json",
+      "processors.json",
+      "vm.config.json",
+      "virtualhardware.json",
+      "*.config",
+      "tsconfig.json",
+      "package.json",
+      "!package-lock.json"
+    ],
+    "ignoreUnknown": false
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "complexity": {
+        "noStaticOnlyClass": "warn",
+        "noUselessTypeConstraint": "error"
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "warn"
+      },
+      "suspicious": {
+        "noAssignInExpressions": "error",
+        "noConsole": "warn",
+        "noDoubleEquals": "error",
+        "noEmptyBlockStatements": "warn",
+        "noExplicitAny": "error",
+        "noRedeclare": "error",
+        "noShadowRestrictedNames": "error"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "error",
+        "noGlobalEval": "error",
+        "noSecrets": "info"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always",
+      "bracketSameLine": false,
+      "bracketSpacing": true
+    }
+  },
+  "json": {
+    "formatter": {
+      "indentStyle": "space",
+      "indentWidth": 2,
+      "lineWidth": 100,
+      "trailingCommas": "none"
+    }
+  },
+  "root": true,
+  "overrides": [
+    {
+      "includes": [
+        "web/**"
+      ],
+      "linter": {
+        "rules": {
+          "recommended": true,
+          "a11y": {
+            "noStaticElementInteractions": "off",
+            "useKeyWithClickEvents": "off",
+            "useSemanticElements": "off"
+          },
+          "correctness": {
+            "useExhaustiveDependencies": "off"
+          },
+          "style": {
+            "noNonNullAssertion": "off",
+            "useNodejsImportProtocol": "off",
+            "useConst": "error"
+          },
+          "suspicious": {
+            "noExplicitAny": "off",
+            "noEmptyBlock": "warn"
+          },
+          "complexity": {
+            "noUselessFragments": "warn",
+            "noForEach": "off"
+          },
+          "performance": {
+            "noDelete": "off"
+          }
+        }
+      },
+      "formatter": {
+        "enabled": true,
+        "indentStyle": "tab",
+        "indentWidth": 2,
+        "lineWidth": 100,
+        "lineEnding": "lf",
+        "formatWithErrors": false
+      }
+    }
+  ]
+}

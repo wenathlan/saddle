@@ -1,0 +1,49 @@
+# Vulnerability reporting policy gate, following the reference scheme
+# (Saddle / DevThink security policy checks): SECURITY.md is the
+# published policy; this workflow asserts on every change that the
+# documented supported line matches the shipped package version, so the
+# policy never silently drifts from the releases it covers.
+
+name: security policy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'SECURITY.md'
+      - 'package.json'
+      - '.github/workflows/securitypolicy.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'SECURITY.md'
+      - 'package.json'
+      - '.github/workflows/securitypolicy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  verify:
+    name: Verify the security policy matches the release line
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Assert the supported line in SECURITY.md
+        run: |
+          set -euo pipefail
+          version=$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")
+          major="${version%%.*}"
+          if ! grep -q "maintained \`${major}.x\` line" SECURITY.md; then
+            echo "::error file=SECURITY.md::The supported release line documented in SECURITY.md does not match package.json major ${major}. Update the policy together with the version bump."
+            exit 1
+          fi
+          echo "SECURITY.md covers the maintained ${major}.x line (package ${version})."

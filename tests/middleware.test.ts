@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MiddlewarePipeline, createPipeline, loggingMiddleware, timeoutMiddleware } from "../acquisition.js";
+import { MiddlewarePipeline, createPipeline, loggingMiddleware, timeoutMiddleware } from "../webscrape.js";
 
 describe('MiddlewarePipeline', () => {
   it('executes middleware in order', async () => {

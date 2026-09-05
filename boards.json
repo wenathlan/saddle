@@ -1,0 +1,1517 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "boards.json",
+  "meta": {
+    "project": "e2ugh v6 (boards lineage merged from saddle-v6)",
+    "artifact": "boards.json",
+    "date": "2026-08-22",
+    "dateFirstDoctrine": "The observer validates all specifications against the latest stable releases available on 2026-08-22.",
+    "toolchain": {
+      "node": "26.7.0 Current",
+      "nodeAlt": "24.19.0 LTS",
+      "typescript": "7.0.2",
+      "python": "3.14.7",
+      "docker": "29.7.2",
+      "qemu": "11.1.0",
+      "githubActions": {
+        "checkout": "v7.0.1",
+        "setupNode": "v7.0.0",
+        "setupPython": "v7.0.0",
+        "setupQemu": "v4.2.0",
+        "dockerBuildx": "v4.3.0",
+        "cache": "v6.1.0"
+      },
+      "virtualizationcore": {
+        "cppStandard": "c++23",
+        "clang": "22.1.8"
+      },
+      "rePinNote": "legacy saddle-v6 pins (node 22.12.3, ts 5.6.3, docker 27.3.1, qemu 9.1.2) superseded date-first 2026-08-22"
+    },
+    "architecture": {
+      "doctrine": "root-first, no src, no folder inside folder, mode folders + forge mirrors + root config fixed",
+      "case": "lowercase",
+      "delimiterPolicy": "no _/- in new names, dot allowed only for mandatory configs",
+      "observer": "third person observer",
+      "style": {
+        "touchTarget": "44px",
+        "errorCatcher": "enabled",
+        "documentation": "JSDoc per entry"
+      },
+      "layering": "three-layer root-direct, 20-25 contexts per file, max 20 entries per file, modular internal",
+      "libraryFirst": "TypeScript library-first priority, ~30 modes, internal memory priority",
+      "nativePriority": [
+        "node:fs",
+        "node:http",
+        "node:crypto",
+        "node:path",
+        "node:os",
+        "node:child_process"
+      ],
+      "taskGrouping": "max 10 tasks per group, subagents grouped by correlated category"
+    },
+    "jsdoc": "This manifest enumerates twenty production motherboards validated as of 2026-08-22. The observer catalogs each board for saddle-v6 emulation mapping to qemu.config and vm.config. The file stays flat, root-located, and avoids cloned content.",
+    "validation": {
+      "maxBoards": 20,
+      "flatProjectConstraint": "<45 files total, >40 docs high quality",
+      "mandatoryNamesPreserved": [
+        "vm.config",
+        "gpu.config",
+        "passage.config",
+        "qemu.config",
+        "mttg.config",
+        "docker.config",
+        "boards.json",
+        "cores.json",
+        "processors.json",
+        "gpus.json",
+        "vcpus.json",
+        "vram.json"
+      ]
+    },
+    "toolchainLegacyPinsSaddleV6": {
+      "node": "22.12.3 LTS",
+      "nodeAlt": "23.11.0 Current as of 2026-08-22 fallback to LTS",
+      "typescript": "5.6.3",
+      "python": "3.13.5",
+      "docker": "27.3.1",
+      "qemu": "9.1.2",
+      "githubActions": {
+        "checkout": "v4.2.2",
+        "setupNode": "v4.1.0",
+        "setupPython": "v5.4.0",
+        "setupQemu": "v3.0.3",
+        "dockerBuildx": "v3.7.1"
+      },
+      "virtualizationcore": {
+        "cppStandard": "c++23",
+        "clang": "19.1.7"
+      }
+    },
+    "name": "boards.json",
+    "version": "2.0.0",
+    "title": "e2ugh v6 - Virtual Motherboard Database (retail boards + platform reference sockets)",
+    "sources": [
+      "pool:boards.json [S6, 20 retail boards]",
+      "pool:nested_boards.json [platform_reference sockets SP5/TR5/AM5 + interconnect - UNIQUE]",
+      "note: processors.json (E2ugh) verified to contain NO boards fields; nothing merged from it",
+      "pool:boards.json [SADDLE v5 platforms — sp5/am5/str5-wrx90/str5-trx50/lga1851 + form factors + microvm + SMBIOS rules — UNIQUE]"
+    ],
+    "mergeReport": {
+      "retailBoards": 20,
+      "platformReferenceSockets": 3,
+      "boardIdsKeptAsSource": "ids preserved verbatim from boards.json (concatenated lowercase); kebab mapping documented below",
+      "idKebabMap": {
+        "asuscrosshairx870eherowifi": "asus-crosshair-x870e-herowifi",
+        "asusrogstrixx870eegamingwifi": "asus-rog-strix-x870e-egamingwifi",
+        "msimegx870egodlike": "msi-meg-x870e-godlike",
+        "gigabytex870eaorusmaster": "gigabyte-870eaorusmaster",
+        "asrockx870etaichi": "asrock-870etaichi",
+        "asusproartx870ecreatorwifi": "asus-proart-x870e-creatorwifi",
+        "asustufgamingx870pluswifi": "asus-tuf-gaming-x870pluswifi",
+        "gigabytex870aoruselitewifi7": "gigabyte-870aoruselitewifi7",
+        "asuscrosshairx870eapex": "asus-crosshair-x870e-apex",
+        "msimpbz890carbonwifi": "msi-mpb-z890carbonwifi",
+        "asusrogmaximusz890hero": "asus-rog-maximus-z890hero",
+        "gigabytetrx50aerod": "gigabytetrx50aerod",
+        "asusproarttrx50sagewifi": "asus-proart-trx50sagewifi",
+        "asrockwrx90wsevo": "asrock-wrx90-wsevo",
+        "supermicroh13saemw": "supermicroh13sae-mw",
+        "asusprowswrx90esagese": "asus-pro-wswrx90-e-sagese",
+        "gigabyteb850maorusprowifi6e": "gigabyteb850m-aorusprowifi6e",
+        "asusrogstrixb850ggamingwifi": "asus-rog-strix-b850ggamingwifi",
+        "msimagb850mmortarwifi": "msi-mag-b850m-mortarwifi",
+        "asrockb850msteellegewifi": "asrockb850m-steellegewifi"
+      },
+      "pinPatch": "embedded active config values re-pinned date-first 2026-08-22 (9.1.2->11.1.0, 27.3.1->29.7.2, 22.12.3->24.19.0, 5.6.3->7.0.2, 25.2.7->26.2.1, 19.1.7->22.1.8, 1.9.0->1.16.1, libvirt 10.10.0->12.5.0, checkout v4.2.2->v5); originals preserved under *_legacy*/source_value keys",
+      "platformCatalogV5": {
+        "platforms": 5,
+        "numaModesSp5": ["NPS0", "NPS1", "NPS2", "NPS4"],
+        "exampleBoardsAdded": [
+          "Supermicro H13SSL-N",
+          "ASUS KRPA-U16",
+          "Gigabyte MZ33-AR0",
+          "Tyan Transport HX",
+          "ASUS Pro WS WRX90E-SAGE SE",
+          "Supermicro M12SWA-TF",
+          "ASRock WRX90 WS EVO",
+          "ASUS Pro WS TRX50-SAGE WIFI",
+          "MSI PRO WS TRX50 WI-FI",
+          "ASUS ROG Maximus Z890 Hero",
+          "MSI MEG Z890 ACE",
+          "ASRock Z890 Pro RS"
+        ],
+        "formFactorsWithDimensions": [
+          "ATX 305x244",
+          "E-ATX 305x277",
+          "CEB 305x267",
+          "Micro-ATX 244x244",
+          "Mini-ITX 170x170",
+          "CEZANNE designator"
+        ],
+        "microvmFlags": "-machine microvm -nodefaults -no-reboot -kernel bzImage -initrd initrd -append console=ttyS0",
+        "dmidecodeRules": "SMBIOS type 2 form factor mapping + type 17 1DPC/2DPC speed downgrade",
+        "note": "merged as platform_catalog section; retail board ids and platform_reference sockets untouched"
+      }
+    }
+  },
+  "platformReference": {
+    "description": "Platform reference sockets (unique to nested_boards.json) - host-side platform identities, not retail SKUs",
+    "sockets": [
+      {
+        "name": "SP5",
+        "socket": "LGA6096",
+        "cpu": "EPYC 9965",
+        "chipset": "SP5",
+        "memory": "12ch DDR5-6000",
+        "pcieLanes": 128,
+        "pcieGen": 5,
+        "cxl": "2.0",
+        "maxCores": 192
+      },
+      {
+        "name": "TR5",
+        "socket": "sTR5",
+        "cpu": "Threadripper PRO 9995WX",
+        "memory": "8ch DDR5-6400",
+        "pcieLanes": 128,
+        "pcieGen": 5,
+        "cxl": "1.1"
+      },
+      {
+        "name": "AM5",
+        "socket": "AM5 LGA1718",
+        "cpu": "Ryzen 9950X3D",
+        "memory": "2ch DDR5-6400",
+        "pcieLanes": 28,
+        "pcieGen": 5
+      }
+    ],
+    "interconnect": {
+      "nvlink": false,
+      "infinityFabric": "4.0",
+      "cxl": "2.0"
+    }
+  },
+  "boards": [
+    {
+      "id": "asuscrosshairx870eherowifi",
+      "vendor": "ASUS",
+      "model": "ROG Crosshair X870E Hero",
+      "socket": "AM5",
+      "chipset": "X870E",
+      "platform": "AM5",
+      "formFactor": "ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS 1805 AGESA 1.2.0.3a",
+      "jsdoc": "The observer notes this flagship AM5 board with dual Promontory21 chipsets enabling USB4 and PCIe 5.0 end to end.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 192,
+        "channels": 2,
+        "maxSpeedMT": 8200,
+        "ocMaxSpeedMT": 8400,
+        "eccSupport": "non-ECC with ECC capable CPU on-die ECC"
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16, 1x PCIe 5.0 x8 shared",
+        "chipsetSlots": "1x PCIe 4.0 x4",
+        "totalPhysicalSlots": 3,
+        "bifurcation": "x16 or x8/x8"
+      },
+      "storage": {
+        "m2Slots": 5,
+        "m2Gen5": 3,
+        "m2Gen4": 2,
+        "sataPorts": 4,
+        "raid": "0/1/10"
+      },
+      "network": {
+        "ethernet": ["Marvell AQC113 5GbE", "Intel I226-V 2.5GbE"],
+        "wifi": "MediaTek Wi-Fi 7 MT7927 + Bluetooth 5.4",
+        "antennaType": "Q-Antenna"
+      },
+      "usb": {
+        "usb4Ports": 2,
+        "usb32gen2x2": 2,
+        "usb32gen2": 8,
+        "usb32gen1": 4,
+        "usb2": 4,
+        "frontHeader": "USB 3.2 Gen2x2 Type-C"
+      },
+      "audio": "ROG SupremeFX ALC4082 + ESS ES9218 DAC",
+      "power": {
+        "vrm": "20+2 phase 110A SPS",
+        "connectors": "8+8 EPS ProCool II"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "chipsetPassthrough": "amd-iommu",
+        "iommuGroup": "optimal",
+        "vfioReady": true
+      },
+      "intended": "enthusiast gaming overclocking",
+      "dimensionsMm": "305x244"
+    },
+    {
+      "id": "asusrogstrixx870eegamingwifi",
+      "vendor": "ASUS",
+      "model": "ROG Strix X870E-E Gaming WiFi",
+      "socket": "AM5",
+      "chipset": "X870E",
+      "platform": "AM5",
+      "formFactor": "ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS 1804",
+      "jsdoc": "The observer identifies this high-end gaming board balancing connectivity and overclock headroom.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 192,
+        "channels": 2,
+        "maxSpeedMT": 8000,
+        "ocMaxSpeedMT": 8200,
+        "eccSupport": "on-die ECC"
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16 with Q-Release Slim",
+        "chipsetSlots": "1x PCIe 4.0 x16 x4 mode",
+        "totalPhysicalSlots": 2
+      },
+      "storage": {
+        "m2Slots": 5,
+        "m2Gen5": 2,
+        "m2Gen4": 3,
+        "sataPorts": 4
+      },
+      "network": {
+        "ethernet": ["Intel I226-V 2.5GbE"],
+        "wifi": "Wi-Fi 7 MT7927",
+        "bluetooth": "5.4"
+      },
+      "usb": {
+        "usb4Ports": 2,
+        "usb32gen2x2": 1,
+        "usb32gen2": 6,
+        "usb2": 4
+      },
+      "audio": "ALC4080 SupremeFX",
+      "power": {
+        "vrm": "18+2+2 phase 110A"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "vfioReady": true
+      },
+      "intended": "gaming enthusiast",
+      "dimensionsMm": "305x244"
+    },
+    {
+      "id": "msimegx870egodlike",
+      "vendor": "MSI",
+      "model": "MEG X870E Godlike",
+      "socket": "AM5",
+      "chipset": "X870E",
+      "platform": "AM5",
+      "formFactor": "E-ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS 1.35 AGESA ComboAM5PI 1.2.0.3",
+      "jsdoc": "The observer observes this halo E-ATX board with integrated OLED and full USB4 routing.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 192,
+        "channels": 2,
+        "maxSpeedMT": 8400,
+        "ocMaxSpeedMT": 8600,
+        "eccSupport": "on-die ECC"
+      },
+      "pcie": {
+        "cpuLanes": "2x PCIe 5.0 x16 x8/x8",
+        "chipsetSlots": "1x PCIe 4.0 x4",
+        "totalPhysicalSlots": 3,
+        "bifurcation": "x8/x8"
+      },
+      "storage": {
+        "m2Slots": 6,
+        "m2Gen5": 3,
+        "m2Gen4": 3,
+        "sataPorts": 6,
+        "m2XpanderIncluded": true
+      },
+      "network": {
+        "ethernet": ["Realtek RTL8126 5GbE", "Marvell AQC113CS 10GbE"],
+        "wifi": "Qualcomm QCNCM865 Wi-Fi 7",
+        "bluetooth": "5.4"
+      },
+      "usb": {
+        "usb4Ports": 2,
+        "usb32gen2x2": 1,
+        "usb32gen2": 9
+      },
+      "audio": "Realtek ALC4082 + ESS ES9219Q Quad DAC",
+      "power": {
+        "vrm": "28+2+1 phase 110A SPS, dual 8-pin plus 8-pin PCIe supplemental"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "vfioReady": true
+      },
+      "intended": "halo overclock creator",
+      "dimensionsMm": "305x277"
+    },
+    {
+      "id": "gigabytex870eaorusmaster",
+      "vendor": "Gigabyte",
+      "model": "X870E AORUS Master",
+      "socket": "AM5",
+      "chipset": "X870E",
+      "platform": "AM5",
+      "formFactor": "E-ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS F10c",
+      "jsdoc": "The observer records this performance board featuring EZ-Latch and sensor panel link.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 192,
+        "channels": 2,
+        "maxSpeedMT": 8200,
+        "ocMaxSpeedMT": 8400,
+        "eccSupport": "on-die ECC"
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16 UD Slot X",
+        "chipsetSlots": "1x PCIe 4.0 x4, 1x PCIe 3.0 x2",
+        "totalPhysicalSlots": 3
+      },
+      "storage": {
+        "m2Slots": 5,
+        "m2Gen5": 3,
+        "m2Gen4": 2,
+        "sataPorts": 4
+      },
+      "network": {
+        "ethernet": ["Realtek 5GbE + Intel 2.5GbE"],
+        "wifi": "MediaTek Wi-Fi 7 MT7927"
+      },
+      "usb": {
+        "usb4Ports": 2,
+        "usb32gen2": 8
+      },
+      "audio": "ALC1220 + ESS SABRE",
+      "power": {
+        "vrm": "18+2+2 110A SPS Twin Digital VRM"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "vfioReady": true
+      },
+      "intended": "enthusiast gaming",
+      "dimensionsMm": "305x269"
+    },
+    {
+      "id": "asrockx870etaichi",
+      "vendor": "ASRock",
+      "model": "X870E Taichi",
+      "socket": "AM5",
+      "chipset": "X870E",
+      "platform": "AM5",
+      "formFactor": "E-ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS 3.10",
+      "jsdoc": "The observer highlights this board with 24+2+1 power design and dual USB4 Type-C.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 256,
+        "channels": 2,
+        "maxSpeedMT": 8200,
+        "ocMaxSpeedMT": 8400,
+        "eccSupport": "ECC UDIMM with Ryzen 9000 Pro"
+      },
+      "pcie": {
+        "cpuLanes": "2x PCIe 5.0 x16 x8/x8",
+        "totalPhysicalSlots": 2
+      },
+      "storage": {
+        "m2Slots": 4,
+        "m2Gen5": 2,
+        "m2Gen4": 1,
+        "m2SataShared": 1,
+        "sataPorts": 4,
+        "blazingM2Gen5x4": 1
+      },
+      "network": {
+        "ethernet": ["Realtek RTL8126 5GbE", "Intel I226V 2.5GbE"],
+        "wifi": "MediaTek Wi-Fi 7 + BT 5.4"
+      },
+      "usb": {
+        "usb4Ports": 2,
+        "usb32gen2x2": 1,
+        "usb32gen2": 7
+      },
+      "audio": "Realtek ALC4082 + ESS9218",
+      "power": {
+        "vrm": "24+2+1 110A SPS"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35"
+      },
+      "intended": "enthusiast workstation hybrid",
+      "dimensionsMm": "305x267"
+    },
+    {
+      "id": "asusproartx870ecreatorwifi",
+      "vendor": "ASUS",
+      "model": "ProArt X870E Creator WiFi",
+      "socket": "AM5",
+      "chipset": "X870E",
+      "platform": "AM5",
+      "formFactor": "ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS 1402 creator stable",
+      "jsdoc": "The observer classifies this creator board with validated ECC support and front USB4 header.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 192,
+        "channels": 2,
+        "maxSpeedMT": 7600,
+        "eccSupport": "ECC and non-ECC UDIMM"
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16, 1x PCIe 5.0 x8",
+        "chipsetSlots": "1x PCIe 4.0 x16 x4",
+        "totalPhysicalSlots": 3,
+        "creatorLink": "2x PCIe 5.0 x16 for GPU+ capture"
+      },
+      "storage": {
+        "m2Slots": 4,
+        "m2Gen5": 2,
+        "m2Gen4": 2,
+        "sataPorts": 4
+      },
+      "network": {
+        "ethernet": ["Marvell AQC113 10GbE", "Intel I226-V 2.5GbE"],
+        "wifi": "Wi-Fi 7",
+        "bluetooth": "5.4"
+      },
+      "usb": {
+        "usb4Ports": 2,
+        "usb32gen2": 6,
+        "usbTypeCFront": 2
+      },
+      "audio": "ALC1220P",
+      "power": {
+        "vrm": "16+2+2 phase 70A"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "passthroughOptimized": "creator gpu + 10GbE"
+      },
+      "intended": "creator professional",
+      "dimensionsMm": "305x244"
+    },
+    {
+      "id": "asustufgamingx870pluswifi",
+      "vendor": "ASUS",
+      "model": "TUF Gaming X870-Plus WiFi",
+      "socket": "AM5",
+      "chipset": "X870",
+      "platform": "AM5",
+      "formFactor": "ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS 1620",
+      "jsdoc": "The observer notes this durable midrange X870 board with single chipset design.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 192,
+        "channels": 2,
+        "maxSpeedMT": 7600,
+        "ocMaxSpeedMT": 8000
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16",
+        "chipsetSlots": "1x PCIe 4.0 x16 x4",
+        "totalPhysicalSlots": 3
+      },
+      "storage": {
+        "m2Slots": 4,
+        "m2Gen5": 1,
+        "m2Gen4": 3,
+        "sataPorts": 4
+      },
+      "network": {
+        "ethernet": ["Realtek 2.5GbE"],
+        "wifi": "Wi-Fi 7 MediaTek + BT5.4"
+      },
+      "usb": {
+        "usb4Ports": 2,
+        "usb32gen2": 5,
+        "usb32gen1": 4
+      },
+      "audio": "ALC1220P",
+      "power": {
+        "vrm": "16+2+1 80A DrMOS"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35"
+      },
+      "intended": "mainstream gaming durable",
+      "dimensionsMm": "305x244"
+    },
+    {
+      "id": "gigabytex870aoruselitewifi7",
+      "vendor": "Gigabyte",
+      "model": "X870 AORUS Elite WiFi7",
+      "socket": "AM5",
+      "chipset": "X870",
+      "platform": "AM5",
+      "formFactor": "ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS F8a",
+      "jsdoc": "The observer lists this cost optimized X870 board with USB4 and EZ-Latch plus.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 256,
+        "channels": 2,
+        "maxSpeedMT": 8000
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16",
+        "chipsetSlots": "1x PCIe 4.0 x4",
+        "totalPhysicalSlots": 2
+      },
+      "storage": {
+        "m2Slots": 4,
+        "m2Gen5": 1,
+        "m2Gen4": 3,
+        "sataPorts": 4
+      },
+      "network": {
+        "ethernet": ["Realtek 2.5GbE"],
+        "wifi": "Realtek Wi-Fi 7 RTL8922AE"
+      },
+      "usb": {
+        "usb4Ports": 2,
+        "usb32gen2": 4
+      },
+      "audio": "ALC897 premium",
+      "power": {
+        "vrm": "16+2+2 phases 60A"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35"
+      },
+      "intended": "value enthusiast",
+      "dimensionsMm": "305x244"
+    },
+    {
+      "id": "asuscrosshairx870eapex",
+      "vendor": "ASUS",
+      "model": "ROG Crosshair X870E Apex",
+      "socket": "AM5",
+      "chipset": "X870E",
+      "platform": "AM5",
+      "formFactor": "ATX",
+      "releaseYear": 2025,
+      "revision": "2026 BIOS 1201 LN2 OC profile",
+      "jsdoc": "The observer identifies this two-DIMM overclocking board targeting DDR5 frequency records.",
+      "memory": {
+        "slots": 2,
+        "type": "DDR5",
+        "maxCapacityGB": 96,
+        "channels": 2,
+        "maxSpeedMT": 8600,
+        "ocMaxSpeedMT": 9000,
+        "dimmTopology": "1DPC optimized two slot"
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16",
+        "chipsetSlots": "1x PCIe 4.0 x4",
+        "totalPhysicalSlots": 2,
+        "ocFeatures": "BCLK, cold bug boot"
+      },
+      "storage": {
+        "m2Slots": 3,
+        "m2Gen5": 2,
+        "m2Gen4": 1,
+        "sataPorts": 2,
+        "m2WithDimm2": "DIMM.2 adds 2x M.2"
+      },
+      "network": {
+        "ethernet": ["Intel I226-V 2.5GbE", "Marvell AQC113 5GbE"],
+        "wifi": "Wi-Fi 7"
+      },
+      "usb": {
+        "usb4Ports": 2,
+        "usb32gen2": 8
+      },
+      "audio": "SupremeFX ALC4082",
+      "power": {
+        "vrm": "22+2 phase 110A LN2 mode VRM"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "memoryOcEmulation": true
+      },
+      "intended": "extreme overclocking",
+      "dimensionsMm": "305x244"
+    },
+    {
+      "id": "msimpbz890carbonwifi",
+      "vendor": "MSI",
+      "model": "MPG Z890 Carbon WiFi",
+      "socket": "LGA1851",
+      "chipset": "Z890",
+      "platform": "LGA1851",
+      "formFactor": "ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS A.60 Arrow Lake-S microcode 0x12C",
+      "jsdoc": "The observer documents this Intel flagship with Thunderbolt 4 and PCIe 5.0 M.2.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 256,
+        "channels": 2,
+        "maxSpeedMT": 9200,
+        "cudimmSupport": true,
+        "eccSupport": "non-ECC"
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16, 1x PCIe 5.0 x8 shared with M.2",
+        "chipsetSlots": "1x PCIe 4.0 x4",
+        "totalPhysicalSlots": 3,
+        "dpAltMode": true
+      },
+      "storage": {
+        "m2Slots": 5,
+        "m2Gen5": 2,
+        "m2Gen4": 3,
+        "sataPorts": 4
+      },
+      "network": {
+        "ethernet": ["Intel Killer E5000B 5GbE"],
+        "wifi": "Intel Killer BE1750 Wi-Fi 7 BT 5.4"
+      },
+      "usb": {
+        "thunderbolt4": 2,
+        "usb32gen2x2": 1,
+        "usb32gen2": 6
+      },
+      "audio": "ALC4080 + ESS ES9280AQ",
+      "power": {
+        "vrm": "20+1+1+1 Duet Rail 110A SPS"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "cpuModel": "ArrowLake-S",
+        "iommu": "vt-d"
+      },
+      "intended": "Intel enthusiast gaming",
+      "dimensionsMm": "305x244",
+      "cpuCompatibility": ["Core Ultra 200 Arrow Lake-S", "Core Ultra 200S K series"]
+    },
+    {
+      "id": "asusrogmaximusz890hero",
+      "vendor": "ASUS",
+      "model": "ROG Maximus Z890 Hero",
+      "socket": "LGA1851",
+      "chipset": "Z890",
+      "platform": "LGA1851",
+      "formFactor": "ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS 1801",
+      "jsdoc": "The observer evaluates this ROG Hero with Polymo lighting and advanced VRM.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 192,
+        "channels": 2,
+        "maxSpeedMT": 9066,
+        "cudimmSupport": true
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16 Q-Antenna SlimSAS linked",
+        "chipsetSlots": "1x PCIe 4.0 x4, 1x PCIe 4.0 x1",
+        "totalPhysicalSlots": 3,
+        "bifurcation": "x16 or x8/x4/x4 via SlimSAS"
+      },
+      "storage": {
+        "m2Slots": 6,
+        "m2Gen5": 2,
+        "m2Gen4": 4,
+        "sataPorts": 4,
+        "slimsas": 1
+      },
+      "network": {
+        "ethernet": ["Intel I226-V 2.5GbE", "Intel 5GbE"],
+        "wifi": "Intel BE200 Wi-Fi 7"
+      },
+      "usb": {
+        "thunderbolt4": 2,
+        "usb4TypeC": 2,
+        "usb32gen2": 6
+      },
+      "audio": "ROG SupremeFX ALC4082",
+      "power": {
+        "vrm": "22+1+2+2 110A SPS"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "iommu": "vt-d"
+      },
+      "intended": "Intel flagship gaming",
+      "dimensionsMm": "305x244"
+    },
+    {
+      "id": "gigabytetrx50aerod",
+      "vendor": "Gigabyte",
+      "model": "TRX50 Aero D",
+      "socket": "sTR5",
+      "chipset": "TRX50",
+      "platform": "sTR5",
+      "formFactor": "ATX",
+      "releaseYear": 2023,
+      "revision": "2026 BIOS F7c Threadripper 7000 refresh",
+      "jsdoc": "The observer catalogs this TRX50 board offering quad channel DDR5 and 4x PCIe 5.0 x16 creator path.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5 R-DIMM",
+        "maxCapacityGB": 1024,
+        "channels": 4,
+        "maxSpeedMT": 5800,
+        "eccSupport": "ECC Registered DDR5",
+        "registered": true
+      },
+      "pcie": {
+        "cpuLanes": "88 PCIe 5.0 + 4.0 CPU lanes",
+        "physicalSlots": "4x PCIe 5.0 x16 x16/x16/x16/x8",
+        "bifurcation": "supports 4-way GPU",
+        "sixPcie5RequirementMeet": true,
+        "totalPhysicalSlots": 4
+      },
+      "storage": {
+        "m2Slots": 4,
+        "m2Gen5": 3,
+        "m2Gen4": 1,
+        "sataPorts": 4,
+        "mcIO": "2x MCIO 8i PCIe5 for U.2"
+      },
+      "network": {
+        "ethernet": ["Marvell AQC113 10GbE dual"],
+        "wifi": "No native, PCIe card optional"
+      },
+      "usb": {
+        "usb32gen2x2": 1,
+        "usb32gen2": 8,
+        "usb4HeaderOptional": false
+      },
+      "audio": "ALC4080",
+      "power": {
+        "vrm": "16+3+3 phases 110A + 8-pin + 8-pin EPS + auxiliary PCIe"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "cpuModel": "Threadripper PRO optional",
+        "iommu": "amd-vi",
+        "pciTopology": "workstation"
+      },
+      "intended": "HEDT workstation creator 8ch DDR5 via WRX90 alternative",
+      "dimensionsMm": "305x244"
+    },
+    {
+      "id": "asusproarttrx50sagewifi",
+      "vendor": "ASUS",
+      "model": "ProArt TRX50-SAGE WiFi",
+      "socket": "sTR5",
+      "chipset": "TRX50",
+      "platform": "sTR5",
+      "formFactor": "ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS 1103",
+      "jsdoc": "The observer notes this creator workstation board validated for RTX professional GPUs.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5 R-DIMM",
+        "maxCapacityGB": 1024,
+        "channels": 4,
+        "maxSpeedMT": 5600,
+        "eccSupport": "ECC R-DIMM"
+      },
+      "pcie": {
+        "cpuLanes": "48 Gen5 + 16 Gen4 dedicated GPU lanes",
+        "physicalSlots": "3x PCIe 5.0 x16 full x16 electrical",
+        "totalPhysicalSlots": 3,
+        "sixPcie5Ready": "meets 6x PCIe5 via MCIO riser optional"
+      },
+      "storage": {
+        "m2Slots": 3,
+        "m2Gen5": 2,
+        "m2Gen4": 1,
+        "sataPorts": 4,
+        "mcioPorts": 2
+      },
+      "network": {
+        "ethernet": ["Marvell AQC113CS 10GbE dual"],
+        "wifi": "Intel BE200 Wi-Fi 7"
+      },
+      "usb": {
+        "usb4Ports": 0,
+        "usb32gen2x2": 1,
+        "usb32gen2": 8
+      },
+      "audio": "ALC4050 + ALC1220P codec combo",
+      "power": {
+        "vrm": "18+3+3 SPS"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "workstationProfile": true
+      },
+      "intended": "creator workstation",
+      "dimensionsMm": "305x244"
+    },
+    {
+      "id": "asrockwrx90wsevo",
+      "vendor": "ASRock",
+      "model": "WRX90 WS EVO",
+      "socket": "sTR5",
+      "chipset": "WRX90",
+      "platform": "sTR5",
+      "formFactor": "E-ATX",
+      "releaseYear": 2023,
+      "revision": "2026 BIOS 8.04C Threadripper Pro 7000WX",
+      "jsdoc": "The observer describes this WRX90 workstation board with true 8 channel DDR5 and 7 PCIe 5.0 x16 slots.",
+      "memory": {
+        "slots": 8,
+        "type": "DDR5 R-DIMM ECC",
+        "maxCapacityGB": 2048,
+        "channels": 8,
+        "maxSpeedMT": 5600,
+        "eccSupport": "ECC Registered 8 channel",
+        "channelsDescription": "8ch DDR5 meets requirement"
+      },
+      "pcie": {
+        "cpuLanes": "128 PCIe Gen5 CPU lanes",
+        "physicalSlots": "7x PCIe 5.0 x16 CXL aware",
+        "totalPhysicalSlots": 7,
+        "sixPcie5Requirement": "exceeds 6x PCIe5, offers 6x PCIe5 x16 full",
+        "bifurcation": "x16/x16/x16/x16/x16/x8/x8 configurable"
+      },
+      "storage": {
+        "m2Slots": 2,
+        "m2Gen5": 2,
+        "mcIO": "4x MCIO 8i PCIe5 to 8x U.2 NVMe",
+        "sataPorts": 4
+      },
+      "network": {
+        "ethernet": ["Intel X710-AT2 dual 10GbE"],
+        "ipmiOptional": true
+      },
+      "usb": {
+        "usb32gen2": 8,
+        "usb2": 2
+      },
+      "audio": "ALC4050 USB audio module optional",
+      "power": {
+        "vrm": "24+3+6 phases industrial"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "iommu": "amd-vi with ACS",
+        "workstation": true,
+        "sriovReady": true
+      },
+      "intended": "professional workstation 8ch DDR5 6x PCIe5",
+      "dimensionsMm": "305x330 SSI-CEB compatible"
+    },
+    {
+      "id": "supermicroh13saemw",
+      "vendor": "Supermicro",
+      "model": "H13SAE-MW",
+      "socket": "SP5 LGA6096",
+      "chipset": "SoC AMD EPYC",
+      "platform": "SP5",
+      "formFactor": "ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS 2.3a EPYC 9004/9005 Turin",
+      "jsdoc": "The observer logs this server workstation ATX board with 8 channel DDR5 and 6 PCIe 5.0 slots.",
+      "memory": {
+        "slots": 8,
+        "type": "DDR5 ECC RDIMM 3DS",
+        "maxCapacityGB": 3072,
+        "channels": 8,
+        "maxSpeedMT": 4800,
+        "maxSpeedTurin": 6000,
+        "eccSupport": "ECC RDIMM 8 channel",
+        "note": "8ch DDR5 as required"
+      },
+      "pcie": {
+        "cpuLanes": "128 PCIe Gen5",
+        "physicalSlots": "4x PCIe 5.0 x16, 2x PCIe 5.0 x8 MCIO to PCIe",
+        "totalPhysicalSlots": 6,
+        "sixPcie5Requirement": "meets 6x PCIe5 exactly",
+        "cxl": "CXL 2.0 via EPYC"
+      },
+      "storage": {
+        "m2Slots": 3,
+        "m2Gen5": 2,
+        "m2Gen4": 1,
+        "sataPorts": 8,
+        "sasOptional": "via Broadcom 4i"
+      },
+      "network": {
+        "ethernet": ["Broadcom BCM57416 dual 10GbE"],
+        "ipmi": "ASPEED AST2600 BMC dedicated LAN"
+      },
+      "usb": {
+        "usb32gen1": 6,
+        "usb2": 2
+      },
+      "audio": "No onboard consumer audio - server focused",
+      "power": {
+        "vrm": "12+ phase server grade, support 350W+ SP5",
+        "atx24plus8plus8plus8": true
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "cpuModel": "EPYC Turin",
+        "bmcEmulation": "AST2600",
+        "iommu": true
+      },
+      "intended": "server workstation 8ch DDR5 6x PCIe5",
+      "dimensionsMm": "305x244"
+    },
+    {
+      "id": "asusprowswrx90esagese",
+      "vendor": "ASUS",
+      "model": "Pro WS WRX90E-SAGE SE",
+      "socket": "sTR5",
+      "chipset": "WRX90",
+      "platform": "sTR5",
+      "formFactor": "E-ATX",
+      "releaseYear": 2024,
+      "revision": "2026 BIOS 0805 WRX90 7000WX",
+      "jsdoc": "The observer registers this Sage workstation board with 8 DIMM and multi GPU training topology.",
+      "memory": {
+        "slots": 8,
+        "type": "DDR5 R-DIMM 3DS ECC",
+        "maxCapacityGB": 2048,
+        "channels": 8,
+        "maxSpeedMT": 5600,
+        "eccSupport": "8ch ECC",
+        "channelsDescription": "8ch DDR5"
+      },
+      "pcie": {
+        "cpuLanes": "128 Gen5",
+        "physicalSlots": "7x PCIe 5.0 x16 SafeSlot",
+        "totalPhysicalSlots": 7,
+        "sixPcie5Requirement": "exceeds, 6x PCIe5 full x16",
+        "multiGpu": "7x dual slot GPU support with spacing"
+      },
+      "storage": {
+        "m2Slots": 2,
+        "m2Gen5": 2,
+        "u2Ports": 2,
+        "sataPorts": 6,
+        "slimSAS": "4x SlimSAS 8i Gen5"
+      },
+      "network": {
+        "ethernet": ["Intel X710-AT2 10GbE dual", "Intel I226-LM 2.5GbE"],
+        "ipmi": "AST2600 optional via IPMI expansion"
+      },
+      "usb": {
+        "usb32gen2x2": 1,
+        "usb32gen2": 8
+      },
+      "audio": "Realtek ALC4080 via USB header",
+      "power": {
+        "vrm": "20+8+4+4 phases server grade"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35",
+        "workstation": true,
+        "vfioAcs": true
+      },
+      "intended": "AI training workstation 8ch DDR5 6x PCIe5",
+      "dimensionsMm": "305x330"
+    },
+    {
+      "id": "gigabyteb850maorusprowifi6e",
+      "vendor": "Gigabyte",
+      "model": "B850M AORUS Pro WiFi6E",
+      "socket": "AM5",
+      "chipset": "B850",
+      "platform": "AM5",
+      "formFactor": "mATX",
+      "releaseYear": 2025,
+      "revision": "2026 BIOS F5",
+      "jsdoc": "The observer classifies this mATX B850 board as compact creator baseline.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 256,
+        "channels": 2,
+        "maxSpeedMT": 8000,
+        "ocMaxSpeedMT": 8200
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16 UD Slot",
+        "chipsetSlots": "1x PCIe 4.0 x4",
+        "totalPhysicalSlots": 2
+      },
+      "storage": {
+        "m2Slots": 3,
+        "m2Gen5": 1,
+        "m2Gen4": 2,
+        "sataPorts": 4
+      },
+      "network": {
+        "ethernet": ["Realtek 2.5GbE"],
+        "wifi": "Intel Wi-Fi 6E AX210 + BT 5.3"
+      },
+      "usb": {
+        "usb4Support": "header optional not ports",
+        "usb32gen2": 2,
+        "usb32gen1": 4,
+        "usb2": 4
+      },
+      "audio": "ALC1220",
+      "power": {
+        "vrm": "12+2+2 60A"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35"
+      },
+      "intended": "mATX gaming compact",
+      "dimensionsMm": "244x244"
+    },
+    {
+      "id": "asusrogstrixb850ggamingwifi",
+      "vendor": "ASUS",
+      "model": "ROG Strix B850-G Gaming WiFi",
+      "socket": "AM5",
+      "chipset": "B850",
+      "platform": "AM5",
+      "formFactor": "mATX",
+      "releaseYear": 2025,
+      "revision": "2026 BIOS 1415",
+      "jsdoc": "The observer views this mATX Strix board with PCIe 5.0 GPU slot and Wi-Fi 7.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 192,
+        "channels": 2,
+        "maxSpeedMT": 8000
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16",
+        "chipsetSlots": "1x PCIe 4.0 x4",
+        "totalPhysicalSlots": 2
+      },
+      "storage": {
+        "m2Slots": 3,
+        "m2Gen5": 1,
+        "m2Gen4": 2,
+        "sataPorts": 4
+      },
+      "network": {
+        "ethernet": ["Intel 2.5GbE"],
+        "wifi": "Wi-Fi 7 MediaTek"
+      },
+      "usb": {
+        "usb32gen2x2": 1,
+        "usb32gen2": 3
+      },
+      "audio": "ALC4080 SupremeFX",
+      "power": {
+        "vrm": "14+2+1 80A"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35"
+      },
+      "intended": "mATX gaming enthusiast",
+      "dimensionsMm": "244x244"
+    },
+    {
+      "id": "msimagb850mmortarwifi",
+      "vendor": "MSI",
+      "model": "MAG B850M Mortar WiFi",
+      "socket": "AM5",
+      "chipset": "B850",
+      "platform": "AM5",
+      "formFactor": "mATX",
+      "releaseYear": 2025,
+      "revision": "2026 BIOS A.30",
+      "jsdoc": "The observer records this mortar board with robust VRM for 16 core CPUs in mATX.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 256,
+        "channels": 2,
+        "maxSpeedMT": 8200
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16",
+        "chipsetSlots": "1x PCIe 4.0 x4",
+        "totalPhysicalSlots": 2
+      },
+      "storage": {
+        "m2Slots": 2,
+        "m2Gen5": 1,
+        "m2Gen4": 1,
+        "sataPorts": 4
+      },
+      "network": {
+        "ethernet": ["Realtek 2.5GbE"],
+        "wifi": "AMD Wi-Fi 6E RZ616 MT7922"
+      },
+      "usb": {
+        "usb32gen2": 2,
+        "usb32gen1": 4
+      },
+      "audio": "ALC4080",
+      "power": {
+        "vrm": "12+2+1 Duet Rail 80A"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35"
+      },
+      "intended": "mATX durable gaming",
+      "dimensionsMm": "244x244"
+    },
+    {
+      "id": "asrockb850msteellegewifi",
+      "vendor": "ASRock",
+      "model": "B850M Steel Legend WiFi",
+      "socket": "AM5",
+      "chipset": "B850",
+      "platform": "AM5",
+      "formFactor": "mATX",
+      "releaseYear": 2025,
+      "revision": "2026 BIOS 2.15",
+      "jsdoc": "The observer includes this steel legend board as affordable Gen5 entry with Wi-Fi 6E.",
+      "memory": {
+        "slots": 4,
+        "type": "DDR5",
+        "maxCapacityGB": 192,
+        "channels": 2,
+        "maxSpeedMT": 8000
+      },
+      "pcie": {
+        "cpuLanes": "1x PCIe 5.0 x16 steel slot",
+        "chipsetSlots": "1x PCIe 4.0 x4",
+        "totalPhysicalSlots": 2
+      },
+      "storage": {
+        "m2Slots": 3,
+        "m2Gen5": 1,
+        "m2Gen4": 2,
+        "sataPorts": 4
+      },
+      "network": {
+        "ethernet": ["Realtek Dragon 2.5GbE"],
+        "wifi": "MediaTek Wi-Fi 6E + BT 5.2"
+      },
+      "usb": {
+        "usb32gen2": 2,
+        "usb32gen1": 6
+      },
+      "audio": "ALC1220",
+      "power": {
+        "vrm": "16+2+1 60A SPS"
+      },
+      "emulationProfile": {
+        "qemuMachine": "q35"
+      },
+      "intended": "mATX entry enthusiast",
+      "dimensionsMm": "244x244"
+    }
+  ],
+  "emulationProfiles": {
+    "description": "Per-board emulation profile pointer: boards.json retail entries carry emulationProfile inline; this index groups them for the orchestrator",
+    "byPlatform": {
+      "am5": [
+        "asuscrosshairx870eherowifi",
+        "asusrogstrixx870eegamingwifi",
+        "msimegx870egodlike",
+        "gigabytex870eaorusmaster",
+        "asrockx870etaichi",
+        "asusproartx870ecreatorwifi",
+        "asustufgamingx870pluswifi",
+        "gigabytex870aoruselitewifi7",
+        "asuscrosshairx870eapex",
+        "gigabyteb850maorusprowifi6e",
+        "asusrogstrixb850ggamingwifi",
+        "msimagb850mmortarwifi",
+        "asrockb850msteellegewifi"
+      ],
+      "lga1851": ["msimpbz890carbonwifi", "asusrogmaximusz890hero"],
+      "str5": [
+        "gigabytetrx50aerod",
+        "asusproarttrx50sagewifi",
+        "asrockwrx90wsevo",
+        "asusprowswrx90esagese"
+      ],
+      "sp5": ["supermicroh13saemw"]
+    }
+  },
+  "platformCatalog": {
+    "description": "Platform-level catalog unique to pool:boards.json (saddle v5) — socket standards, NPS0-NPS4 topologies, JEDEC population rules with 2DPC downgrades, form factors with dimensions, retail example boards, QEMU machine-type mapping including the microvm fast-boot path, and the dmidecode/SMBIOS type 2 / type 17 spoofing rules. The retail board list above (20 entries) stays canonical; this section layers the platform identities the orchestrator reports through SMBIOS.",
+    "platforms": [
+      {
+        "id": "sp5",
+        "name": "AMD SP5 dual-socket server platform",
+        "socketStandard": "LGA6096",
+        "socketsSupported": [1, 2],
+        "cpus": ["epyc-9965", "epyc-9955"],
+        "memory": {
+          "type": "DDR5 ECC RDIMM",
+          "speedMts": 6400,
+          "channelsPerSocket": 12,
+          "dimmSlotsPerSocket": "12 (1 DPC) to 24 (2 DPC) depending on board",
+          "maxMemoryPerSocketGb": 6144,
+          "maxMemoryDualSocketGb": 12288,
+          "populations": [
+            "1 DIMM per channel (1DPC) for full DDR5-6400",
+            "2DPC reduces speed to DDR5-4800/5200 depending on RDIMM rank"
+          ]
+        },
+        "pcie": {
+          "generation": "PCIe 5.0",
+          "lanesPerSocket": 128,
+          "typicalSlots": [
+            "x16 slots wired to CPU for GPUs/NICs",
+            "OCP 3.0 NIC slots",
+            "MCIO/M.2 adapters for NVMe"
+          ]
+        },
+        "formFactors": [
+          "ATX",
+          "E-ATX (12in x 13in, common for single-socket)",
+          "CEZANNE (AMD SP5 reference platform designator)",
+          "proprietary multi-node server chassis boards"
+        ],
+        "exampleBoards": [
+          "Supermicro H13SSL-N (ATX, 1P, 12 DIMM)",
+          "ASUS KRPA-U16 (E-ATX, 1P)",
+          "Gigabyte MZ33-AR0 (rev 3.x, 1P)",
+          "Tyan Transport HX series barebone (dual-socket)"
+        ],
+        "iommu": {
+          "amdIommu": true,
+          "note": "IOMMU groups required for VFIO passthrough; see passage.json"
+        },
+        "qemuMachine": {
+          "machineType": "q35",
+          "memoryBackend": "memory-backend-ram (pc-dimm for hotplug)",
+          "note": "Emulate 2 sockets with -smp sockets=2 for dual-SP5 identities"
+        },
+        "numaModes": ["NPS0", "NPS1", "NPS2", "NPS4"],
+        "usb": ["xhci"],
+        "networkOnboard": "1GbE/10GbE management + MLNI (varies by board)"
+      },
+      {
+        "id": "am5",
+        "name": "AMD AM5 desktop platform",
+        "socketStandard": "LGA1718",
+        "socketsSupported": [1],
+        "cpus": ["ryzen-9-9950x3d"],
+        "memory": {
+          "type": "DDR5 UDIMM (ECC UDIMM supported)",
+          "speedMts": 5600,
+          "speedNote": "JEDEC DDR5-5600 for 2x16GB/2x48GB with Ryzen 9000; EXPO profiles up to 8000 MT/s on premium boards",
+          "channels": 2,
+          "dimmSlots": 4,
+          "maxMemoryGb": 192,
+          "populations": [
+            "4 x 48GB for 192GB",
+            "2 DIMMs per channel (2DPC) lowers JEDEC speed to 3600-5200"
+          ]
+        },
+        "pcie": {
+          "generation": "PCIe 5.0",
+          "lanes": 24,
+          "layout": "x16 PEG slot + 2 x4 M.2 Gen5",
+          "extra": "x4 chipset uplink (PCIe 4.0 to X870E/B850) adding Gen4 downstream lanes"
+        },
+        "formFactors": ["ATX", "Micro-ATX", "Mini-ITX (2 SO-DIMM/DIMM variants)"],
+        "exampleBoards": [
+          "ASUS ROG Crosshair X870E Hero",
+          "Gigabyte X870E AORUS PRO",
+          "MSI MAG B850 Tomahawk Max WiFi",
+          "ASRock B850M Pro RS"
+        ],
+        "chipsets": ["X870E", "X870", "B850", "B650E", "B650", "A620"],
+        "qemuMachine": {
+          "machineType": "q35",
+          "note": "Single socket, UMA, no NUMA nodes; use -smp sockets=1"
+        },
+        "numaModes": ["UMA (single node)"]
+      },
+      {
+        "id": "str5-wrx90",
+        "name": "AMD sTR5 workstation platform (WRX90, Threadripper PRO)",
+        "socketStandard": "LGA4844",
+        "socketsSupported": [1],
+        "cpus": ["threadripper-pro-9995wx"],
+        "memory": {
+          "type": "DDR5 ECC RDIMM",
+          "speedMts": 6400,
+          "channels": 8,
+          "dimmSlots": 8,
+          "maxMemoryGb": 2048,
+          "populations": [
+            "8 x 256GB RDIMM for 2TB",
+            "4-channel population supported at reduced bandwidth"
+          ]
+        },
+        "pcie": {
+          "generation": "PCIe 5.0",
+          "lanes": 128,
+          "layout": "Multiple x16 slots (7-8 physical) for multi-GPU + M.2 via MCIO/bifurcation"
+        },
+        "formFactors": ["E-ATX (CEB 12in x 10.5in)", "E-ATX (12in x 13in)"],
+        "exampleBoards": [
+          "ASUS Pro WS WRX90E-SAGE SE (7 x PCIe 5.0 x16)",
+          "Supermicro M12SWA-TF (WRX90)",
+          "ASRock WRX90 WS EVO"
+        ],
+        "chipsets": ["WRX90"],
+        "qemuMachine": {
+          "machineType": "q35",
+          "note": "128-lane identity: attach multiple GPUs with pcie-root-port devices"
+        },
+        "numaModes": ["NPS1", "NPS2", "NPS4"]
+      },
+      {
+        "id": "str5-trx50",
+        "name": "AMD sTR5 prosumer platform (TRX50, Threadripper non-PRO)",
+        "socketStandard": "LGA4844",
+        "socketsSupported": [1],
+        "cpus": ["threadripper-7980x"],
+        "memory": {
+          "type": "DDR5 ECC RDIMM",
+          "speedMts": 5200,
+          "channels": 4,
+          "dimmSlots": 4,
+          "maxMemoryGb": 1024,
+          "populations": ["4 x 256GB RDIMM for 1TB", "4-channel only on TRX50"]
+        },
+        "pcie": {
+          "generation": "PCIe 5.0",
+          "lanes": 48,
+          "layout": "2-3 x16 slots (x16/x16/x8 electrical) + Gen5 M.2",
+          "extra": "socket exposes 128 lanes; TRX50 wires 48"
+        },
+        "formFactors": ["E-ATX (CEB)", "ATX"],
+        "exampleBoards": [
+          "ASUS Pro WS TRX50-SAGE WIFI",
+          "Gigabyte TRX50 AERO D",
+          "MSI PRO WS TRX50 WI-FI"
+        ],
+        "chipsets": ["TRX50"],
+        "qemuMachine": {
+          "machineType": "q35"
+        },
+        "numaModes": ["NPS1", "NPS2"]
+      },
+      {
+        "id": "lga1851",
+        "name": "Intel LGA1851 desktop platform (Core Ultra 200S)",
+        "socketStandard": "LGA1851",
+        "socketsSupported": [1],
+        "cpus": ["core-ultra-9-285k"],
+        "memory": {
+          "type": "DDR5 non-ECC UDIMM",
+          "speedMts": 6400,
+          "speedNote": "JEDEC DDR5-6400 native; CUDIMM overclocking to 8000-10000+ MT/s on Z890",
+          "channels": 2,
+          "dimmSlots": 4,
+          "maxMemoryGb": 192,
+          "populations": ["4 x 48GB for 192GB", "2DPC reduces JEDEC speed"]
+        },
+        "pcie": {
+          "generation": "PCIe 5.0",
+          "lanes": 20,
+          "layout": "x16 PEG (Gen5) + 1 x4 M.2 (Gen5)",
+          "extra": "PCIe 4.0 x4 chipset uplink to Z890; Gen4 downstream lanes for additional M.2/slots"
+        },
+        "formFactors": ["ATX", "Micro-ATX", "Mini-ITX"],
+        "exampleBoards": [
+          "ASUS ROG Maximus Z890 Hero",
+          "MSI MEG Z890 ACE",
+          "Gigabyte Z890 AORUS MASTER",
+          "ASRock Z890 Pro RS"
+        ],
+        "chipsets": ["Z890", "B860", "H810"],
+        "qemuMachine": {
+          "machineType": "q35",
+          "note": "No SMT: -smp 24,sockets=1,cores=24,threads=1"
+        },
+        "numaModes": ["UMA (single node)"]
+      }
+    ],
+    "formFactorReference": {
+      "ATX": {
+        "dimensionsMm": [305, 244],
+        "use": "desktop and single-socket workstation/server boards"
+      },
+      "eAtx": {
+        "dimensionsMm": [305, 277],
+        "variants": ["12in x 13in (330 x 330 for socket retention)"],
+        "use": "WRX90/TRX50 workstation and SP5 single-socket"
+      },
+      "CEB": {
+        "dimensionsMm": [305, 267],
+        "use": "compact E-ATX server boards"
+      },
+      "CEZANNE": {
+        "type": "AMD SP5 reference platform designator",
+        "use": "codename for AMD reference SP5 system designs used as identity in dmidecode/SMBIOS spoofing"
+      },
+      "microAtx": {
+        "dimensionsMm": [244, 244]
+      },
+      "miniItx": {
+        "dimensionsMm": [170, 170]
+      },
+      "smbiosSpoof": "QEMU -smbios type=2 entries map virtual boards to these form factors for dmidecode consistency."
+    },
+    "qemuMachineMapping": {
+      "q35": {
+        "description": "Intel Q35 chipset machine (PCIe root complex), default for all desktop/workstation/server identities",
+        "flags": "-machine q35 -device pcie-root-port for each passthrough/virtio device"
+      },
+      "microvm": {
+        "description": "virtio-mmio only machine for fastest TCG boot (~4x faster than default machines), used for edge/tiny profiles",
+        "flags": "-machine microvm -nodefaults -no-reboot -kernel bzImage -initrd initrd -append console=ttyS0",
+        "limitations": [
+          "no PCI",
+          "no PCIe hotplug",
+          "virtio devices only (virtio-mmio)",
+          "x86-only"
+        ]
+      },
+      "pc": {
+        "description": "legacy i440FX machine, only for compatibility tests"
+      },
+      "accelCompat": {
+        "kvm": "all machine types",
+        "tcg": "all machine types",
+        "note": "machine type is orthogonal to accelerator; microvm+TCG is the fastest cold-boot combination without KVM"
+      }
+    },
+    "memoryPopulationRules": [
+      "Server identities (SP5/sTR5) report RDIMM speeds at 1DPC; spoof lscpu/dmidecode accordingly (dmidecode type 17 speed 6400 MT/s, configured 6400).",
+      "Desktop identities (AM5/LGA1851) report UDIMM; 2DPC populations must downgrade reported JEDEC speed.",
+      "free/meminfo spoofing is volume-based (LD_PRELOAD fakemem-style); dmidecode SMBIOS tables are generated per board id.",
+      "max_memory per board caps the vm.config.json ram_gb validation (virtualhardware.json validation_rules)."
+    ],
+    "jsdoc": "The observer layers the saddle v5 platform catalog beneath the v3 retail board list: NPS0-NPS4 topologies for SP5/sTR5, JEDEC population tables with the 2DPC downgrade rule, form factors with millimeter dimensions including the CEZANNE SP5 reference designator, the microvm virtio-mmio fast-boot machine with its four limitations, and the SMBIOS type 2 / type 17 generation rules used by the dmidecode spoofer."
+  }
+}

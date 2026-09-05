@@ -34,7 +34,7 @@ async function copyOptionalDirectory(source, destination) {
 /** Removes the generated Capacitor app module after its staging is mapped to the root. */
 async function flattenAndroid() {
   const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
-  const androidRoot = join(repositoryRoot, "android");
+  const androidRoot = join(repositoryRoot, "web", "android");
   const generatedApp = join(androidRoot, "app");
   const generatedAssets = join(generatedApp, "src", "main", "assets");
   const generatedConfig = join(

@@ -1,0 +1,35 @@
+# static edge only; the sandbox api is self-hosted node (web/server.js);
+# no serverless functions per project rules. this file is read from the
+# repository root, so the publish directory is web/ (mirroring the
+# outputDirectory of vercel.json). deploy with either
+#   netlify deploy --prod --dir web
+# or by connecting the repo and letting netlify read this file.
+
+[build]
+  publish = "web"
+
+[build.environment]
+  NODE_VERSION = "26.7.0"
+
+# security headers mirroring web/server.js and the caddyfile; no
+# functions, no SPA rewrite: every page is a real html file (index,
+# login, register, dashboard), so /* -> /index.html 200 would only
+# hide 404s.
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, must-revalidate"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"

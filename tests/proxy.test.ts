@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ProxyPool, createProxyPool } from "../acquisition.js";
+import { ProxyPool, createProxyPool } from "../webscrape.js";
 
 describe('ProxyPool', () => {
   const proxies = [

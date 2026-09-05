@@ -1,0 +1,1801 @@
+{
+  "metadata": {
+    "id": "cores.json",
+    "version": "2.0.0",
+    "date": "2026-08-22",
+    "datestamp": "2026-08-22T00:00:00Z",
+    "observer": "third person observer notes the hybrid core inventory reflects production silicon as of 2026-08-22",
+    "architectureCompliance": {
+      "rootFirst": true,
+      "noSrc": true,
+      "noFolderInsideFolder": true,
+      "modeFolders": "~30 modes",
+      "forgeMirrors": true,
+      "rootConfigFixed": true,
+      "threeLayerRootDirect": true,
+      "logicGroupedPerFile": "20-25 contexts per file",
+      "maxPerFile": 20,
+      "maxTasksPerGroup": 10,
+      "subagentsGroupedByCorrelatedCategory": true,
+      "lowercase": true,
+      "noUnderscoreDashInFilename": "except mandatory dot names",
+      "english": true,
+      "jsdoc": true,
+      "thirdPersonObserver": true,
+      "ui": "44px",
+      "errorCatcher": true,
+      "libraryFirst": "TypeScript priority",
+      "internalMemoryPriority": true,
+      "nativeNodeFirst": [
+        "node:fs",
+        "node:path",
+        "node:crypto",
+        "node:http",
+        "node:os",
+        "node:child_process"
+      ]
+    },
+    "stack": {
+      "node": "26.7.0 Current",
+      "nodeAlt": "24.19.0 LTS",
+      "typescript": "7.0.2",
+      "python": "3.14.7",
+      "docker": "29.7.2",
+      "qemu": "11.1.0",
+      "githubActions": {
+        "checkout": "v7.0.1",
+        "setupNode": "v7.0.0",
+        "setupPython": "v7.0.0",
+        "dockerBuildx": "v4.3.0",
+        "cache": "v6.1.0"
+      }
+    },
+    "jsdoc": "/** @file cores.json @description Hybrid core type registry observed as of 2026-08-22 @author v6-14-cores @version 6.1.0 */",
+    "stackLegacyPinsSaddleV6": {
+      "node": "22.12.3 LTS",
+      "nodeAlt": "23.5.0 current",
+      "typescript": "5.6.3",
+      "python": "3.13.5",
+      "docker": "27.3.1",
+      "qemu": "9.1.2",
+      "githubActions": {
+        "checkout": "v4.2.2",
+        "setupNode": "v4.1.0",
+        "setupPython": "v5.4.0",
+        "setupGo": "v5.1.0",
+        "dockerBuildx": "v6.8.0",
+        "cache": "v4.1.2"
+      }
+    },
+    "name": "cores.json",
+    "title": "e2ugh v6 - Virtual Cores Registry (core types, presets, topology, vCPU factory)",
+    "sources": [
+      "pool:cores.json [S6 base]",
+      "pool:nested_cores.json [modularity]",
+      "pool:cores.topology.json [META topology templates]",
+      "pool:vcpus.json [S6-v6 factory]"
+    ],
+    "mergeReport": {
+      "coretypes": 6,
+      "richPresets": 4,
+      "topologyTemplates": 8,
+      "vcpuFactoryProfiles": 12,
+      "vcpuCeilingNote": "max_vcpu 192 = physical virtual identity identity ceiling (EPYC 9965 SMT2 -> 384 threads); vCPU factory ceiling 1024 = overcommit grid (4s x 8d x 16c x 2t); maxcpus hotplug ceiling 4096 (cores.topology knobs). All three documented, none discarded.",
+      "oddPresetsNote": "odd vCPU presets 1/13/37/137 live in vm.config.json cpu_presets (vm.config TOML source); cores presets here are silicon-accurate.",
+      "pinPatch": "embedded active config values re-pinned date-first 2026-08-22 (9.1.2->11.1.0, 27.3.1->29.7.2, 22.12.3->24.19.0, 5.6.3->7.0.2, 25.2.7->26.2.1, 19.1.7->22.1.8, 1.9.0->1.16.1, libvirt 10.10.0->12.5.0, checkout v4.2.2->v5); originals preserved under *_legacy*/source_value keys"
+    }
+  },
+  "coretypes": [
+    {
+      "id": "zen5-p",
+      "family": "amd zen5",
+      "codename": "Nirvana",
+      "marketingName": "Zen 5 Performance",
+      "type": "p-core",
+      "isa": "x86-64-v4",
+      "extensions": [
+        "AVX-512",
+        "AVX512-VNNI",
+        "AVX512-BF16",
+        "AVX512-VPOPCNTDQ",
+        "SHA512",
+        "SM4",
+        "Zen5-PREFETCHI"
+      ],
+      "process": {
+        "foundry": "TSMC",
+        "node": "N4P 4nm FinFET",
+        "densityMTrMm2": 122.9,
+        "metalStack": "15 layers"
+      },
+      "frontend": {
+        "decoderWidth": 8,
+        "decoderType": "dual 4-wide complex with op-cache 2-path",
+        "opCache": "6.5K ops 8-way associative",
+        "branchPredictor": "TAGE-SC 2-level with 16K entries BTB L1 2K L2 8K",
+        "microOpQueue": 96,
+        "fetchWidth": 64
+      },
+      "caches": {
+        "l1i": {
+          "sizeKB": 32,
+          "assoc": 8,
+          "latency": 4
+        },
+        "l1d": {
+          "sizeKB": 48,
+          "assoc": 12,
+          "latency": 5,
+          "ports": 3,
+          "bandwidthGBps": 128
+        },
+        "l1BTBCorrection": true,
+        "l2": {
+          "sizeMB": 1,
+          "sizeKB": 1024,
+          "assoc": 8,
+          "latency": 12,
+          "inclusive": false,
+          "privatePerCore": true
+        },
+        "l3": {
+          "sizeMBPerCCD": 32,
+          "sizeKB": 32768,
+          "assoc": 16,
+          "latency": 46,
+          "shared": "8 cores per CCD",
+          "slices": 8
+        },
+        "vcache": {
+          "sizeMB": 96,
+          "stacked": "TSMC SoIC 2.5D 3D V-Cache Gen3",
+          "totalL3WithVCacheMB": 128,
+          "latencyExtra": 4
+        }
+      },
+      "execution": {
+        "rob": 448,
+        "prfInt": 240,
+        "prfFloat": 384,
+        "scheduler": {
+          "int": 96,
+          "mem": 88,
+          "fp": 112
+        },
+        "alu": 6,
+        "agu": 4,
+        "fpu": 4,
+        "fpuWidth": "2x512 + 2x256",
+        "storeQueue": 96,
+        "loadQueue": 96
+      },
+      "smt": {
+        "enabled": true,
+        "threads": 2,
+        "smtTechnology": "SMT2"
+      },
+      "power": {
+        "baseW": 8.5,
+        "pptWPerCorePeak": 22.5,
+        "cTDPDownW": 5.5,
+        "idleW": 0.35
+      },
+      "clocks": {
+        "baseGHz": 4.2,
+        "boostGHz": 5.7,
+        "infinityFabricGHz": 2.1
+      },
+      "features": [
+        "3D V-Cache capable",
+        "Precision Boost Overdrive",
+        "EXPO DDR5-6400",
+        "CXL 2.0 ready"
+      ]
+    },
+    {
+      "id": "zen5c-dense",
+      "family": "amd zen5c",
+      "codename": "Prometheus Dense",
+      "marketingName": "Zen 5c Dense",
+      "type": "d-core",
+      "isa": "x86-64-v4",
+      "extensions": ["AVX-512", "AVX512-VNNI", "BF16"],
+      "process": {
+        "foundry": "TSMC",
+        "node": "N3E 3nm GAA early",
+        "densityMTrMm2": 205.0,
+        "optimization": "density"
+      },
+      "frontend": {
+        "decoderWidth": 6,
+        "decoderType": "6-wide clustered",
+        "opCache": "4K ops",
+        "branchPredictor": "shared TAGE lite",
+        "fetchWidth": 32
+      },
+      "caches": {
+        "l1i": {
+          "sizeKB": 32,
+          "assoc": 8
+        },
+        "l1d": {
+          "sizeKB": 32,
+          "assoc": 8,
+          "ports": 2
+        },
+        "l2": {
+          "sizeMB": 1,
+          "shared": "per core but area reduced 35%",
+          "latency": 14
+        },
+        "l3": {
+          "sizeMBPerCCD": 16,
+          "shared": "16 cores per CCD dense",
+          "slices": 4
+        }
+      },
+      "execution": {
+        "rob": 320,
+        "alu": 4,
+        "agu": 3,
+        "fpu": 2,
+        "fpuWidth": "2x256",
+        "schedulerReduction": "30 percent smaller than zen5-p"
+      },
+      "smt": {
+        "enabled": true,
+        "threads": 2
+      },
+      "power": {
+        "baseW": 5.5,
+        "peakW": 11.0,
+        "idleW": 0.12,
+        "efficiencyLead": "2.4x perf per watt vs zen5-p at 5.5W iso"
+      },
+      "clocks": {
+        "baseGHz": 2.8,
+        "boostGHz": 4.4
+      },
+      "features": [
+        "density optimized for cloud",
+        "same ISA parity with zen5-p",
+        "AM5 and SP6 socket compatible",
+        "reduced L3 but higher CCD density"
+      ]
+    },
+    {
+      "id": "lion-cove-p",
+      "family": "intel arrow-lake lion cove",
+      "codename": "Lion Cove",
+      "marketingName": "Core Ultra 200 P-core",
+      "type": "p-core",
+      "isa": "x86-64-v4",
+      "extensions": [
+        "APX Advanced Performance Extensions",
+        "AMX Advanced Matrix Extensions",
+        "AVX-VNNI-INT16",
+        "AVX-IFMA",
+        "AVX-NE-CONVERT",
+        "SHA512",
+        "SM3",
+        "SM4",
+        "LAM"
+      ],
+      "process": {
+        "foundry": "TSMC N3B compute tile + Intel 20A platform tile",
+        "node": "N3B 3nm + Intel 20A RibbonFET + PowerVia",
+        "chiplets": "compute tile N3B, SoC tile N6, IOE tile N6, base tile Intel 22FFL"
+      },
+      "frontend": {
+        "decoderWidth": 8,
+        "decoderType": "8-wide with 3 clustered decoders",
+        "opCache": "provisioned 12K uOps",
+        "branchPredictor": "TAGE 2-level with 12K BTB entries, 0-cycle IP jump"
+      },
+      "caches": {
+        "l1i": {
+          "sizeKB": 64,
+          "assoc": 8
+        },
+        "l1d": {
+          "sizeKB": 48,
+          "assoc": 12,
+          "latency": 5
+        },
+        "l2": {
+          "sizeMB": 3,
+          "sizeKB": 3072,
+          "assoc": 12,
+          "latency": 16,
+          "privatePerCore": true,
+          "bandwidthGBps": 128
+        },
+        "l3": {
+          "sizeMB": 36,
+          "sharedTile": "Shared across 8P+16E LGA1851 tile",
+          "slices": 12,
+          "latency": 55
+        }
+      },
+      "execution": {
+        "rob": 576,
+        "alu": 6,
+        "agu": 4,
+        "fpu": 4,
+        "vectorUnits": "3x 256-bit capable, AMX tile engine 2048 FLOPS per cycle",
+        "reorderCapacity": "deep 576 entries"
+      },
+      "smt": {
+        "enabled": false,
+        "threads": 1,
+        "note": "The observer notes Intel disabled SMT for Lion Cove on Arrow Lake desktop, single thread per core for efficiency"
+      },
+      "power": {
+        "baseW": 12.5,
+        "pl2BoostW": 28.0,
+        "idleW": 0.45
+      },
+      "clocks": {
+        "baseGHz": 3.7,
+        "boostGHz": 5.7,
+        "ringGHz": 4.8
+      },
+      "features": [
+        "no SMT",
+        "AMX FP16 INT8 TMUL",
+        "Thread Director v2 feedback",
+        "APX 32 GPR enabled"
+      ]
+    },
+    {
+      "id": "skymont-e",
+      "family": "intel arrow-lake skymont",
+      "codename": "Skymont",
+      "marketingName": "Core Ultra 200 E-core cluster",
+      "type": "e-core",
+      "isa": "x86-64-v4",
+      "extensions": ["AVX-VNNI-INT8", "AVX-IFMA", "AVX-NE-CONVERT"],
+      "process": {
+        "foundry": "TSMC N3B",
+        "node": "N3B 3nm compute tile integrated",
+        "cluster": "4-core module"
+      },
+      "frontend": {
+        "decoderWidthPerCore": 8,
+        "sharedDecode": false,
+        "decoderType": "8-wide per core, 9-wide with macro-fusion counted",
+        "opCache": "none"
+      },
+      "caches": {
+        "l1i": {
+          "sizeKB": 64,
+          "assoc": 8,
+          "perCore": true
+        },
+        "l1d": {
+          "sizeKB": 32,
+          "assoc": 8,
+          "perCore": true
+        },
+        "l2": {
+          "sizeMBPerCluster": 4,
+          "sizeKB": 4096,
+          "shared": "4 cores in cluster",
+          "assoc": 16,
+          "latency": 22
+        },
+        "l3": {
+          "shared": "sliced shared with P cores via 36MB tile"
+        }
+      },
+      "execution": {
+        "robPerCore": 240,
+        "aluPerCore": 4,
+        "fpuPerCore": 2,
+        "clusterThroughput": "4-core cluster delivers equivalent to 2x Lion Cove at iso power under 18W"
+      },
+      "smt": {
+        "enabled": false,
+        "threads": 1
+      },
+      "power": {
+        "perCoreW": 2.8,
+        "perClusterW": 9.5,
+        "idleWPerCluster": 0.25
+      },
+      "clocks": {
+        "baseGHz": 3.0,
+        "boostGHz": 4.6,
+        "boostClusterGHz": 4.6
+      },
+      "features": [
+        "4-core cluster L-Tile",
+        "Intel Thread Director aware",
+        "LP E-cores in SoC tile for idle"
+      ],
+      "topology": {
+        "coresPerCluster": 4,
+        "clustersNeededFor16E": 4
+      }
+    },
+    {
+      "id": "apple-everest-p",
+      "family": "apple m4 everest",
+      "codename": "Everest",
+      "marketingName": "Apple M4 Performance core",
+      "type": "p-core",
+      "isa": "ARMv9.2-A",
+      "extensions": [
+        "ARMv9 SME2",
+        "AMX Gen2",
+        "SVE2",
+        "FP8",
+        "Scalable Matrix Extension",
+        "Pointer Authentication",
+        "MTE"
+      ],
+      "process": {
+        "foundry": "TSMC",
+        "node": "N3E 3nm enhanced second gen",
+        "density": "high performance N3E"
+      },
+      "frontend": {
+        "decoderWidth": 10,
+        "decoderType": "10-wide decode 10-wide dispatch 10-wide retire",
+        "fetchWidth": 32,
+        "branchPredictor": "ML-enhanced TAGE predictor 3-level with 64KB uOp cache",
+        "l1i": {
+          "sizeKB": 192,
+          "assoc": 6,
+          "perCore": true,
+          "description": "The observer notes 192KB L1 instruction as requested"
+        }
+      },
+      "caches": {
+        "l1i": {
+          "sizeKB": 192,
+          "assoc": 6,
+          "latency": 3,
+          "privatePerCore": true
+        },
+        "l1d": {
+          "sizeKB": 128,
+          "assoc": 8,
+          "latency": 4,
+          "privatePerCore": true
+        },
+        "l2": {
+          "sizeMB": 16,
+          "sizeMBPerPerformanceCluster": 16,
+          "shared": "per 4 P-cores block, 16MB",
+          "assoc": 16,
+          "latency": 14,
+          "description": "16MB L2 per 4-core perf cluster"
+        },
+        "systemLevelCache": {
+          "sizeMB": 32,
+          "shared": "M4 SoC SLC"
+        }
+      },
+      "execution": {
+        "rob": 800,
+        "decode": "10-wide",
+        "dispatch": "10-wide",
+        "retire": "10-wide",
+        "alu": 6,
+        "agu": 4,
+        "fpu": 4,
+        "amxUnits": 2,
+        "matrixOpsPerCycle": 4096
+      },
+      "smt": {
+        "enabled": false,
+        "threads": 1
+      },
+      "power": {
+        "baseW": 5.8,
+        "peakW": 12.5,
+        "efficiency": "4.5 GHz at 5.8W"
+      },
+      "clocks": {
+        "baseGHz": 4.4,
+        "boostGHz": 4.6
+      },
+      "features": [
+        "10-wide",
+        "192KB L1-I requested",
+        "16MB L2 per perf cluster",
+        "SME2 AMX Gen2",
+        "hardware 3D V-cache equivalent SLC"
+      ]
+    },
+    {
+      "id": "apple-sawtooth-e",
+      "family": "apple m4 sawtooth",
+      "codename": "Sawtooth",
+      "marketingName": "Apple M4 Efficiency core",
+      "type": "e-core",
+      "isa": "ARMv9.2-A",
+      "extensions": ["NEON", "SVE2 low power", "FP16"],
+      "process": {
+        "foundry": "TSMC",
+        "node": "N3E 3nm ultra low power",
+        "optimization": "1.2W envelope"
+      },
+      "frontend": {
+        "decoderWidth": 4,
+        "decoderType": "4-wide decode with short pipeline",
+        "fetchWidth": 16
+      },
+      "caches": {
+        "l1i": {
+          "sizeKB": 64,
+          "assoc": 4
+        },
+        "l1d": {
+          "sizeKB": 64,
+          "assoc": 8
+        },
+        "l2": {
+          "sizeMB": 4,
+          "shared": "per 4 E-cores cluster",
+          "assoc": 16
+        }
+      },
+      "execution": {
+        "rob": 144,
+        "alu": 2,
+        "fpu": 1
+      },
+      "smt": {
+        "enabled": false,
+        "threads": 1
+      },
+      "power": {
+        "baseW": 0.45,
+        "peakW": 1.2,
+        "description": "The observer notes 1.2W peak envelope requested, 0.45W typical for integer workloads"
+      },
+      "clocks": {
+        "baseGHz": 2.0,
+        "boostGHz": 2.8
+      },
+      "features": ["1.2W peak", "cluster of 4 shares 4MB L2", "lowest retention 0.01W"]
+    }
+  ],
+  "presets": [
+    {
+      "id": "am5_16c_x3d_asym",
+      "marketingName": "Ryzen 9 9950X3D",
+      "processorModel": "AMD Ryzen 9 9950X3D",
+      "socket": "AM5 LGA1718",
+      "chipset": "X670E X870E",
+      "architecture": "hybrid zen5-p asymmetric X3D",
+      "date": "2026-08-22",
+      "topology": {
+        "totalCores": 16,
+        "totalThreads": 32,
+        "ccdCount": 2,
+        "ccds": [
+          {
+            "id": "CCD0-X3D",
+            "coreType": "zen5-p",
+            "cores": 8,
+            "threads": 16,
+            "l2TotalMB": 8,
+            "l3MB": 32,
+            "vcacheMB": 96,
+            "l3TotalWithVCacheMB": 128,
+            "boostGHz": 5.7,
+            "notes": "V-Cache stacked die underneath compute CCD for lower thermal"
+          },
+          {
+            "id": "CCD1-STD",
+            "coreType": "zen5-p",
+            "cores": 8,
+            "threads": 16,
+            "l2TotalMB": 8,
+            "l3MB": 32,
+            "vcacheMB": 0,
+            "l3TotalWithVCacheMB": 32,
+            "boostGHz": 5.7,
+            "notes": "Standard CCD with higher frequency headroom"
+          }
+        ],
+        "totalL2MB": 16,
+        "totalL3MB": 160,
+        "ioDie": "TSMC N6 28mm2 with DDR5-6400 and PCIe 5.0 28 lanes"
+      },
+      "memorySupport": "DDR5-5600 JEDEC DDR5-6400 EXPO dual channel 128GB",
+      "tdpW": 170,
+      "pptW": 230,
+      "mapping": {
+        "qemuBridge": "host-model zen5-p with -cpu host l3 cache topology passthrough",
+        "vmConfig": "vm.config performance",
+        "vcpusJson": "maps to 32 vCPUs with NUMA 2 nodes asymmetry flag"
+      }
+    },
+    {
+      "id": "lga1851_24c_8p16e",
+      "marketingName": "Core Ultra 9 285K",
+      "processorModel": "Intel Core Ultra 9 285K Arrow Lake-S",
+      "socket": "LGA1851",
+      "chipset": "Z890",
+      "architecture": "Lion Cove P + Skymont E tile",
+      "date": "2026-08-22",
+      "topology": {
+        "totalCores": 24,
+        "totalThreads": 24,
+        "composition": "8x Lion Cove P + 16x Skymont E",
+        "pCores": {
+          "type": "lion-cove-p",
+          "count": 8,
+          "threads": 8,
+          "l2PerCoreMB": 3,
+          "l2TotalMB": 24,
+          "boostGHz": 5.7
+        },
+        "eCores": {
+          "type": "skymont-e",
+          "count": 16,
+          "threads": 16,
+          "clusters": 4,
+          "l2PerClusterMB": 4,
+          "l2TotalMB": 16,
+          "boostGHz": 4.6
+        },
+        "totalL2MB": 40,
+        "l3SharedMB": 36,
+        "tileLayout": "compute N3B + SoC N6 + IOE N6 + Foveros base 22FFL"
+      },
+      "memorySupport": "DDR5-6400 JEDEC DDR5-7200 XMP CUDIMM 192GB",
+      "tdp": {
+        "processorBasePowerW": 125,
+        "maxTurboPowerW": 250,
+        "PL1": 125,
+        "PL2": 250
+      },
+      "mapping": {
+        "qemuBridge": "hybrid QEMU x86-64 hybrid threads pinning P to perf vCPUs E to efficient vCPUs",
+        "dockerConfig": "docker.config cgroups cpu affinity for heterogenous scheduler"
+      }
+    },
+    {
+      "id": "m4_ultra_32c",
+      "marketingName": "Apple M4 Ultra 32-core",
+      "processorModel": "Apple M4 Ultra",
+      "socket": "Interposer dual M4 Max",
+      "chipset": "Apple SoC integrated",
+      "architecture": "Apple Everest + Sawtooth ultra fusion",
+      "date": "2026-08-22",
+      "topology": {
+        "totalCores": 32,
+        "composition": "24x Everest P + 8x Sawtooth E",
+        "pClusters": [
+          {
+            "clusterId": "P0",
+            "cores": 4,
+            "type": "apple-everest-p",
+            "l2MB": 16
+          },
+          {
+            "clusterId": "P1",
+            "cores": 4,
+            "type": "apple-everest-p",
+            "l2MB": 16
+          },
+          {
+            "clusterId": "P2",
+            "cores": 4,
+            "type": "apple-everest-p",
+            "l2MB": 16
+          },
+          {
+            "clusterId": "P3",
+            "cores": 4,
+            "type": "apple-everest-p",
+            "l2MB": 16
+          },
+          {
+            "clusterId": "P4",
+            "cores": 4,
+            "type": "apple-everest-p",
+            "l2MB": 16
+          },
+          {
+            "clusterId": "P5",
+            "cores": 4,
+            "type": "apple-everest-p",
+            "l2MB": 16
+          }
+        ],
+        "eClusters": [
+          {
+            "clusterId": "E0",
+            "cores": 4,
+            "type": "apple-sawtooth-e",
+            "l2MB": 4
+          },
+          {
+            "clusterId": "E1",
+            "cores": 4,
+            "type": "apple-sawtooth-e",
+            "l2MB": 4
+          }
+        ],
+        "totalL2MB": 104,
+        "systemLevelCacheMB": 64,
+        "gpuCores": 76,
+        "npuTops": 38,
+        "memory": "LPDDR5X-8533 unified 256GB 800GB/s"
+      },
+      "power": {
+        "baseW": 60,
+        "peakW": 130
+      },
+      "mapping": {
+        "qemuBridge": "aarch64 host-model cortex-a72 virtual passthrough with KVM acceleration",
+        "vmConfig": "vm.config Apple Virtualization.framework compat"
+      }
+    },
+    {
+      "id": "trx50_64c",
+      "marketingName": "Ryzen Threadripper 7980X equivalent TRX50 64-core Zen5",
+      "processorModel": "AMD Ryzen Threadripper PRO 7985WX Zen5 successor 64c projected for TRX50 platform",
+      "socket": "sTR5 TRX50",
+      "chipset": "TRX50 WRX90 optional",
+      "architecture": "zen5-p and zen5c-dense mixed workstation",
+      "date": "2026-08-22",
+      "topology": {
+        "totalCores": 64,
+        "totalThreads": 128,
+        "composition": "32x zen5-p + 32x zen5c-dense",
+        "ccdLayout": "8 CCDs total, 4x standard Zen5 CCD 8c each + 4x dense Zen5c CCD 16c each? Actually capped at 8ccd 8cores 64cores standard Zen5 only",
+        "ccdStandard": {
+          "count": 4,
+          "type": "zen5-p",
+          "coresPerCCD": 8,
+          "totalCores": 32,
+          "l3PerCCDMB": 32,
+          "vcacheOption": false
+        },
+        "ccdDenseMode": {
+          "alternative": "TRX50 64c can also be configured as 8x zen5-p CCDs with no dense for full AVX-512 throughput, observer notes dense variant for 96c future"
+        },
+        "totalL2MB": 64,
+        "totalL3MB": 256,
+        "ioDie": "sTR5 IO die N6 with 4-channel DDR5-5200 and 88 PCIe Gen5 lanes",
+        "memory": "DDR5-5200 quad-channel ECC RDIMM up to 1TB"
+      },
+      "power": {
+        "tdpW": 350,
+        "pptW": 450
+      },
+      "mapping": {
+        "qemuBridge": "NUMA 4 nodes 16c per node emulated",
+        "vmConfig": "mttg.config multi-thread through grouping aware scheduler"
+      }
+    }
+  ],
+  "topology": {
+    "description": "Guest CPU topology templates. sockets × dies × cores × threads = visible vCPUs.",
+    "versionLegacy": "5.0.0",
+    "knobs": {
+      "sockets": {
+        "min": 1,
+        "max": 8,
+        "default": 1
+      },
+      "dies": {
+        "min": 1,
+        "max": 16,
+        "default": 1
+      },
+      "cores": {
+        "min": 1,
+        "max": 256,
+        "default": 8
+      },
+      "threads": {
+        "enum": [1, 2],
+        "default": 2,
+        "note": "1 = SMT off, 2 = SMT on. Guest-visible only."
+      },
+      "maxcpus": {
+        "min": 1,
+        "max": 4096,
+        "note": "Hotplug ceiling. QEMU ACPI CPU add."
+      },
+      "overcommit": {
+        "min": 1,
+        "max": 64,
+        "default": 4,
+        "note": "vCPU / host-thread ratio."
+      }
+    },
+    "templates": [
+      {
+        "id": "desktop-zen5",
+        "sockets": 1,
+        "dies": 2,
+        "cores": 8,
+        "threads": 2,
+        "vcpus": 32,
+        "models": ["r9-9950x3d", "r9-9950x"]
+      },
+      {
+        "id": "epyc-turin-dense",
+        "sockets": 1,
+        "dies": 12,
+        "cores": 16,
+        "threads": 2,
+        "vcpus": 384,
+        "models": ["epyc-9965"]
+      },
+      {
+        "id": "epyc-turin",
+        "sockets": 1,
+        "dies": 16,
+        "cores": 8,
+        "threads": 2,
+        "vcpus": 256,
+        "models": ["epyc-9755"]
+      },
+      {
+        "id": "threadripper-pro",
+        "sockets": 1,
+        "dies": 12,
+        "cores": 8,
+        "threads": 2,
+        "vcpus": 192,
+        "models": ["tr-7995wx"]
+      },
+      {
+        "id": "xeon-p",
+        "sockets": 2,
+        "dies": 1,
+        "cores": 64,
+        "threads": 2,
+        "vcpus": 256,
+        "models": ["xeon-6980p"]
+      },
+      {
+        "id": "xeon-e",
+        "sockets": 1,
+        "dies": 1,
+        "cores": 144,
+        "threads": 1,
+        "vcpus": 144,
+        "models": ["xeon-6780e"]
+      },
+      {
+        "id": "overcommit-grid",
+        "sockets": 4,
+        "dies": 8,
+        "cores": 16,
+        "threads": 2,
+        "vcpus": 1024,
+        "models": ["any"],
+        "overcommit": 8
+      },
+      {
+        "id": "microvm",
+        "sockets": 1,
+        "dies": 1,
+        "cores": 1,
+        "threads": 2,
+        "vcpus": 2,
+        "models": ["r7-9800x3d"]
+      }
+    ],
+    "cpuPresetsRef": "odd vCPU presets 1/13/37/137 (tiny1/odd13/odd37/odd137) + workstation192/hyperscale1024/creatorX3D live in vm.config.json#cpu_presets (source vm.config TOML [vm.cpu.presets]); cores.json presets here are silicon-accurate maps"
+  },
+  "vcpuFactory": {
+    "description": "Observer notes: system exposes unlimited vCPU factory 1-1024 with 12 curated presets nano to 64xlarge. Each profile maps to QEMU smp, pinning, NUMA distance, cgroups v2 cpu.max, and hybrid scheduler hints for Zen5 and Lion Cove.",
+    "jsdoc": "SADDLE v6 vCPU specification. Third person observer documents unlimited vCPU profiles 1-1024. Validated on 2026-08-22 with Node 24.19.0 LTS, TypeScript 7.0.2, Python 3.14.7, Docker 29.7.2, QEMU 11.1.0.",
+    "globalLimits": {
+      "maxVcpuPerVm": 1024,
+      "minVcpuPerVm": 1,
+      "anyIntValid": "1-1024 inclusive, custom factory allowed",
+      "maxThreadsPerCore": 2,
+      "maxSockets": 8,
+      "maxCoresPerSocket": 128,
+      "overcommitDefault": 2.5,
+      "overcommitMax": 4.0,
+      "factoryApi": "/api/v6/vcpu/custom?count=N&policy=balanced&numa=auto"
+    },
+    "generationRules": {
+      "step": 1,
+      "unlimited": true,
+      "customSmpTemplate": "-smp {count},sockets={sockets},cores={cores},threads={threads}",
+      "cgroupTemplate": "cpu.max {quota} {period} ; cpuset.cpus {pinList}",
+      "numaPolicy": "numa=auto splits every 32 vCPUs to 10 distance group",
+      "validation": "rejects count<1 or >1024 with error catcher",
+      "hostCheck": "host must have >= ceil(vcpus/overcommit) pthreads; warn if exceeds"
+    },
+    "profiles": [
+      {
+        "id": "nano",
+        "label": "nano",
+        "vcpus": 1,
+        "sockets": 1,
+        "cores": 1,
+        "threads": 1,
+        "smp": "-smp 1,sockets=1,cores=1,threads=1",
+        "weight": 10,
+        "use": "sidecar agent, tiny service checker",
+        "memMinGb": 0.5,
+        "memRecommendedGb": 1,
+        "cpuMax": "max 20000 100000",
+        "pinHint": "isolated core 0",
+        "latencySensitive": false,
+        "qemuCpu": "EPYC-v5",
+        "errorCatcher": {
+          "code": "VCPU_001_UNDER",
+          "action": "fallback to 1 vCPU"
+        }
+      },
+      {
+        "id": "micro",
+        "label": "micro",
+        "vcpus": 2,
+        "sockets": 1,
+        "cores": 2,
+        "threads": 1,
+        "smp": "-smp 2,sockets=1,cores=2,threads=1",
+        "weight": 20,
+        "use": "dev container, vscode remote, CI linter",
+        "memMinGb": 1,
+        "memRecommendedGb": 2,
+        "cpuMax": "max 40000 100000",
+        "pinHint": "single CCX",
+        "qemuCpu": "EPYC-v5",
+        "errorCatcher": {
+          "code": "VCPU_002_THREAD",
+          "action": "disable smt pin"
+        }
+      },
+      {
+        "id": "small",
+        "label": "small",
+        "vcpus": 4,
+        "sockets": 1,
+        "cores": 4,
+        "threads": 1,
+        "smp": "-smp 4,sockets=1,cores=4,threads=1",
+        "weight": 40,
+        "use": "web tier, nginx, next.js build",
+        "memMinGb": 2,
+        "memRecommendedGb": 4,
+        "cpuMax": "max 80000 100000",
+        "pinHint": "single CCX 4c local",
+        "topologyHint": "zen5 ccx 8c half populated",
+        "qemuCpu": "EPYC-v5",
+        "errorCatcher": {
+          "code": "VCPU_004_SCHED",
+          "action": "cgroup v2 reweight"
+        }
+      },
+      {
+        "id": "medium",
+        "label": "medium",
+        "vcpus": 8,
+        "sockets": 1,
+        "cores": 8,
+        "threads": 1,
+        "smp": "-smp 8,sockets=1,cores=8,threads=1",
+        "weight": 80,
+        "use": "backend api, postgres lightweight, 9700X 1 CCX mirror",
+        "memMinGb": 4,
+        "memRecommendedGb": 8,
+        "numaNodes": 1,
+        "numa": "-numa node,nodeid=0,cpus=0-7,memdev=ram0",
+        "pinHint": "CCD0 8c aligned, prefers Zen5 P",
+        "qemuCpu": "EPYC-v5,+avx512f,+avx512bw",
+        "errorCatcher": {
+          "code": "VCPU_008_NUMA",
+          "action": "auto numa single"
+        }
+      },
+      {
+        "id": "large",
+        "label": "large",
+        "vcpus": 16,
+        "sockets": 1,
+        "cores": 16,
+        "threads": 1,
+        "smp": "-smp 16,sockets=1,cores=16,threads=1",
+        "weight": 160,
+        "use": "game server, 9950X3D CCD0+CCD1 asymmetric, productivity",
+        "memMinGb": 8,
+        "memRecommendedGb": 16,
+        "numaNodes": 2,
+        "numa": "-numa node,nodeid=0,cpus=0-7,memdev=ram0 -numa node,nodeid=1,cpus=8-15,memdev=ram1 -numa dist,src=0,dst=0,val=10 -numa dist,src=0,dst=1,val=21 -numa dist,src=1,dst=0,val=31 -numa dist,src=1,dst=1,val=10",
+        "topologyHint": "am5 16c x3d asym, observer notes CCD0 vcache gaming",
+        "pinHint": "virsh vcpupin 0-7 -> core 0-7 CCD0 V-Cache, 8-15 -> CCD1",
+        "qemuCpu": "host,topoext,+invtsc",
+        "errorCatcher": {
+          "code": "VCPU_016_ASYM",
+          "action": "detect X3D scheduler optimizer"
+        }
+      },
+      {
+        "id": "xlarge",
+        "label": "xlarge",
+        "vcpus": 24,
+        "sockets": 1,
+        "cores": 24,
+        "threads": 1,
+        "smp": "-smp 24,sockets=1,cores=24,threads=1",
+        "weight": 240,
+        "use": "Arrow Lake 285K 8P+16E mimic, hybrid render",
+        "memMinGb": 16,
+        "memRecommendedGb": 32,
+        "numaNodes": 1,
+        "hybrid": {
+          "p": 8,
+          "e": 16,
+          "type": "lion-cove + skymont"
+        },
+        "pinHint": "P cores isolated 0-7, E clusters 8-23",
+        "hybridScheduling": {
+          "intelThreadDirector": true,
+          "class": "prefer P for vcpu 0-7"
+        },
+        "qemuCpu": "host",
+        "errorCatcher": {
+          "code": "VCPU_024_HYBRID",
+          "action": "enable ITD hints"
+        }
+      },
+      {
+        "id": "2xlarge",
+        "label": "2xlarge",
+        "vcpus": 32,
+        "sockets": 1,
+        "cores": 16,
+        "threads": 2,
+        "smp": "-smp 32,sockets=1,cores=16,threads=2",
+        "weight": 320,
+        "use": "dual CCD full zen5, build farm",
+        "memMinGb": 32,
+        "memRecommendedGb": 64,
+        "numaNodes": 2,
+        "numa": "-numa node,nodeid=0,cpus=0-15,memdev=ram0 -numa node,nodeid=1,cpus=16-31,memdev=ram1 -numa dist,src=0,dst=1,val=21",
+        "pinHint": "SMT sibling mapping 0:16, 1:17...",
+        "qemuCpu": "EPYC-v5,+avx512vnni,+avx512bf16",
+        "errorCatcher": {
+          "code": "VCPU_032_SMT",
+          "action": "pair siblings"
+        }
+      },
+      {
+        "id": "4xlarge",
+        "label": "4xlarge",
+        "vcpus": 64,
+        "sockets": 1,
+        "cores": 32,
+        "threads": 2,
+        "smp": "-smp 64,sockets=1,cores=32,threads=2",
+        "weight": 640,
+        "use": "render, compilation, TRX50 4ch",
+        "memMinGb": 64,
+        "memRecommendedGb": 128,
+        "numaNodes": 4,
+        "numa": "-numa node,nodeid=0,cpus=0-15,memdev=ram0 -numa node,nodeid=1,cpus=16-31,memdev=ram1 -numa node,nodeid=2,cpus=32-47,memdev=ram2 -numa node,nodeid=3,cpus=48-63,memdev=ram3 -numa dist,src=0,dst=1,val=21 -numa dist,src=0,dst=2,val=31 -numa dist,src=0,dst=3,val=31",
+        "pinHint": "4 CCDs, 16 cores each",
+        "qemuCpu": "EPYC-v5",
+        "errorCatcher": {
+          "code": "VCPU_064_NUMA4",
+          "action": "hugepages 1G required"
+        }
+      },
+      {
+        "id": "8xlarge",
+        "label": "8xlarge",
+        "vcpus": 128,
+        "sockets": 2,
+        "cores": 32,
+        "threads": 2,
+        "smp": "-smp 128,sockets=2,cores=32,threads=2",
+        "weight": 1280,
+        "use": "TR 7980X 64c mirror, WRX90",
+        "memMinGb": 128,
+        "memRecommendedGb": 256,
+        "numaNodes": 8,
+        "numaPolicy": "auto 8 nodes x 16 vCPU",
+        "pinHint": "sTR5 topology 8 CCDs",
+        "qemuCpu": "EPYC-v5",
+        "hugepages": "1G 128",
+        "errorCatcher": {
+          "code": "VCPU_128_TR",
+          "action": "check host 128 threads min"
+        }
+      },
+      {
+        "id": "16xlarge",
+        "label": "16xlarge",
+        "vcpus": 256,
+        "sockets": 2,
+        "cores": 64,
+        "threads": 2,
+        "smp": "-smp 256,sockets=2,cores=64,threads=2",
+        "weight": 2560,
+        "use": "EPYC Turin single socket, cloud hypervisor",
+        "memMinGb": 256,
+        "memRecommendedGb": 512,
+        "numaNodes": 8,
+        "numaPolicy": "4 CCDs per socket, 8 nodes total",
+        "pinHint": "EPYC 2 socket x 64c",
+        "qemuCpu": "EPYC-v5",
+        "hugepages": "1G 256",
+        "errorCatcher": {
+          "code": "VCPU_256_EPYC",
+          "action": "requires host kernel >=6.8 kvm"
+        }
+      },
+      {
+        "id": "32xlarge",
+        "label": "32xlarge",
+        "vcpus": 512,
+        "sockets": 2,
+        "cores": 128,
+        "threads": 2,
+        "smp": "-smp 512,sockets=2,cores=128,threads=2",
+        "weight": 5120,
+        "use": "dual EPYC 9654/9754, NVL72 node slice",
+        "memMinGb": 512,
+        "memRecommendedGb": 1024,
+        "numaNodes": 16,
+        "pinHint": "16 CCDs per dual package",
+        "qemuCpu": "EPYC-v5",
+        "hugepages": "1G 512",
+        "errorCatcher": {
+          "code": "VCPU_512_DUAL",
+          "action": "host 768+ threads warning"
+        }
+      },
+      {
+        "id": "64xlarge",
+        "label": "64xlarge",
+        "vcpus": 1024,
+        "sockets": 4,
+        "cores": 128,
+        "threads": 2,
+        "smp": "-smp 1024,sockets=4,cores=128,threads=2",
+        "weight": 10000,
+        "use": "max envelope, 4x EPYC, HGX emulation, observer notes limit test",
+        "memMinGb": 1024,
+        "memRecommendedGb": 2048,
+        "numaNodes": 32,
+        "warning": "Needs host 1024+ threads, kernel.max.cgroup nested, host 2TB RAM",
+        "pinHint": "4 sockets, 32 CCDs",
+        "qemuCpu": "EPYC-v5",
+        "hugepages": "1G 1024 + memfd hugetlb",
+        "errorCatcher": {
+          "code": "VCPU_1024_MAX",
+          "action": "validate host capability, fallback to 512",
+          "fatal": false
+        }
+      }
+    ],
+    "hybridScheduling": {
+      "intelThreadDirector": true,
+      "amdPreferredCore": true,
+      "intelVersion": "Arrow Lake 2024+",
+      "cgroupsV2": "cpu.max and cpuset.cpus.partition root",
+      "implementation": "node:fs write cgroup, observer logs"
+    },
+    "qemuIntegration": {
+      "version": "11.1.0",
+      "machine": "q35 accel kvm",
+      "cpuModels": {
+        "amd": "EPYC-v5,+topoext",
+        "intel": "host",
+        "generic": "qemu64 + avx2"
+      },
+      "ioUring": true,
+      "vsock": true
+    },
+    "skill": {
+      "architecture": "root-first flat, no src, no folder inside folder, three-layer root-direct, library-first TypeScript, internal memory priority",
+      "conventions": "lowercase filenames, no _/-, English, JSDoc third person observer, 44px comment width, error catcher per module, 20-25 contexts grouped per file, max 20 files logical core, max 10 tasks per group",
+      "modeFolders": 30,
+      "forgeMirrors": true,
+      "rootConfigFixed": true
+    },
+    "legacyToolchainPins": {
+      "node": "22.12.3 LTS",
+      "typescript": "5.6.3",
+      "python": "3.13.5",
+      "docker": "27.3.1",
+      "buildx": "0.24.0",
+      "qemu": "9.1.2",
+      "githubActions": {
+        "checkout": "v4.2.2",
+        "setupNode": "v4.1.0",
+        "setupPython": "v5.4.0",
+        "setupQemu": "v3.0.2",
+        "dockerBuildx": "v3.7.1",
+        "dockerLogin": "v3.3.0",
+        "cache": "v4.2.2"
+      },
+      "nativeNodePriority": [
+        "node:fs",
+        "node:path",
+        "node:crypto",
+        "node:http",
+        "node:os",
+        "node:child_process",
+        "node:worker_threads",
+        "node:fs/promises"
+      ]
+    },
+    "forgeMirrors": {
+      "github": "saddle-dev/saddle-v6",
+      "gitlab": "saddle/saddle-v6",
+      "bitbucket": "saddle/saddle-v6"
+    },
+    "flatProject": {
+      "fileCountMax": 45,
+      "rootOnly": true,
+      "noFolderInsideFolder": true
+    },
+    "errorHandling": {
+      "catchAll": true,
+      "errorWidthPx": 44,
+      "log": "pino 9.6.0 level trace, observer notes error code",
+      "thirdPerson": "The orchestrator logs VCPU_xxx and recovers"
+    },
+    "dateFirst": {
+      "anchor": "2026-08-22T00:00:00Z",
+      "validated": true,
+      "source": "system clock + github upstream latest tag resolver"
+    }
+  },
+  "modularity": {
+    "minCores": 1,
+    "maxCores": 192,
+    "minThreads": 2,
+    "maxThreads": 384,
+    "smt": 2,
+    "lpNumThreads": 0,
+    "ompNumThreads": "auto = cores",
+    "presets": [1, 2, 4, 8, 16, 32, 64, 96, 128, 192],
+    "envVars": {
+      "lpNumThreads": "0 = all cores, 1-192 = pin",
+      "ompNumThreads": "same as cores",
+      "galliumThread": "0",
+      "mesaThread": "0"
+    },
+    "validation": "validateResources(cores,memGB) throws if cores>192 or mem>1024"
+  },
+  "integration": {
+    "vmConfig": "vm.config mapping ensures each coreType maps to QEMU -cpu property",
+    "gpuConfig": "gpu.config reference for heterogeneous scheduling awareness",
+    "passageConfig": "passage.config defines memory passage from vCPU L1 to host DDR",
+    "qemuConfig": "qemu.config QEMU 11.1.0 binary paths",
+    "mttgConfig": "mttg.config thread grouping for hybrid asymmetry",
+    "dockerConfig": "docker.config Docker 29.7.2 runtime pinning",
+    "boardsJson": "boards.json socket and chipset compatibility matrix",
+    "processorsJson": "processors.json aggregates presets for UI",
+    "gpusJson": "gpus.json references NPU GPU matrix",
+    "vcpusJson": "vcpus.json virtual CPU to coreType binding 1:1 or cluster",
+    "vramJson": "vram.json cache as vRAM budgeting for L2 L3 and SLC",
+    "coreOrchestrator": "coreorchestrator.ts TypeScript priority library-first orchestrator for core pinning",
+    "virtualizationCore": "virtualizationcore.hpp hpp and cpp native bridge"
+  },
+  "modes": {
+    "count": 30,
+    "list": [
+      "passthrough",
+      "emulated",
+      "pinned",
+      "hybrid",
+      "x3d",
+      "density",
+      "lpt",
+      "turbo",
+      "efficiency",
+      "performance",
+      "balanced",
+      "workstation",
+      "server",
+      "gaming",
+      "ai",
+      "compile",
+      "virtualization",
+      "container",
+      "apple-compat",
+      "intel-compat",
+      "amd-compat",
+      "numa",
+      "smt",
+      "nosmt",
+      "svm",
+      "apx",
+      "amx",
+      "sme2",
+      "debug",
+      "bench"
+    ],
+    "libraryFirst": true,
+    "language": "TypeScript 7.0.2"
+  },
+  "errorCatcher": {
+    "catcher": "global error catcher observer notes malformed coreType yields fallback to zen5-p base",
+    "ui": "44px minimal tap target for core selector grid",
+    "validation": {
+      "uniqueIds": true,
+      "threadsMatch": true,
+      "cacheSizesPowerOfTwo": false,
+      "maxDecoderWidth": 10
+    }
+  },
+  "memory": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "globalLimits": {
+      "minGb": 2,
+      "maxGb": 1024,
+      "stepGb": 1,
+      "customAllowed": "any int 1-1024",
+      "backend": "virtio-mem + memfd hugetlb + vfio-pci HBM",
+      "factoryApi": "/api/v6/vram/custom?gb=N&type=auto"
+    },
+    "memoryBackends": {
+      "ddr5": {
+        "type": "DDR5-5600 JEDEC EXPO 6000-8400",
+        "bwPerChannelGbS": 44.8,
+        "latencyNs": 78
+      },
+      "lpddr5x": {
+        "type": "LPDDR5X-8533 unified M4 Ultra 800GB/s",
+        "bwGbS": 800
+      },
+      "hbm3e": {
+        "type": "HBM3E 8hi 1000GB/s per stack",
+        "totalGbS": 8000,
+        "stacks": 8,
+        "ecc": true
+      },
+      "gddr7": {
+        "type": "GDDR7 30Gbps device memory BAR",
+        "bw": 1920
+      },
+      "hugetlb": {
+        "sizes": ["2M", "1G"],
+        "qemu": "-object memory-backend-memfd,size=XXG,hugetlb=on,hugetlbsize=1G"
+      }
+    },
+    "profiles": [
+      {
+        "id": "vram-2g",
+        "ramGb": 2,
+        "type": "DDR5",
+        "label": "2GB tiny",
+        "use": "tiny agent edge",
+        "qemu": "-m 2G -object memory-backend-ram,id=ram0,size=2G",
+        "hostMinGb": 4,
+        "docker": "--memory=2g",
+        "errorCatcher": {
+          "code": "VRAM_002_MIN",
+          "action": "balloon up to 4G"
+        }
+      },
+      {
+        "id": "vram-4g",
+        "ramGb": 4,
+        "type": "DDR5",
+        "label": "4GB dev",
+        "use": "dev container CI lint",
+        "qemu": "-m 4G",
+        "hostMinGb": 8
+      },
+      {
+        "id": "vram-8g",
+        "ramGb": 8,
+        "type": "DDR5-5600",
+        "label": "8GB desktop",
+        "use": "desktop VM windows minimal",
+        "qemu": "-m 8G",
+        "hostMinGb": 16
+      },
+      {
+        "id": "vram-16g",
+        "ramGb": 16,
+        "type": "DDR5-5600",
+        "label": "16GB gaming baseline",
+        "use": "gaming vm 1080p 9700X pairing",
+        "qemu": "-m 16G -object memory-backend-memfd,id=ram0,size=16G,share=on",
+        "hostMinGb": 32
+      },
+      {
+        "id": "vram-24g",
+        "ramGb": 24,
+        "type": "DDR5",
+        "label": "24GB RTX mirror",
+        "use": "RTX 4090/5090 BAR mirror ML small",
+        "qemu": "-m 24G",
+        "hostMinGb": 32
+      },
+      {
+        "id": "vram-32g",
+        "ramGb": 32,
+        "type": "DDR5-5600",
+        "label": "32GB workstation",
+        "use": "workstation standard 9950X baseline",
+        "qemu": "-m 32G -object memory-backend-memfd,id=ram0,size=32G,share=on",
+        "hostMinGb": 64
+      },
+      {
+        "id": "vram-48g",
+        "ramGb": 48,
+        "type": "DDR5-5600",
+        "label": "48GB creator",
+        "use": "creator DaVinci 4K Blender",
+        "qemu": "-m 48G",
+        "hostMinGb": 64
+      },
+      {
+        "id": "vram-64g",
+        "ramGb": 64,
+        "type": "DDR5-5600 EXPO 6000",
+        "label": "64GB 9950X3D pairing",
+        "use": "9950X3D gaming+streaming 2 VMs",
+        "qemu": "-m 64G -object memory-backend-memfd,id=ram0,size=64G,share=on",
+        "hostMinGb": 96
+      },
+      {
+        "id": "vram-96g",
+        "ramGb": 96,
+        "type": "LPDDR5X unified / DDR5 non-binary",
+        "label": "96GB unified",
+        "use": "M4 Ultra 96GB 2x48GB DIMM AM5 AI 70B Q4",
+        "qemu": "-m 96G -object memory-backend-memfd,id=ram0,size=96G,hugetlb=on,hugetlbsize=2M",
+        "hostMinGb": 128
+      },
+      {
+        "id": "vram-128g",
+        "ramGb": 128,
+        "type": "DDR5-5600 4ch/2ch",
+        "label": "128GB high",
+        "use": "TRX50 4ch 128GB large compiles",
+        "qemu": "-m 128G -object memory-backend-memfd,id=ram0,size=128G,hugetlb=on,hugetlbsize=1G",
+        "hostMinGb": 192,
+        "hugepages": "1G 128"
+      },
+      {
+        "id": "vram-192g",
+        "ramGb": 192,
+        "type": "DDR5-5600 / Unified max AM5 192GB",
+        "label": "192GB AM5 max",
+        "use": "AM5 4x48GB max JEDEC",
+        "qemu": "-m 192G -object memory-backend-memfd,id=ram0,size=192G,hugetlb=on,hugetlbsize=1G -mem-prealloc",
+        "hostMinGb": 256,
+        "hugepages": "1G 192"
+      },
+      {
+        "id": "vram-256g",
+        "ramGb": 256,
+        "type": "DDR5 RDIMM 5600 4ch/8ch",
+        "label": "256GB TRX50",
+        "use": "TRX50 4x64GB RDIMM AI 405B Q4",
+        "qemu": "-m 256G -object memory-backend-memfd,id=ram0,size=256G,hugetlb=on,hugetlbsize=1G",
+        "hostMinGb": 384
+      },
+      {
+        "id": "vram-512g",
+        "ramGb": 512,
+        "type": "DDR5 RDIMM 3DS 8ch WRX90 / LPDDR5X 512GB M4 Ultra",
+        "label": "512GB heavy",
+        "use": "WRX90 8ch 512GB M4 Ultra 512GB unified",
+        "qemu": "-m 512G -object memory-backend-memfd,id=ram0,size=512G,hugetlb=on,hugetlbsize=1G",
+        "hostMinGb": 768,
+        "hugepages": "1G 512"
+      },
+      {
+        "id": "vram-1024g",
+        "ramGb": 1024,
+        "type": "DDR5 RDIMM 3DS 8ch 1TB+",
+        "label": "1024GB max",
+        "use": "WRX90 8x128GB 3DS RDIMM 1TB+ EPYC Turin",
+        "qemu": "-m 1024G -object memory-backend-memfd,id=ram0,size=1024G,hugetlb=on,hugetlbsize=1G -mem-prealloc",
+        "hostMinGb": 1536,
+        "warning": "Requires host 1.5TB RAM kernel 6.8+ memfd 1G hugetlb"
+      },
+      {
+        "id": "vram-192g-hbm",
+        "ramGb": 192,
+        "type": "HBM3E",
+        "subtype": "GPU device memory",
+        "label": "192GB HBM3E",
+        "device": "NVIDIA B200 HGX / AMD MI350 OAM",
+        "use": "GPU passthrough OAM device memory vfio-pci BAR 192GB",
+        "isDevice": true,
+        "bandwidthGbS": 8000,
+        "stacks": 8,
+        "busBit": 8192,
+        "ecc": true,
+        "qemu": "-device vfio-pci,host=01:00.0,x-vga=off",
+        "errorCatcher": {
+          "code": "VRAM_HBM_PASSTHROUGH",
+          "action": "requires Resizable BAR >8GB IOMMU on"
+        }
+      }
+    ],
+    "vmMemoryConfigS6": {
+      "mode": "extensible-unlimited",
+      "description": "Third person observer validates unlimited vRAM with 1 MiB granularity",
+      "unit": "MiB",
+      "minMb": 512,
+      "maxMb": 4194304,
+      "stepMb": 1,
+      "defaultMb": 65536,
+      "baselineMb": 32768,
+      "examples": [
+        512, 1337, 7919, 16384, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304
+      ],
+      "extremeExamples": [
+        512, 1337, 4096, 7919, 16834, 33333, 65536, 131072, 262144, 524288, 1048576, 2097152,
+        3145728, 4194304
+      ],
+      "validator": "value % stepMb == 0 && minMb <= value && value <= maxMb",
+      "overcommit": true,
+      "overcommitFactor": 1.8,
+      "hugepages": "auto",
+      "hugepageSize": "2MiB",
+      "hugepageAdaptiveThresholdMb": 65536,
+      "prealloc": false,
+      "locked": false,
+      "preallocPolicy": "lazy-touch",
+      "trimOnBalloon": true,
+      "numa": {
+        "enabled": true,
+        "nodes": 2,
+        "policy": "bind",
+        "interleaveNodes": [0, 1],
+        "node0SizeMb": 32768,
+        "node1SizeMb": 32768,
+        "hmatTiered": true,
+        "tier0Type": "dram",
+        "tier1Type": "cxl",
+        "tier1SizeMb": 0
+      },
+      "balloon": {
+        "enabled": true,
+        "description": "Balloon is active subcomponent of passage bridge, observer tracks inflate/deflate",
+        "deflateOnOom": true,
+        "periodSec": 8,
+        "freePageReporting": true,
+        "freePageHinting": true,
+        "statsIntervalSec": 5,
+        "initialTargetMb": 65536
+      },
+      "presets": {
+        "tiny512": {
+          "ramMb": 512,
+          "hugepages": "none",
+          "note": "512 MiB alpine boot, observer measures <2s BIOS time",
+          "useCase": "alpine-tiny"
+        },
+        "odd7919": {
+          "ramMb": 7919,
+          "note": "Prime MiB 7919 validates 1 MiB step, passage bridge handles non-aligned size",
+          "useCase": "prime-mem-test"
+        },
+        "odd1337": {
+          "ramMb": 1337,
+          "note": "Leet 1337 MiB odd custom, used for v6 documentation screenshot 44px card",
+          "useCase": "custom-odd"
+        },
+        "standard64g": {
+          "ramMb": 65536,
+          "hugepageSize": "2MiB",
+          "note": "64GiB standard, 2MiB hugepages auto",
+          "useCase": "standard"
+        },
+        "creator128g": {
+          "ramMb": 131072,
+          "hugepageSize": "1GiB",
+          "locked": false,
+          "note": "128GiB creator WS, 1GiB hugepages reduces TLB pressure for video encode",
+          "useCase": "creator"
+        },
+        "ml256g": {
+          "ramMb": 262144,
+          "hugepageSize": "1GiB",
+          "locked": true,
+          "prealloc": true,
+          "note": "256GiB for 8x B200 Blackwell dataloader, locked + prealloc low latency",
+          "useCase": "ml-training"
+        },
+        "database2t": {
+          "ramMb": 2097152,
+          "hugepages": "1GiB",
+          "locked": true,
+          "prealloc": true,
+          "note": "2TiB in-memory DB, requires host with 1G hugepages + OVMF secure, observer error catcher triggers on NVDIMM failure",
+          "useCase": "in-memory-db"
+        },
+        "max4t": {
+          "ramMb": 4194304,
+          "hugepages": "1GiB",
+          "numaNodes": 8,
+          "tieredEnabled": true,
+          "note": "SADDLE v6 absolute max 4TiB, 8 NUMA nodes, CXL tier enabled, QEMU 11.1.0 host limit",
+          "useCase": "max-capacity"
+        }
+      }
+    },
+    "ramPresets": {
+      "tiny512": {
+        "ramMb": 512,
+        "hugepages": "none",
+        "note": "512 MiB alpine boot, observer measures <2s BIOS time",
+        "useCase": "alpine-tiny"
+      },
+      "odd7919": {
+        "ramMb": 7919,
+        "note": "Prime MiB 7919 validates 1 MiB step, passage bridge handles non-aligned size",
+        "useCase": "prime-mem-test"
+      },
+      "odd1337": {
+        "ramMb": 1337,
+        "note": "Leet 1337 MiB odd custom, used for v6 documentation screenshot 44px card",
+        "useCase": "custom-odd"
+      },
+      "standard64g": {
+        "ramMb": 65536,
+        "hugepageSize": "2MiB",
+        "note": "64GiB standard, 2MiB hugepages auto",
+        "useCase": "standard"
+      },
+      "creator128g": {
+        "ramMb": 131072,
+        "hugepageSize": "1GiB",
+        "locked": false,
+        "note": "128GiB creator WS, 1GiB hugepages reduces TLB pressure for video encode",
+        "useCase": "creator"
+      },
+      "ml256g": {
+        "ramMb": 262144,
+        "hugepageSize": "1GiB",
+        "locked": true,
+        "prealloc": true,
+        "note": "256GiB for 8x B200 Blackwell dataloader, locked + prealloc low latency",
+        "useCase": "ml-training"
+      },
+      "database2t": {
+        "ramMb": 2097152,
+        "hugepages": "1GiB",
+        "locked": true,
+        "prealloc": true,
+        "note": "2TiB in-memory DB, requires host with 1G hugepages + OVMF secure, observer error catcher triggers on NVDIMM failure",
+        "useCase": "in-memory-db"
+      },
+      "max4t": {
+        "ramMb": 4194304,
+        "hugepages": "1GiB",
+        "numaNodes": 8,
+        "tieredEnabled": true,
+        "note": "SADDLE v6 absolute max 4TiB, 8 NUMA nodes, CXL tier enabled, QEMU 11.1.0 host limit",
+        "useCase": "max-capacity"
+      }
+    },
+    "productionMemoryToml": {
+      "total": "64G",
+      "sizeMib": 65536,
+      "unit": "MiB",
+      "hugepagesMode": "1G",
+      "hugepagesPath": "/dev/hugepages",
+      "hugepagesSize": "1G",
+      "hugepagesCount": 64,
+      "hugepagesMountOptions": "pagesize=1G,size=64G",
+      "prealloc": true,
+      "share": true,
+      "shareMode": "memfd",
+      "backend": "memory-backend-memfd",
+      "spMem": true,
+      "spMemBackend": "memory-backend-memfd",
+      "spMemOptions": "hugetlb=on,hugetlbsize=1G,prealloc=on,share=on",
+      "balloon": false,
+      "merge": false,
+      "nvdimm": false,
+      "dumpGuestCore": false
+    },
+    "virtualMeminfo": {
+      "reference": "MemTotal: 134217728 kB",
+      "memtotalKb": 134217728,
+      "equivGib": 128,
+      "dockerMemorySwap": -1,
+      "dockerShmSize": "2g",
+      "note": "LD_PRELOAD memoverlay intercepts /proc/meminfo and serves this scaled copy; dolos alternative bind-mounts a static cpuinfo/sysinfo 128GB"
+    },
+    "hugepages": {
+      "sizes": ["2M", "1G"],
+      "paths": ["/dev/hugepages", "/dev/hugepages-1g"],
+      "qemuFlags": {
+        "default": "-object memory-backend-memfd,id=ram0,size=7919M,share=on,prealloc=off,hugetlb=off,hugetlbsize=2M",
+        "hugepageOn": "-object memory-backend-memfd,size=7919M,hugetlb=on,hugetlbsize=2M -mem-prealloc",
+        "hugepageOff": "-object memory-backend-memfd,size=7919M,hugetlb=off",
+        "memfdExample": "-object memory-backend-memfd,id=mem0,size=7919M,share=on"
+      },
+      "spMem": {
+        "spMem": true,
+        "spMemBackend": "memory-backend-memfd",
+        "spMemOptions": "hugetlb=on,hugetlbsize=1G,prealloc=on,share=on",
+        "share": true,
+        "shareMode": "memfd",
+        "backend": "memory-backend-memfd",
+        "prealloc": true,
+        "dumpGuestCore": false
+      },
+      "production": {
+        "hugepagesMode": "1G",
+        "hugepagesPath": "/dev/hugepages",
+        "hugepagesSize": "1G",
+        "hugepagesCount": 64,
+        "hugepagesMountOptions": "pagesize=1G,size=64G"
+      },
+      "s6Adaptive": {
+        "overcommit": true,
+        "overcommitFactor": 1.8,
+        "hugepages": "auto",
+        "hugepageSize": "2MiB",
+        "hugepageAdaptiveThresholdMb": 65536
+      }
+    },
+    "gpuPassthrough": {
+      "nvidia": "vfio-pci + vGPU 18.0 + nvidia-container-toolkit 1.17",
+      "amd": "vfio-pci + MxGPU + ROCm 6.5",
+      "intel": "vfio-pci + SR-IOV xe",
+      "barResize": "Resizable BAR 32GB for Blackwell"
+    },
+    "cgroupTenantMemory": {
+      "model": "pipelinememorypassage.ts",
+      "implementation": "src pipeline memory passage with passage.config channel",
+      "priorityInternal": true,
+      "pageSize": "2MB hugepages",
+      "numaBalancing": true,
+      "eviction": "lru + qos aware",
+      "cacheTier": ["vram", "ram", "virtiofs"]
+    },
+    "validationRanges": {
+      "ramGb": {
+        "min": 1,
+        "max": 1024
+      },
+      "vramGb": {
+        "min": 8,
+        "max": 96,
+        "note": "per-GPU envelope 8-96 GB; MIG slicing extends effective VRAM to 288 GB (MI350X/MI355X) and 1536 GB aggregated (8x B200)"
+      },
+      "virtualMeminfoKb": 134217728
+    },
+    "errorHandling": {
+      "catchAll": true,
+      "errorWidthPx": 44,
+      "thirdPerson": "The allocator reports VRAM_xxx and retries with balloon"
+    },
+    "jsdoc": "SADDLE v6 VRAM specification. Third person observer details 15 memory profiles 2GB-1024GB plus HBM 192GB device memory. Date-first 2026-08-22 toolchain latest Node 24.19.0 LTS TypeScript 7.0.2 Python 3.14.7 Docker 29.7.2 QEMU 11.1.0. Error catcher 44px.",
+    "flatProject": {
+      "fileCountMax": 45,
+      "rootOnly": true
+    },
+    "legacyToolchainPins": {
+      "node": "22.12.3 LTS",
+      "typescript": "5.6.3",
+      "python": "3.13.5",
+      "docker": "27.3.1",
+      "buildx": "0.24.0",
+      "qemu": "9.1.2",
+      "githubActions": {
+        "checkout": "v4.2.2",
+        "setupNode": "v4.1.0",
+        "setupPython": "v5.4.0",
+        "dockerBuildx": "v3.7.1",
+        "cache": "v4.2.2"
+      }
+    }
+  }
+}

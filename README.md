@@ -6,7 +6,7 @@
   <strong>Storage-backed jobs, scraping contracts and portable runners for Node.js.</strong><br/>
   <strong>Binary computing engine, agent browser, scraper and packager.</strong><br/>
   <a href="https://github.com/wenathlan/saddle/actions/workflows/ci.yml"><img src="https://github.com/wenathlan/saddle/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/wenathlan/saddle/releases/tag/v1.8.19"><img src="https://img.shields.io/badge/release-v1.8.19-d35d3d" alt="Release 1.8.19" /></a>
+  <a href="https://github.com/wenathlan/saddle/releases/tag/v2.0.0"><img src="https://img.shields.io/badge/release-v2.0.0-d35d3d" alt="Release 2.0.0" /></a>
   <a href="https://github.com/wenathlan/saddle/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-202a2f" alt="GPL 3.0 only license" /></a>
 </p>
 
@@ -15,6 +15,27 @@
 Saddle is a **TypeScript-first ESM engine** compiled to JavaScript, declarations and source maps for jobs that move data between storage, a bounded working set, a caller-injected runner and durable artifacts. It is also a virtual machine published as a package: the caller can run it on GitHub Actions, Forgejo, Gitea, GitLab, Codeberg, Docker or another third-party compute surface. The engine does not require the operator's local machine, does not embed credentials and does not choose a mandatory cloud provider.
 
 The canonical JavaScript package is `@wenathlan/saddle`. GitHub Packages npm, Maven and GHCR use the `wenathlan` owner namespace; NuGet and RubyGems retain their ecosystem package names. Older `@wenathlan`, `@iakadion` and `io.devthink` references in archived documents are historical records, not current package identities.
+
+## The e2ugh virtual-hardware engine (the grand merge)
+
+Version 2.0.0 merges the e2ugh repository into saddle. The engine core
+(`createVirtualEngine`, `validateSpec`, `randomPort`, `InternalMemory`,
+`MetricsStore`, the `enginebus`) is re-exported from the package root; the
+domain modules land beside the saddle domains:
+
+| module | surface |
+| --- | --- |
+| `virtualcpu.ts`, `virtualmemory.ts`, `virtualgpu.ts` | the virtual hardware catalog contracts |
+| `virtualization.ts`, `orchestrator.ts` | grid orchestration and the sandbox/vm runtime strategies |
+| `scheduler.ts`, `compute.ts`, `performance.ts` | job queues, batch compute and benchmark planning |
+| `media.ts`, `render.ts`, `quantum.ts`, `tiers.ts` | media pipeline, GPU registry, quantum simulation, tier policy |
+| `security.ts`, `alternatives.ts` | hardening gates and the alternative-stack catalog |
+| `web/sandbox/` | the static console and the zero-dependency self-hosted API (`node web/sandbox/server.js`) |
+| `specs/*` package exports | processors, gpus, cores, boards and the qemu/mttg/passage/docker envelopes |
+
+The full pre-merge documentation of the engine lives in
+[docs/e2ugh-engine.md](docs/e2ugh-engine.md) and its release history in
+[docs/e2ugh-changelog.md](docs/e2ugh-changelog.md).
 
 ## Start here
 
@@ -177,7 +198,7 @@ The base permission set is `activeTab`, `scripting` and `storage`. It does not r
 | Failure | retry, circuit breaker, idempotency and resume are configurable |
 | Releases | version comes from the `vX.Y.Z` tag and must match `package.json` |
 
-Version 1.8.19 preserves the TypeScript-first public API while reorganizing implementation ownership into twenty correlated domains behind a transport-neutral root router. The migration groups foundation nouns, execution state, API protocols, MCP adapters, automation contracts, package delivery and mode profiles without adding a privileged effect. Existing package subpaths remain available through their updated compiled targets. The denied-by-default execution, policy, handoff and internal-API contracts remain plans or receipts until a separately approved caller adapter is supplied. The current container targets `linux/amd64`, `linux/arm64` and `linux/ppc64le`; release evidence, readiness and verification remain serializable and caller-owned.
+Version 2.0.0 (the grand merge) absorbs the e2ugh virtual-hardware engine into the saddle engine: fifteen engine modules land at the repository root (virtualcpu, virtualmemory, virtualgpu, virtualization, orchestrator, scheduler, compute, media, render, security, performance, alternatives, tiers, quantum and the engine index core), the e2ugh static console and self-hosted API live at web/sandbox, the hardware catalogs (processors, gpus, cores, boards) and the four virtual-hardware config envelopes (qemu, mttg, passage, docker) ship as package exports under specs/*, and the legacy WebScrape toolkit generation consolidates into webscrape.ts. The engine surface stays dependency-free at the root (node built-ins only). Version 1.8.19 previously while reorganizing implementation ownership into twenty correlated domains behind a transport-neutral root router. The migration groups foundation nouns, execution state, API protocols, MCP adapters, automation contracts, package delivery and mode profiles without adding a privileged effect. Existing package subpaths remain available through their updated compiled targets. The denied-by-default execution, policy, handoff and internal-API contracts remain plans or receipts until a separately approved caller adapter is supplied. The current container targets `linux/amd64`, `linux/arm64` and `linux/ppc64le`; release evidence, readiness and verification remain serializable and caller-owned.
 
 ## Package surfaces and release automation
 

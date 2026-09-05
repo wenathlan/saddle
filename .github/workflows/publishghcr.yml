@@ -32,9 +32,6 @@ jobs:
         uses: ./.github/actions/releaseversion
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-      - name: restore workflow source dockerfile
-        shell: bash
-        run: git checkout "${GITHUB_SHA}" -- dockerfile.saddle
       - name: login ghcr
         uses: docker/login-action@v4
         with:
@@ -62,7 +59,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: dockerfile.saddle
+          file: Dockerfile
           load: true
           platforms: linux/amd64
           tags: saddle:scan-${{ steps.release.outputs.version }}
@@ -80,7 +77,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: dockerfile.saddle
+          file: Dockerfile
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           build-args: |

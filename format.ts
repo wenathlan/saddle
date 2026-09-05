@@ -22,7 +22,7 @@ import { join } from "node:path";
 
 /* the grand-merge layout: the public logic surface is the flat set of root
    domain TypeScript files; the formatting contract checks each of them. */
-const domains = ["index", "foundation", "isolation", "virtual", "execution", "browser", "acquisition", "communication", "integration", "automation", "intelligence", "distribution", "modes", "operations", "cli", "server", "format"];
+const domains = ["index", "foundation", "isolation", "virtual", "execution", "browser", "acquisition", "webscrape", "communication", "integration", "automation", "intelligence", "distribution", "modes", "operations", "cli", "server", "format", "alternatives", "compute", "media", "orchestrator", "performance", "quantum", "render", "scheduler", "security", "tiers", "virtualcpu", "virtualgpu", "virtualization", "virtualmemory"];
 
 /** Finds domain files that do not follow the skill formatting contract. */
 export async function formatissues(root = process.cwd()) {

@@ -1,0 +1,23 @@
+{
+  "name": "@wenathlan/e2ugh-web",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "e2ugh web sandbox (grand-merge carrier): static console pages plus the self-hosted zero-dependency node api (web/server.js); static-first, no serverless functions",
+  "_comment": "deploy manifest only: vercel and netlify require a package.json at the deploy root, so this file exists purely for static hosting configuration (see vercel.json / netlify.toml, no functions). this package is NEVER published to npm, github packages or any registry - the published package is the central @wenathlan/e2ugh (repository root) which ships the engine without web/. the start script exists only for self-hosted nodes (docker, vps, caddy) where web/server.js serves the same files and the /api/v1 contract. zero dependencies by design: node:* built-ins only.",
+  "engines": {
+    "node": ">=26.7.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wenathlan/saddle.git",
+    "directory": "web/sandbox"
+  },
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}

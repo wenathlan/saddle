@@ -287,7 +287,7 @@
   },
   "optionalDependencies": {
     "commander": "^13.1.0",
-    "dockerode": "^4.0.8",
+    "dockerode": "^5.0.1",
     "express": "^5.1.0"
   },
   "systemLibraries": {

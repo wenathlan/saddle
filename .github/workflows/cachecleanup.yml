@@ -2,7 +2,7 @@ name: cache retention
 
 on:
   workflow_run:
-    workflows: ["CodeQL Advanced"]
+    workflows: ["codeql analysis"]
     types: [completed]
   schedule:
     - cron: "17 3 * * *"

@@ -1,5 +1,15 @@
 # saddle release notes
 
+## 2.0.2 — the publish cascade fires (the e2ugh dual-trigger architecture lands)
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| The publish cascade (the GITHUB_TOKEN suppression fix) | The 2.0.1 auto-tag created the release with the workflow token — and events created by GITHUB_TOKEN never trigger workflows, so the eleven release-triggered workflows stayed silent. The e2ugh reference architecture lands instead: every release-triggered workflow gains the dual trigger (release published + workflow_run on release validation completed), gated at the job level to fire only on successful completions of a version-bump push. The release validation workflow itself gains the bump paths filter (only a push touching package.json/CHANGELOG.md completes it) and runs the full battery before tagging (the completes-successfully contract: the cascade publishes only validated versions). The tag push itself never fires workflows — this run IS the release, exactly the documented e2ugh exception. |
+| The trivy root fix (the vhe scan failure) | The 2.0.1 vhe publish failed its trivy misconfig gate on two HIGH findings inside app/node_modules/cpu-features/deps — the vendored cmake CI Dockerfiles of the optional native dependency (DS-0002 missing USER, DS-0029 missing no-install-recommends), never executed in the container. The runtime stage now prunes the vendored toolchain (rm -rf node_modules/cpu-features/deps plus a general no-nested-Dockerfiles sweep) after npm ci --ignore-scripts — with scripts ignored the binding never builds and the package is a runtime no-op, so the sources were dead weight. |
+| The stale workflow references | The cache retention workflow_run pointed at "CodeQL Advanced" — the template name retired with the codeql rework; it now points at the real "codeql analysis". |
+
 ## 2.0.1 — the grand-merge rework: the merge audit lands (one product, one config per responsibility, CI green)
 
 ### Changed

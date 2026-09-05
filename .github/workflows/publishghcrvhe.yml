@@ -274,7 +274,7 @@ jobs:
     # cache-mirror releases (mesa-cache-*) publish tarball assets, not
     # versioned artifacts: the resolver skips them gracefully instead of
     # failing the version gate; the proceed-gated jobs downstream follow.
-    if: github.event_name != 'push' && (github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v'))
+    if: github.event_name != 'push' && (github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')) && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.resolve.outputs.version }}

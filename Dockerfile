@@ -91,7 +91,7 @@
 #     -v vmdata:/data/vmdata -v webdata:/data/web \
 #     -v ./vm.config.json:/engine/vm.config.json:ro \
 #     -e PORT=8080 -e NODE_ENV=production -p 31280:8080 \
-#     ghcr.io/wenathlan/saddle:vhe-2.0.1
+#     ghcr.io/wenathlan/saddle:vhe-2.0.2
 #
 #   vheqemu (the guest runner; build it first with
 #   docker build --target qemu-runtime -t saddle/qemu:11.1.0 . because the
@@ -125,7 +125,7 @@
 #     -e VHE_GPU_PROFILE=b200 -e VHE_GPUS=8 -e VHE_MIG=1 \
 #     -e VHE_SMI_DRIVER=575.57.08 -e VHE_SMI_CUDA=12.9 \
 #     -e VHE_SMI_INTERVAL=30 -e VHE_SKIP_XVFB=1 -e VHE_SKIP_VALIDATE=1 \
-#     ghcr.io/wenathlan/saddle:vhe-2.0.1 /bin/bash -c '
+#     ghcr.io/wenathlan/saddle:vhe-2.0.2 /bin/bash -c '
 #       while true; do
 #         /usr/local/bin/nvidia-smi "$VHE_GPU_PROFILE" "$VHE_GPUS" || true
 #         sleep "$VHE_SMI_INTERVAL"
@@ -142,7 +142,7 @@
 #     -v qemudata:/data/qemudata \
 #     -v ./qemubridge.py:/engine/qemubridge.py:ro \
 #     -e QMP_SOCKET=/run/vhe/vm.qmp -e PYTHONUNBUFFERED=1 \
-#     ghcr.io/wenathlan/saddle:vhe-2.0.1 \
+#     ghcr.io/wenathlan/saddle:vhe-2.0.2 \
 #     python3 /engine/qemubridge.py --socket /run/vhe/vm.qmp status
 #
 #   saddle-node (the node-engine service, the former compose.yml
@@ -156,7 +156,7 @@
 #     --log-driver json-file --log-opt max-size=50m --log-opt max-file=5 \
 #     --tmpfs /tmp:size=2g,mode=1777 \
 #     -e SADDLE_MEMORY_ENGINE=ram -e SBOT_PLATFORM= -e SBOT_CDN_URL= \
-#     ghcr.io/wenathlan/saddle:2.0.1 \
+#     ghcr.io/wenathlan/saddle:2.0.2 \
 #     node dist/cli.js plan
 #
 #   observability (the former prometheus scraper of the full profile)
@@ -1238,7 +1238,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --start-interval=5s 
 # OCI labels for registry introspection.
 LABEL org.opencontainers.image.title="saddle virtual-hardware engine (the grand merge)" \
       org.opencontainers.image.description="100% software virtual hardware: per-profile CPU/memory spoofing via LD_PRELOAD (max/balanced/lite), mesa 26.2.1 llvmpipe/lavapipe/rusticl, QEMU 11.1.0 TCG/MTTCG, virtual nvidia-smi adapter + NVML/CUDA shims, node 26.7.0, python bridge" \
-      org.opencontainers.image.version="2.0.1" \
+      org.opencontainers.image.version="2.0.2" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/wenathlan/saddle" \
       org.opencontainers.image.documentation="https://github.com/wenathlan/saddle/blob/main/README.md" \
@@ -1320,7 +1320,15 @@ RUN apt-get update \
     && tar -xzf "$tempdir/brace-expansion-5.0.9.tgz" --strip-components=1 -C /usr/local/lib/node_modules/npm/node_modules/brace-expansion \
     && tar -xzf "$tempdir/ip-address-10.3.1.tgz" --strip-components=1 -C /usr/local/lib/node_modules/npm/node_modules/ip-address \
     && rm -rf "$tempdir" \
-    && npm ci --omit=dev --ignore-scripts --legacy-peer-deps
+    && npm ci --omit=dev --ignore-scripts --legacy-peer-deps \
+    # prune the vendored build toolchains of optional native deps: the
+    # cpu-features cmake sources ship nested Dockerfiles (build CI of
+    # the dependency) that the trivy misconfig scanner flags (DS-0002
+    # USER, DS-0029 no-install-recommends) inside the shipped image.
+    # With --ignore-scripts the binding never builds and the package
+    # degrades to a no-op at runtime - the sources are dead weight.
+    && rm -rf node_modules/cpu-features/deps \
+    && find node_modules -type f -name Dockerfile -delete
 COPY --from=saddle-build /app/dist ./dist
 
 USER node

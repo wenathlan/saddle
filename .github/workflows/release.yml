@@ -9,6 +9,13 @@ name: release validation
 on:
   push:
     branches: [main]
+    # the bump filter (the e2ugh Release pattern): only a push that
+    # touches the version metadata completes this workflow, so the
+    # workflow_run cascade below only fires on real version bumps -
+    # every other push belongs to the ci lane.
+    paths:
+      - "package.json"
+      - "CHANGELOG.md"
   release:
     types: [published]
   workflow_dispatch:
@@ -56,6 +63,17 @@ jobs:
             console.log(version !== latest && newer ? 'true' : 'false');
           ")"
           echo "changed=${changed}" >> "$GITHUB_OUTPUT"
+      - name: setup node for the battery
+        if: steps.versions.outputs.changed == 'true'
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 26.7.0
+          cache: npm
+      - name: run the release battery before tagging
+        if: steps.versions.outputs.changed == 'true'
+        run: |
+          npm ci
+          npm run check && npm run formatcheck && npm test && npm run pack:check
       - name: tag and release the bumped version
         if: steps.versions.outputs.changed == 'true'
         env:

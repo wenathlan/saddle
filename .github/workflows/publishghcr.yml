@@ -3,6 +3,15 @@ name: publish ghcr
 on:
   release:
     types: [published]
+  workflow_run:
+    # the e2ugh dual-trigger pattern (the documented exception to the
+    # GITHUB_TOKEN event suppression): the release published event fired
+    # by the release validation workflow's GITHUB_TOKEN never cascades,
+    # so this publish also fires when release validation completes
+    # successfully on a version bump (the job gate below requires
+    # conclusion success and the triggering event to be the bump push).
+    workflows: ["release validation"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -16,6 +25,11 @@ env:
 
 jobs:
   publish:
+    # the workflow_run gate (the e2ugh dual-trigger pattern): only a
+    # successful completion of release validation on a version-bump push
+    # fires this publish through the cascade; manual releases and
+    # dispatches use their own direct events.
+    if: (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

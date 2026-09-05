@@ -6,4 +6,4 @@ The core Saddle library does not intentionally collect telemetry or transmit dat
 
 The repository itself is hosted by third-party services such as GitHub. Those services process requests, account data, logs and cookies under their own policies. A deployment that adds analytics, account data, logs or external storage must document that behavior and provide the controls required by applicable law.
 
-Privacy questions and reports should use the repository support channel. Security-sensitive reports must follow `security.md`.
+Privacy questions and reports should use the repository support channel. Security-sensitive reports must follow `SECURITY.md`.

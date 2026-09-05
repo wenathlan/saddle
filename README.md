@@ -221,7 +221,7 @@ Saddle is applying to the SignPath Foundation for open-source code signing. Unti
 
 The requested policy is: **Free code signing provided by SignPath.io, certificate by SignPath Foundation**. Committers and reviewers are maintainers with write access to the public repository. Approvers are repository owners or release approvers recorded in `governance.md`. Every signed release must be built from repository source, pass the security and packaging gates, and receive manual signing approval.
 
-The core program will not transfer information to other networked systems unless specifically requested by the user or the person installing or operating it. Browser sessions, storage adapters, runners and external services remain caller-configured and subject to their own policies. See [`privacy-policy.md`](privacy-policy.md) and [`security.md`](security.md).
+The core program will not transfer information to other networked systems unless specifically requested by the user or the person installing or operating it. Browser sessions, storage adapters, runners and external services remain caller-configured and subject to their own policies. See [`privacy-policy.md`](privacy-policy.md) and [`SECURITY.md`](SECURITY.md).
 
 ## GitHub Pages web surface
 

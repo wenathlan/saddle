@@ -255,7 +255,7 @@
     "cmdk": "^1.1.1",
     "embla-carousel-react": "^8.6.0",
     "esbuild": "^0.25.0",
-    "framer-motion": "^12.23.22",
+    "framer-motion": "^13.1.1",
     "input-otp": "^1.4.2",
     "jsdom": "26.1.0",
     "lucide-react": "^0.453.0",

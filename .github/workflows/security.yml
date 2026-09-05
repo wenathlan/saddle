@@ -106,7 +106,7 @@ jobs:
 
   osv:
     name: osv scanner
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.5.0
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.5.1
     with:
       fail-on-vuln: true
       scan-args: |-

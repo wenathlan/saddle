@@ -18,6 +18,10 @@ env:
 
 jobs:
   desktop:
+    # cache-mirror releases (mesa-cache-*) publish tarball assets, not
+    # versioned artifacts: the release-triggered jobs skip them gracefully
+    # instead of failing the version resolver.
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
     name: desktop ${{ matrix.platform }}
     strategy:
       fail-fast: false
@@ -63,11 +67,39 @@ jobs:
       - name: checkout
         uses: actions/checkout@v5
 
+      # the release-version resolver, inlined from the retired composite
+      # action (the one-workflow-file standard: every workflow carries its
+      # own steps - the .github/actions folder no longer exists).
       - name: resolve release version
         id: releaseversion
-        uses: ./.github/actions/releaseversion
-        with:
-          checkout_tag: "false"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          CHECKOUT_TAG: "false"
+        run: |
+          set -euo pipefail
+          tag="${RELEASE_TAG:-}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            tag="$(gh release view --json tagName --jq .tagName)"
+          fi
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            echo "A release tag such as v1.8.0 is required; received: ${tag:-<empty>}" >&2
+            exit 1
+          fi
+          version="${tag#v}"
+          git fetch --force --tags origin "refs/tags/${tag}:refs/tags/${tag}"
+          if [[ "$CHECKOUT_TAG" == "true" ]]; then
+            git checkout --detach "$tag"
+          fi
+          package_version=$(node -p "require('./package.json').version")
+          if [[ "$package_version" != "$version" ]]; then
+            echo "Release tag ${tag} does not match package version ${package_version}" >&2
+            exit 1
+          fi
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+          } >> "$GITHUB_OUTPUT"
 
       - name: setup node
         uses: actions/setup-node@v5
@@ -98,6 +130,8 @@ jobs:
         env:
           SADDLE_VERSION: ${{ steps.releaseversion.outputs.version }}
         run: |
+          # shellcheck disable=SC2016  # the single quotes keep the JavaScript
+          # template literals intact for node; no shell expansion is intended
           node -e 'const fs=require("node:fs"); const version=process.env.SADDLE_VERSION; const config=JSON.parse(fs.readFileSync("web/desktop/tauri.conf.json","utf8")); config.version=version; fs.writeFileSync("web/desktop/tauri.conf.json", `${JSON.stringify(config, null, 2)}\n`); const cargo=fs.readFileSync("web/desktop/Cargo.toml","utf8").replace(/^version = ".*"$/m, `version = "${version}"`); fs.writeFileSync("web/desktop/Cargo.toml", cargo);'
 
       - name: validate flat native surfaces

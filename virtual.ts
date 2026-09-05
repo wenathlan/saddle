@@ -897,7 +897,9 @@ function parseListXml(xml) {
 }
 
 function xmlvalue(xml, name) { const match = String(xml).match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`, "i")); return match ? decodexml(match[1].trim()) : undefined; }
-function decodexml(value) { return String(value).replaceAll("&amp;", "&").replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&quot;", '"').replaceAll("&#39;", "'"); }
+/** Single-pass XML entity decode: the pattern never re-examines its own output, so a double-escaped `&amp;lt;` decodes once to the literal text `&lt;` and never again to `<`. */
+const XMLENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" };
+function decodexml(value) { return String(value).replace(/&(amp|lt|gt|quot|#39);/g, (whole: string, entity: string) => XMLENTITIES[entity] ?? whole); }
 
 /* ════════════════════════════════════════════════════════════════════ */
 /* Section 19: storage/githubcontents.ts — github contents storage maps artifacts to repository files through an injected token. */

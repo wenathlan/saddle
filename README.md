@@ -30,12 +30,12 @@ domain modules land beside the saddle domains:
 | `scheduler.ts`, `compute.ts`, `performance.ts` | job queues, batch compute and benchmark planning |
 | `media.ts`, `render.ts`, `quantum.ts`, `tiers.ts` | media pipeline, GPU registry, quantum simulation, tier policy |
 | `security.ts`, `alternatives.ts` | hardening gates and the alternative-stack catalog |
-| `web/sandbox/` | the static console and the zero-dependency self-hosted API (`node web/sandbox/server.js`) |
+| `web/` | the static console and the zero-dependency self-hosted API (`node web/server.js`) |
 | `specs/*` package exports | processors, gpus, cores, boards and the qemu/mttg/passage/docker envelopes |
 
 The full pre-merge documentation of the engine lives in
 [docs/e2ugh-engine.md](docs/e2ugh-engine.md) and its release history in
-[docs/e2ugh-changelog.md](docs/e2ugh-changelog.md).
+[CHANGELOG.md (the e2ugh lineage sections)](CHANGELOG.md (the e2ugh lineage sections)).
 
 ## Start here
 
@@ -198,7 +198,7 @@ The base permission set is `activeTab`, `scripting` and `storage`. It does not r
 | Failure | retry, circuit breaker, idempotency and resume are configurable |
 | Releases | version comes from the `vX.Y.Z` tag and must match `package.json` |
 
-Version 2.0.0 (the grand merge) absorbs the e2ugh virtual-hardware engine into the saddle engine: fifteen engine modules land at the repository root (virtualcpu, virtualmemory, virtualgpu, virtualization, orchestrator, scheduler, compute, media, render, security, performance, alternatives, tiers, quantum and the engine index core), the e2ugh static console and self-hosted API live at web/sandbox, the hardware catalogs (processors, gpus, cores, boards) and the four virtual-hardware config envelopes (qemu, mttg, passage, docker) ship as package exports under specs/*, and the legacy WebScrape toolkit generation consolidates into webscrape.ts. The engine surface stays dependency-free at the root (node built-ins only). Version 1.8.19 previously while reorganizing implementation ownership into twenty correlated domains behind a transport-neutral root router. The migration groups foundation nouns, execution state, API protocols, MCP adapters, automation contracts, package delivery and mode profiles without adding a privileged effect. Existing package subpaths remain available through their updated compiled targets. The denied-by-default execution, policy, handoff and internal-API contracts remain plans or receipts until a separately approved caller adapter is supplied. The current container targets `linux/amd64`, `linux/arm64` and `linux/ppc64le`; release evidence, readiness and verification remain serializable and caller-owned.
+Version 2.0.0 (the grand merge) absorbs the e2ugh virtual-hardware engine into the saddle engine: fifteen engine modules land at the repository root (virtualcpu, virtualmemory, virtualgpu, virtualization, orchestrator, scheduler, compute, media, render, security, performance, alternatives, tiers, quantum and the engine index core), the e2ugh static console and self-hosted API live at web, the hardware catalogs (processors, gpus, cores, boards) and the four virtual-hardware config envelopes (qemu, mttg, passage, docker) ship as package exports under specs/*, and the legacy WebScrape toolkit generation consolidates into webscrape.ts. The engine surface stays dependency-free at the root (node built-ins only). Version 1.8.19 previously while reorganizing implementation ownership into twenty correlated domains behind a transport-neutral root router. The migration groups foundation nouns, execution state, API protocols, MCP adapters, automation contracts, package delivery and mode profiles without adding a privileged effect. Existing package subpaths remain available through their updated compiled targets. The denied-by-default execution, policy, handoff and internal-API contracts remain plans or receipts until a separately approved caller adapter is supplied. The current container targets `linux/amd64`, `linux/arm64` and `linux/ppc64le`; release evidence, readiness and verification remain serializable and caller-owned.
 
 ## Package surfaces and release automation
 
@@ -247,7 +247,7 @@ npm run web:check
 VITE_BASE_PATH=/saddle npm run web:build:pages
 ```
 
-The engine test suite is deterministic and does not require real credentials or network access. The release path is: update `package.json` and the manifest files, update `changelog.md` and release notes, run all gates, create `v<package-version>`, push the tag and create the GitHub release. Registry workflows then derive the same version from that release tag. A package metadata change alone does not publish anything; the release tag is the intentional publication boundary.
+The engine test suite is deterministic and does not require real credentials or network access. The release path is: update `package.json` and the manifest files, update `CHANGELOG.md` and release notes, run all gates, create `v<package-version>`, push the tag and create the GitHub release. Registry workflows then derive the same version from that release tag. A package metadata change alone does not publish anything; the release tag is the intentional publication boundary.
 
 ## CLI
 

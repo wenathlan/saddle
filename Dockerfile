@@ -860,7 +860,7 @@ COPY qemu.config mttg.config passage.config docker.config /engine/
 # sqlite database, dashboard and the browser sandbox pages) runs from the
 # same image, so one container serves the engine AND the web surface.
 # run it with: docker run ghcr.io/wenathlan/e2ugh node /engine/web/server.js
-COPY web/sandbox /engine/web
+COPY web /engine/web
 
 RUN set -eux; \
     chmod 0755 /usr/local/bin/nvidia-smi /usr/local/bin/aetherforge; \
@@ -1263,7 +1263,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 #   docker build --target saddle-runtime -t saddle:<version> .
 # ══════════════════════════════════════════════════════════════════════
 
-FROM node:26.7.0-bookworm-slim AS saddle-build
+FROM node:26.8.1-bookworm-slim AS saddle-build
 
 ARG SADDLE_VERSION
 WORKDIR /app
@@ -1276,7 +1276,7 @@ COPY . .
 RUN npm run build:engine \
     && node --check dist/cli.js
 
-FROM node:26.7.0-bookworm-slim AS saddle-runtime
+FROM node:26.8.1-bookworm-slim AS saddle-runtime
 
 ARG SADDLE_VERSION
 LABEL org.opencontainers.image.title="Saddle" \
@@ -1295,13 +1295,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && npm install --global npm@12.0.2 \
     && tempdir="$(mktemp -d)" \
-    && cd "$tempdir" \
-    && npm pack brace-expansion@5.0.9 ip-address@10.3.1 \
+    && npm pack brace-expansion@5.0.9 ip-address@10.3.1 --pack-destination "$tempdir" \
     && mkdir -p /usr/local/lib/node_modules/npm/node_modules/brace-expansion /usr/local/lib/node_modules/npm/node_modules/ip-address \
-    && tar -xzf brace-expansion-5.0.9.tgz --strip-components=1 -C /usr/local/lib/node_modules/npm/node_modules/brace-expansion \
-    && tar -xzf ip-address-10.3.1.tgz --strip-components=1 -C /usr/local/lib/node_modules/npm/node_modules/ip-address \
+    && tar -xzf "$tempdir/brace-expansion-5.0.9.tgz" --strip-components=1 -C /usr/local/lib/node_modules/npm/node_modules/brace-expansion \
+    && tar -xzf "$tempdir/ip-address-10.3.1.tgz" --strip-components=1 -C /usr/local/lib/node_modules/npm/node_modules/ip-address \
     && rm -rf "$tempdir" \
-    && cd /app \
     && npm ci --omit=dev --ignore-scripts --legacy-peer-deps
 COPY --from=saddle-build /app/dist ./dist
 

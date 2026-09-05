@@ -18,24 +18,62 @@ env:
 
 jobs:
   package:
+    # cache-mirror releases (mesa-cache-*) publish tarball assets, not
+    # versioned artifacts: the release-triggered jobs skip them gracefully
+    # instead of failing the version resolver.
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     steps:
       - name: checkout
         uses: actions/checkout@v5
 
+      # the release-version resolver, inlined from the retired composite
+      # action (the one-workflow-file standard: every workflow carries its
+      # own steps — the .github/actions folder no longer exists).
       - name: resolve release version
         id: releaseversion
-        uses: ./.github/actions/releaseversion
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          CHECKOUT_TAG: "true"
+        run: |
+          set -euo pipefail
+          tag="${RELEASE_TAG:-}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            tag="$(gh release view --json tagName --jq .tagName)"
+          fi
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            echo "A release tag such as v1.8.0 is required; received: ${tag:-<empty>}" >&2
+            exit 1
+          fi
+          version="${tag#v}"
+          git fetch --force --tags origin "refs/tags/${tag}:refs/tags/${tag}"
+          if [[ "$CHECKOUT_TAG" == "true" ]]; then
+            git checkout --detach "$tag"
+          fi
+          package_version=$(node -p "require('./package.json').version")
+          if [[ "$package_version" != "$version" ]]; then
+            echo "Release tag ${tag} does not match package version ${package_version}" >&2
+            exit 1
+          fi
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+          } >> "$GITHUB_OUTPUT"
 
       - name: setup node
         uses: actions/setup-node@v5
         with:
           node-version: 26.7.0
 
-      - name: validate package
-        uses: ./.github/actions/validatepackage
-        with:
-          full: "true"
+      # the package validator, inlined from the retired composite action
+      # (full deterministic gates plus the pack dry-run).
+      - name: install dependencies
+        run: npm ci
+      - name: run full deterministic gates
+        run: npm run check && npm run formatcheck && npm test
+      - name: package dry-run
+        run: npm run pack:check
 
       - name: generate extension icons
         shell: bash

@@ -75,14 +75,14 @@ jobs:
       - name: install cargo audit
         run: cargo install cargo-audit --locked
       - name: resolve desktop lockfile
-        working-directory: desktop
+        working-directory: web/desktop
         run: cargo generate-lockfile
       - name: audit resolved desktop graph
         shell: bash
         run: |
           mkdir -p build/security
           set +e
-          (cd desktop && cargo audit --json) > build/security/cargo-audit.json
+          (cd web/desktop && cargo audit --json) > build/security/cargo-audit.json
           status=$?
           set -e
           printf '%s\n' "$status" > build/security/cargo-audit.exit
@@ -106,7 +106,7 @@ jobs:
 
   osv:
     name: osv scanner
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.5.0
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.5.1
     with:
       fail-on-vuln: true
       scan-args: |-
@@ -126,7 +126,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: trufflehog
-        uses: trufflesecurity/trufflehog@v3.96.0
+        uses: trufflesecurity/trufflehog@v3.97.2
         with:
           extra_args: --results=verified
 
@@ -162,7 +162,7 @@ jobs:
       - name: prepare SBOM directory
         run: mkdir -p build/security
       - name: generate CycloneDX SBOM
-        uses: anchore/sbom-action@v0.20.5
+        uses: anchore/sbom-action@v0.24.2
         with:
           path: .
           format: cyclonedx-json

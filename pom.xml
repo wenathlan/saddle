@@ -3,15 +3,18 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+  <!-- The merged Maven carrier of the saddle repository: the former
+       io.wenathlan:saddle library envelope and the former
+       io.github.wenathlan:e2ugh Java process adapter join into ONE
+       artifact at 2.0.0 (the grand merge) — the Saddle.java adapter
+       compiles into the saddle artifact and every metadata field of both
+       lineages is readapted to the saddle product. -->
   <groupId>io.wenathlan</groupId>
   <artifactId>saddle</artifactId>
   <version>${revision}</version>
-  <properties>
-    <revision>2.0.0</revision>
-  </properties>
-  <packaging>pom</packaging>
+  <packaging>jar</packaging>
   <name>Saddle</name>
-  <description>Binary computing engine that turns distributed storage into a publishable working set.</description>
+  <description>Binary computing engine that turns distributed storage into a publishable working set, carrying the merged virtual-hardware engine CLI adapter (the Saddle.java process surface).</description>
   <url>https://github.com/wenathlan/saddle</url>
   <licenses>
     <license>
@@ -32,4 +35,25 @@
       <url>https://maven.pkg.github.com/wenathlan/saddle</url>
     </repository>
   </distributionManagement>
+  <properties>
+    <revision>2.0.0</revision>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+  <build>
+    <sourceDirectory>${project.basedir}</sourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>${maven.compiler.release}</release>
+          <includes>
+            <include>Saddle.java</include>
+          </includes>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>

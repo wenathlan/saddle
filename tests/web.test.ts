@@ -1,6 +1,6 @@
 /**
  * real tests for the e2ugh v7 web edition (worklog tasks v6-SYNC,
- * v7-BACK and v10-SBX): the suite imports web/sandbox.js (the
+ * v7-BACK and v10-SBX): the suite imports web.js (the
  * browser-pure engine port) and asserts the bank, the procfs payloads,
  * the mesa summaries and the command dispatcher (including the v10
  * persistent workspace filesystem commands); spawns web/server.js for
@@ -38,12 +38,12 @@ import {
   meminfo,
   nvidiaSmiTable,
   vulkanSummary,
-} from '../web/sandbox/sandbox.js';
+} from '../web/sandbox.js';
 
 /** repository root resolved from this test file location. */
 const reporoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* the e2ugh static console lives at web/sandbox since the grand merge */
-const webroot = join(reporoot, 'web', 'sandbox');
+/* the e2ugh static console lives at web since the grand merge */
+const webroot = join(reporoot, 'web');
 
 /* ------------------------------------------------------------------ */
 /* sandbox.js: the browser-pure engine port                            */
@@ -125,7 +125,7 @@ test('web dispatch: terminal commands run against the sandbox state', () => {
  */
 function bootserver(port: number, extraenv: Record<string, string> = {}, pinneddb?: string) {
   const dbpath = pinneddb ?? join(tmpdir(), `e2ugh-web-${randomUUID()}.db`);
-  const child = spawn(process.execPath, ['web/sandbox/server.js', '--port', String(port)], {
+  const child = spawn(process.execPath, ['web/server.js', '--port', String(port)], {
     cwd: reporoot,
     env: { ...process.env, E2UGH_HOST: '127.0.0.1', E2UGH_DB: dbpath, ...extraenv },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -885,7 +885,7 @@ test('web adapters: netlify.toml is valid toml with a static publish', async (t)
     'python3',
     [
       '-c',
-      'import json, tomllib; print(json.dumps(tomllib.load(open("web/sandbox/netlify.toml", "rb"))))',
+      'import json, tomllib; print(json.dumps(tomllib.load(open("web/netlify.toml", "rb"))))',
     ],
     { cwd: reporoot, timeout: 20000, encoding: 'utf8' },
   );

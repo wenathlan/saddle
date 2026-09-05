@@ -1,4 +1,361 @@
-# e2ugh release notes
+# saddle release notes
+
+## 2.0.0 — the grand merge: e2ugh joins saddle (the merged release, one product, one metadata)
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| The grand merge | The e2ugh repository (private, v1.2.20 — the one container file era) merges into saddle as the virtual-hardware engine of the storage/compute engine. Every file, feature and document of e2ugh lands in this repository and is readapted to the saddle product: the fifteen root engine modules and the index core merge into the barrel, the hardware catalogs and config envelopes ship as specs/* exports, the native sources (virtualhardware.c, gpumonitor.cpp, virtualizationcore.cpp) and the python bridge (qemubridge.py) sit at the repository root, and the full documentation set joins docs/ (the e2ugh engine reference and nine engineering documents). The public barrel and the engine root stay free of npm dependencies; the legacy WebScrape toolkit generation consolidates into webscrape.ts with lazy optional runtimes. |
+| The flat consolidation | Twenty-two nested logic folders fold into seventeen root-level domain files (the e2ugh family standard: one optimized TypeScript file per correlated domain, ordinal sections, JSDoc on every block, intra-domain imports dissolved, cross-domain imports rewritten). The package.json exports/bin remap to the flat dist surface. |
+| The one container file | The merged Dockerfile carries both container surfaces of the one repository: the five vhe stages of e2ugh (builder, python-bridge, qemu, qemu-runtime, runtime — published through the publish ghcr vhe workflow across three profiles and four architectures) and the saddle node-engine stages (saddle-build, saddle-runtime — the publish ghcr and compose pipelines build `--target saddle-runtime`). The GHCR tag families split cleanly: the node engine publishes `saddle:<version>`, the vhe engine publishes `saddle:<version>-vhe`, `-vhe-balanced` and `-vhe-lite` (no collision, one package, one product); the mesa-cache-26.2.1 release mirrors the e2ugh tarball cache so the build-time digest resolution works in this repository (same tarball, same GitHub-computed sha256, the value never enters the sources). |
+| The interface tree | The multiplatform interface consolidates inside web/ with every console file at the web root (the merged e2ugh console readapted): the self-hosted node api (server.js), the browser-pure engine dispatcher (sandbox.js), the sqlite store (db.js + init.sql + schema.prisma + drizzle.config.ts), the auth surface (auth.js + localauth.js), the mesh communication (mesh.js), the console page (console.html + console.js), the account pages (login/register/dashboard) and the static-edge deploy manifests (caddyfile, netlify.toml, vercel.json, mime.types, package.json). The React app, the capacitor shells (web/android, web/ios), the tauri shell (web/desktop) and the browser-extension assets (web/extension) share the same root; the self-hosted api serves the console page at `/` and the static pages beside it. All logic files stay at the repository root. |
+| Registry envelopes (the single metadata) | Every registry carrier of the merged repository becomes saddle metadata (the one-product rule): the Maven carrier is one artifact (io.wenathlan:saddle — the former library envelope and the former io.github.wenathlan:e2ugh Java adapter merge into one pom that compiles Saddle.java); the NuGet envelope is one saddle.csproj carrying the C# process adapter (SaddleCli.cs, the former E2ughCli.cs); the Ruby envelope is one saddle.gemspec shipping the new SaddleCli.rb runner (completing the former e2ugh carrier, whose runner path never existed) with the real repository files in its list; the Java adapter class itself is Saddle.java (the former E2ugh.java, io.wenathlan.saddle). The maven publish pipeline deploys the single merged artifact. The e2ugh MIT lineage is acknowledged in third-party-notices.md. |
+| The single binary | The package bin is one entry — `saddle` -> `dist/cli.js` (the former `e2ugh` bin and its CLI entry absorb into the saddle CLI): the `plan` command carries the absorbed architect CLI (the machine-plan renderer with the MTTG multiplex header, the vm.config.toml regex overrides, the qemu/docker/toml formats and the planlint notes). The start scripts readapt (`start` and `start:engine` run the plan renderer; the `web` script serves the self-hosted console at web/server.js). |
+| Workflows (one workflow file per responsibility) | The .github/actions composite folder no longer exists: the release-version resolver and the package validator steps inline into every workflow that used them (release, container, mobile, desktop, targets, buildextension, publishghcr, publishnpmjs, publishgithubnpm, publishmaven, publishnuget, publishrubygems — eleven workflows, each self-contained). The workflow lint gains a push trigger (every direct push that touches workflows gets linted) and rides version-tag action pins (the SHA pins retire — the family supply-chain contract). Cache-mirror releases (the mesa-cache pattern) skip the release-triggered jobs gracefully instead of failing the version resolver. The publish ghcr vhe workflow repairs the truncated ios export command of the mobile pipeline, the pre-merge branch-filter corruptions and the profile matrix. The dependabot configuration covers all eight ecosystems of the merged repository. The alternate-forge pipeline folders (.forgejo, .gitea, .gitlab, .woodpecker) retire: their deploy knowledge lives in web/DEPLOYMENT.md and their pipeline responsibilities are covered by the GitHub workflow set (one CI authority). |
+| Security (zero alerts, all workflows green) | All 35 open code-scanning alerts close: the polynomial-redos family (19 acquisition regexes hardened with disjoint character classes, the readabletext selector loop rewritten as linear indexOf extraction, the chunkmarkdown heading regex), the double-escaping family (one single-pass entity decoder replaces the four duplicated decoders — acquisition decode/clean, virtual decodexml, webscrape plainText), the bad-tag-filter and incomplete-sanitization family (one linear stripblocks helper — case-insensitive, whitespace-tolerant, unterminated-safe — replaces every script/style strip regex), the stack-trace exposure (communication.ts forwards only repo-coded error messages; raw diagnostics log server-side), the test sanitization flags, the uka-tests permissions block, and the Dockerfile DS-0013 (the pack-destination rewrite removes both cd instructions). The security workflow's cargo audit job audits web/desktop (the grand-merge path). |
+| Version metadata | Full envelope lockstep at 2.0.0 across every carrier: package.json (single bin), the config envelopes, the Dockerfile OCI labels, the web manifests, the merged maven/nuget/rubygems/java/c#/ruby carriers and the readme pins. |
+| Build artifacts stay out of the repository | The __pycache__ directory (the python bytecode cache of the bridge) leaves version control — GitHub runners generate every build artifact, test result and cache (the build computers are GitHub's, not the repository's). The .dockerignore scopes the console surface explicitly (the React tree stays out of the vhe image context). |
+
+## 1.8.19 — twenty correlated domains behind a transport-neutral public router
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| engine | Reorganized the TypeScript-first library into twenty correlated domains behind a transport-neutral public router. |
+| package | Consolidated foundation nouns, runtime execution state, API protocols and webhooks, MCP adapters, automation contracts, delivery planning and mode profiles while preserving package subpaths. |
+| package | Added an architecture organization record and rendered dependency-flow diagram, with compatibility rules for package exports, native metadata and workflows. |
+| web | Verified 140 active tests, 69 legacy tests, web type checking and build, flat-native validation, formatting, npm packaging and a production dependency audit with no reported vulnerabilities. |
+| package | Aligned active npm, lockfile, Maven, NuGet, RubyGems, desktop, Capacitor, iOS, extension and crawler metadata to `1.8.19`, with iOS build number `1008019`. |
+| docs | Added the canonical [1.8.19 release notes](docs/releasenotes-1.8.19.md). |
+
+## 1.8.18 — internal API contracts with explicit default denial and the isolation export
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| engine | Added serializable `executionrequest`, `executiondecision`, `executionhandoff`, `internalenvelope`, and `internalapi` contracts for privileged-effect planning without implicit runtime effects. |
+| browser | Added explicit default denial for binary execution, host bridging, remote dispatch, provider access, local storage, browser sessions, databases and network effects until policy, approval and caller-owned adapter declarations agree. |
+| package | Added the `@wenathlan/saddle/isolation` package export and deterministic tests that cover missing adapters, local targets, provider targets, browser targets and ignored undeclared URLs. |
+| web | Added the unified `web/` playground route that visualizes typed internal API boundaries and the difference between a denied request and a non-executing caller handoff. |
+| package | Aligned active package, registry, native, extension, crawler, Capacitor and iOS metadata to `1.8.18`, with iOS build number `1008018`. |
+| docs | Added the canonical [1.8.18 release notes](docs/releasenotes-1.8.18.md). |
+
+## 1.8.17 — the three-architecture GHCR OCI manifest with QEMU Buildx
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| workflows | Expanded the GHCR Linux OCI manifest target to `linux/amd64`, `linux/arm64`, and `linux/ppc64le` with QEMU-enabled Buildx publication. |
+| workflows | Retained a loadable `linux/amd64` image for the container vulnerability scan, OCI version-label verification, and CLI smoke test. |
+| workflows | Added a post-push manifest-index assertion that verifies the published Linux architectures before reporting container availability. |
+| workflows | Documented the deferred Windows container boundary and rejected non-runnable `unknown` descriptors. |
+| package | Aligned active package, native, extension, crawler, iOS build, and Capacitor metadata to `1.8.17`. |
+| docs | Added the canonical [1.8.17 release notes](docs/releasenotes-1.8.17.md). |
+
+## 1.8.16 — release evidence and readiness contracts
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| engine | Added `releaseevidence`, `evaluateevidence`, and `releasereadiness` as data-only release evidence and readiness contracts with explicit statuses, policy reason codes, and no external release effects. |
+| legal | Added `evidencefromverification` to map an already-valid local checksum result into `checked` evidence without upgrading declared signing state into a trust claim. |
+| engine | Exported the feature from the root entry and `@wenathlan/saddle/release-evidence`, with documented consumer boundaries. |
+| package | Expanded deterministic release coverage to 136 active tests while preserving the 69 legacy tests and passing package, web, audit, and flat-native gates. |
+| package | Aligned active package, native, extension, crawler and iOS build metadata to `1.8.16`. |
+| docs | Added the canonical [1.8.16 release notes](docs/releasenotes-1.8.16.md). |
+
+## 1.8.15 — verified storage pools, working-set admission and delivery manifests
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| engine | Added verified storage pools with quorum writes, explicit write modes, bounded operations, range reads, repair plans and restoration plans. |
+| engine | Added bounded working-set admission, capability-gated bridge plans, materialization ledgers and caller-owned cleanup plans. |
+| engine | Added WASM and binary transformation contracts, isolated execution adapters, archive inspection limits and sensitive-cache eligibility controls. |
+| engine | Added declarative provider selection, capability evidence, cancellation and dispatch rendering, immutable delivery manifests, PWA/CDN plans, and Mini App/DNS surface requirements. |
+| package | Aligned all active package, native, extension, crawler and iOS build metadata to `1.8.15`. |
+| docs | Added the canonical [1.8.15 release notes](docs/releasenotes-1.8.15.md). |
+
+## 1.8.14 — container-first ordering and GHCR build-stage validation
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| package | Bumped active npm, lockfile, Maven, NuGet, RubyGems, desktop, mobile, extension and crawler metadata to `1.8.14`. |
+| package | Restored container-first package ordering in the canonical documentation and release matrix. |
+| workflows | Added OCI version labels, build-stage engine compilation and post-push pull/label/CLI smoke validation for GHCR images. |
+| docs | Added the canonical [1.8.14 release notes](docs/releasenotes-1.8.14.md) while preserving the historical 1.8.13 record. |
+
+## 1.8.13 — queue leases, structured extraction and artifact retention
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| engine | Added caller-owned persistent queue leases, visibility timeouts, renewals, attempt accounting and idempotency keys. |
+| engine | Added schema-neutral structured extraction with field provenance, bounded UTF-8 payloads and injected parsers. |
+| browser | Added allowlisted browser snapshot projection with stable references and deterministic context byte budgets. |
+| workflows | Added resumable workflow cancellation reasons and caller-owned idempotent compensation callbacks. |
+| tests | Added deterministic artifact retention policies and keep/prune decisions without implicit deletion. |
+| docs | Expanded the 1.8.21 comparative research matrix to 60 public repositories and documented the selected implementation boundaries. |
+| package | Aligned active package, native, extension and crawler metadata to `1.8.13`. |
+| docs | Added the canonical [1.8.13 release notes](docs/releasenotes-1.8.13.md) while preserving the historical 1.8.12 record. |
+
+## 1.8.12 — the GPL-3.0-only license standardization and the release artifact matrix
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| legal | Added the canonical [1.8.12 release notes](docs/releasenotes-1.8.12.md) with the artifact matrix and explicit signing-state policy. |
+| legal | Standardized the project license and root legal documents on GPL-3.0-only, preserving one canonical `LICENSE` file and removing byte-identical Markdown/Text duplicates. |
+| tests | Added the public SignPath Foundation code-signing policy, GitHub Actions integration path and explicit unsigned, caller-owned, test-key and notarized status vocabulary. |
+| desktop | Expanded the desktop matrix to Linux x64/arm64, Windows x86/x64/arm64 and macOS x64/arm64, with dotted lowercase artifact names and per-runner manifests and checksums. |
+| workflows | Prepared Android APK/AAB and iOS IPA/app archive metadata, container and browser-extension release assets, with signing claims controlled by the actual CI state. |
+| extension | Preserved the Saddle brand icon across native and extension surfaces and retained security scanning, SBOM and provenance gates. |
+
+## 1.8.11 — flat native surfaces for Tauri and Capacitor
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| desktop | Flattened the project-owned Tauri desktop surface into `desktop/` with root Cargo, Rust entrypoints, icons and configuration |
+| mobile | Flattened the project-owned Capacitor Android surface into root `android/` source sets with explicit Gradle mappings and generated staging cleanup |
+| mobile | Preserved Capacitor and Xcode generator-owned internals while rejecting project-owned `src` paths in native surfaces |
+| workflows | Added flat native validation, Android staging flattening and workflow path corrections for desktop, Android and iOS |
+| package | Bumped active package, registry, extension, crawler and native metadata to `1.8.11` |
+
+## 1.8.10 — mobile conversion surfaces with optimized Android builds
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| package | Normalized active package, desktop, extension, registry and crawler identity to `1.8.10` |
+| desktop | Added mobile conversion research for Capacitor, Ionic and Tauri with an explicit library-first decision |
+| web | Added explicit Capacitor Android and iOS surfaces that reuse the shared web output and library contracts |
+| mobile | Enabled Android R8, resource shrinking and optimized resource shrinking; the generated APK is 3,498,594 bytes and the AAB is 3,893,352 bytes |
+| package | Normalized public artifacts to lowercase dotted names and rejected helper binaries, underscore-based names and generic metadata |
+| workflows | Published the verified desktop, Android, container and extension assets with surface-specific manifests and SHA-256 files |
+
+## 1.8.9 — the TypeScript migration and native artifacts
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| tests | Converted the active engine and deterministic tests from JavaScript to a root-based TypeScript source layout |
+| engine | Added dist-only compilation with declarations, source maps and generated output excluded from version control |
+| extension | Added TypeScript-first extension source resolution and retained the stable JavaScript Manifest V3 artifact format |
+| workflows | Added declarative application, computer, desktop, Android, iOS, CLI, binary, browser, web, LibreOffice, VSIX and container target plans |
+| workflows | Added tag-driven target-plan workflow without hardcoded credentials or platform-specific source code |
+| tests | Preserved the legacy typed scrape feature surface and verified 98 active tests plus 69 legacy Vitest tests |
+| web | Moved the development debug collector into the TypeScript web graph and repaired web compiler blockers |
+
+## 1.8.8 — the consolidation of crawl, retry and error contracts
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| scrape | Consolidated URL normalization, crawl traversal, frontier budgets and persistent crawl state into `scrape/crawl.js` |
+| engine | Consolidated retry policy and circuit protection into `runtime/retry.js` |
+| scrape | Merged scraper-specific error taxonomy into the core error context and removed redundant top-level folders |
+| tests | Preserved the public export names and deterministic behavior while reducing active source files and folder boundaries |
+| package | Updated package, extension, Maven, NuGet, RubyGems, README and release metadata to `1.8.8` |
+
+## 1.8.7 — the removal of obsolete manifests and the security gate additions
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| package | Removed the obsolete nested `scrape` package manifests and lockfile while preserving the engine's dependency-free JavaScript scrape contracts |
+| web | Removed the public `__manus__` directory and moved the development collector to `web/public/debugcollector.js` with a private `/debuglogs` endpoint |
+| workflows | Added base-aware asset URL resolution and normalized GitHub Pages subpath builds |
+| tests | Removed the unused JSX locator plugin and upgraded Vitest to the security-fixed 4.1.10 line |
+| workflows | Added npm audit and dependency review gates to the primary CI workflow |
+| package | Consolidated canonical package identity, security boundaries, architecture and release documentation |
+
+## 1.8.6 — extension persistence, snapshot diffs and provenance assets
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| extension | Added durable pending extension commands with explicit rehydration and resume |
+| browser | Added optional Playwright peer metadata and a Node-only `browser-playwright` adapter |
+| tests | Added a read-only page-world bridge with token-correlated `pagefacts` responses and deterministic timeout handling |
+| extension | Added extension snapshot diffs plus persisted window, tab and frame context for explicit resume |
+| tests | Added deterministic SHA256SUMS, CycloneDX SBOM and in-toto-shaped provenance asset generation |
+| workflows | Flattened the web application into a root-based layout and corrected GitHub Pages, CI and Dependabot paths |
+| workflows | Fixed the GHCR production image build for the root manifest's dev-only peer dependency graph |
+
+## 1.8.5 — Node 26 package metadata
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| package | Added Node.js 26.7.0 and npm 12 package metadata |
+| browser | Added an optional Playwright peer and explicit Node-only browser adapter |
+| engine | Preserved the transport-neutral root without adding runtime dependencies |
+
+## 1.8.4 — the cross-forge Node 26 toolchain
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| workflows | Updated all active library and forge pipelines from Node 22 to Node.js 26.7.0 |
+| workflows | Added complete deterministic gates to GitLab, Forgejo, Gitea and Woodpecker validation workflows |
+| workflows | Documented caller-owned Pages and cross-forge deployment boundaries |
+
+## 1.8.2 — the Manifest V3 permission policy and release assets
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| engine | Added a minimal Manifest V3 permission policy with caller-owned optional escalation |
+| extension | Added a Node-only extension builder that versions the unpacked manifest from release metadata |
+| package | Added a release workflow that packages and attaches `saddle-extension-<version>.zip` |
+| engine | Added context-aware replay for caller-owned window, tab and frame restoration |
+| package | Added a transport-neutral export graph audit for browser-like package loading |
+| scrape | Added bounded content-type detection and normalization for structured and binary scrape results |
+| package | Migrated active repository, Maven and GitHub Packages owner metadata to `wenathlan` |
+| workflows | Prepared all release workflows to derive owner namespaces from the transferred repository |
+
+## 1.8.1 — the wenathlan package identity
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| package | Changed the canonical public npm package identity to `@wenathlan/saddle` |
+| package | Preserved the v1.8.1 GitHub Packages npm artifact namespace as `@iakadion/saddle` for historical accuracy |
+| package | Added follow-up release metadata after the immutable v1.8.0 package identity |
+| package | Kept package version resolution derived from the release tag |
+
+## 1.8.0 — the Node 26 toolchain and cross-runtime probe
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| workflows | Updated GitHub Actions, Docker bases and CI toolchains to Node.js 26.7.0 and current stable action majors |
+| package | Added a transport-neutral browser worker bridge and package export import tests |
+| package | Added a Node 26.7.0 cross-runtime probe lane for Node, Bun and Deno |
+| package | Kept package publication versions derived from release tags without manual version inputs |
+
+## 1.7.0 — app installation, scope authorization and webhooks
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| engine | Added app installation, suspension, revocation and scope authorization |
+| engine | Added command scope guards and idempotent bot command results |
+| web | Added webhook delivery attempts, retryable failures and dead letters |
+| workflows | Verified GitHub npm, GHCR, Maven, NuGet and RubyGems publication workflows for 1.7.0 |
+| registry | Documented the public npmjs Trusted Publisher bootstrap requirement |
+
+## 1.6.0 — API envelopes and secure response boundaries
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| engine | Added request identity, success and error API envelopes |
+| engine | Added caller-owned optional authorization verification |
+| engine | Added secure response headers and bounded redirect checks |
+| engine | Added injected DNS resolution checks for private targets |
+| browser | Added optional browser snapshot and action MCP tools |
+
+## 1.5.0 — semantic extraction and crawl frontiers
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| engine | Added semantic page extraction for headings, landmarks, controls and links |
+| scrape | Added priority crawl frontiers and per-domain page budgets |
+| engine | Added retrieval provenance and provenance merging for RAG context |
+| engine | Added bounded in-memory counters and duration metrics |
+
+## 1.4.0 — provider health and legal remote runs
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| engine | Added provider health and capacity reports |
+| engine | Added cooperative heartbeat signals for long-running work |
+| workflows | Added forge-neutral manual, webhook, schedule, retry and heartbeat triggers |
+| legal | Added legal remote run transitions with resumable submit, status and cancel operations |
+
+## 1.3.0 — content-addressed storage and tiered caches
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| engine | Added bounded range reads to chunked storage |
+| engine | Added content-addressed immutable object storage and logical references |
+| engine | Added tiered hot and cold cache with stale-while-revalidate loading |
+| engine | Added manifest comparison, conflict policy and multi-backend sync |
+| engine | Added memory engine backend capabilities and sync methods |
+
+## 1.2.0 — page snapshots and browser action batches
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| browser | Added vendor-neutral page snapshots with bounded elements and stable references |
+| browser | Added stale snapshot errors and snapshot diffs |
+| registry | Added tab, frame and active context registry |
+| browser | Added bounded browser action batches and structured outcomes |
+| browser | Added snapshot-aware action recording for replay provenance |
+
+## 1.1.0 — the Manifest V3 browser bridge
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| browser | Added a Manifest V3 browser bridge under `extension/` |
+| extension | Added versioned extension messages, page snapshots and stale reference checks |
+| engine | Added service worker routing with session state persistence |
+| browser | Added a narrow popup for user initiated snapshots and page reads |
+| browser | Added deterministic extension tests without browser credentials or network access |
+| package | Added the `@wenathlan/saddle/extension` package export |
+
+## 1.0.0 — initial release
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| engine | Initial release of saddle |
+| package | Initial engine contracts and package release |
+| legal | GNU General Public License v3.0 |
+
+---
+
+## The e2ugh lineage (the merged repository history, preserved)
+
+The sections below are the verbatim release history of e2ugh (the private
+virtual-hardware engine repository that merged into saddle at 2.0.0) —
+kept in the family format so nothing of the merged product's past is lost.
 
 ## 1.2.20 — The one container file: docker-compose.yml and entrypoint.sh merged into the Dockerfile
 
@@ -347,3 +704,4 @@ npmjs.com.
 | npm installs | Every workflow installs through `npm ci` (lockfile-pinned); the `npm install` fallback branches are gone. |
 | Releases | `softprops/action-gh-release` bumped v2 -> v3.0.2 in `release.yml` and `webdeploy.yml`. |
 | Snyk | The optional Snyk job (moving `@master` branch reference) replaced by the pinned OSV scanner. |
+

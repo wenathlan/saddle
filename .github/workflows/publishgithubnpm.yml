@@ -11,6 +11,10 @@ permissions:
 
 jobs:
   publish:
+    # cache-mirror releases (mesa-cache-*) publish tarball assets, not
+    # versioned artifacts: the release-triggered publish jobs skip them
+    # gracefully instead of failing the version resolver.
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -24,13 +28,45 @@ jobs:
           node-version: 26.7.0
           registry-url: https://npm.pkg.github.com
           package-manager-cache: false
+      # the release-version resolver, inlined from the retired composite
+      # action (the one-workflow-file standard: every workflow carries its
+      # own steps - the .github/actions folder no longer exists).
       - name: resolve release version
         id: release
-        uses: ./.github/actions/releaseversion
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-      - name: validate package
-        uses: ./.github/actions/validatepackage
+          CHECKOUT_TAG: "true"
+        run: |
+          set -euo pipefail
+          tag="${RELEASE_TAG:-}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            tag="$(gh release view --json tagName --jq .tagName)"
+          fi
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            echo "A release tag such as v1.8.0 is required; received: ${tag:-<empty>}" >&2
+            exit 1
+          fi
+          version="${tag#v}"
+          git fetch --force --tags origin "refs/tags/${tag}:refs/tags/${tag}"
+          if [[ "$CHECKOUT_TAG" == "true" ]]; then
+            git checkout --detach "$tag"
+          fi
+          package_version=$(node -p "require('./package.json').version")
+          if [[ "$package_version" != "$version" ]]; then
+            echo "Release tag ${tag} does not match package version ${package_version}" >&2
+            exit 1
+          fi
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+          } >> "$GITHUB_OUTPUT"
+      # the package validator, inlined from the retired composite action
+      # (dependency install plus the pack dry-run).
+      - name: install dependencies
+        run: npm ci
+      - name: package dry-run
+        run: npm run pack:check
       - name: align github package scope
         run: npm pkg set name="@${GITHUB_REPOSITORY_OWNER}/saddle"
         env:

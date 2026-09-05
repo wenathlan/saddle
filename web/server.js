@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * server.js — self-hosted node api for the e2ugh web sandbox (v7-BACK).
+ * server.js — self-hosted node api for the saddle web console (the merged e2ugh sandbox surface, v7-BACK).
  *
  * pure node:http, zero dependencies, esm. the server serves the static
  * web/ assets (content types parsed from web/mime.types at boot) and
  * exposes the /api/v1 contract: health, spec catalogs read from the
  * repository json files, in-memory sandboxes with the created ->
  * running state machine persisted to sqlite, exec through the very
- * same browser-pure dispatcher (web/sandbox.js) with the persistent
+ * same browser-pure dispatcher (web.js) with the persistent
  * per-sandbox workspace filesystem (sandboxfiles table, quota capped,
  * data stays with the sandbox id across restarts), the auth surface
  * (register/login/logout/me backed by scrypt and sessions in db.js),
@@ -71,10 +71,10 @@ import {
 import { forwardauth, mainurl, meshsecret, role, startheartbeat, verifymesh } from './mesh.js';
 
 /** repository root (one level above web/) resolved from this module. */
-/* the grand-merge layout: this server lives at web/sandbox/server.js, the
-   repository root (hardware spec documents) is two levels up and the static
-   assets (the console pages, mime.types) are its own directory. */
-const rootdir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+/* the grand-merge layout: this server lives at web/server.js, the static
+ * console pages sit beside it in the same directory, and the repository
+ * root (specs catalogs, engine sources) is one level up. */
+const rootdir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** the sandbox directory holding the static assets. */
 const webdir = dirname(fileURLToPath(import.meta.url));
@@ -891,7 +891,7 @@ const staticdenyfiles = new Set([
 function servestatic(urlpath, res, req) {
   const headers = securityheaders(req);
   try {
-    const relative = urlpath === '/' ? 'index.html' : urlpath.replace(/^\/+/, '');
+    const relative = urlpath === '/' ? 'console.html' : urlpath.replace(/^\/+/, '');
     // extensionless page routes: /login, /register and /dashboard map to
     // their html files so the deploy matrix (netlify vercel caddy) can use
     // clean urls while the file layout stays flat.
@@ -2038,7 +2038,7 @@ server.listen(port, host, () => {
       `e2ugh web sandbox api v${version} (self-hosted node, zero deps, no serverless functions)`,
       `role: ${role}${role === 'clone' && mainurl().length > 0 ? ` -> main ${mainurl()}` : ''}`,
       `listening on ${host}:${port} (random default range 30000-59999; override with --port or PORT)`,
-      `static root: ${webdir} (content types: ${mimetable.size} extensions from web/sandbox/mime.types)`,
+      `static root: ${webdir} (content types: ${mimetable.size} extensions from web/mime.types)`,
       `db: ${store.dbpath} (node:sqlite, mode 0o600)`,
       'endpoints: GET /api/v1/health | GET /api/v1/sandboxes (shelf) | POST /api/v1/sandboxes/:id/resume |',
       '  POST /api/v1/auth/register | POST /api/v1/auth/login | POST /api/v1/auth/logout |',

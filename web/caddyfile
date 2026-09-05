@@ -1,7 +1,7 @@
 # static edge only; the sandbox api is self-hosted node (server.js); no
 # serverless functions per project rules.
 #
-# e2ugh web sandbox behind caddy on the self-hosted main node
+# saddle web console (the merged e2ugh engine surface) behind caddy on the self-hosted main node
 # (devthink.pro pattern):
 #   1. run the api once:  node web/server.js --port 39721   (or PORT=39721)
 #      it logs the chosen endpoint; the default port is random in
@@ -32,10 +32,10 @@
 
 	handle {
 		root * web
-		try_files {path} /index.html
+		try_files {path} /console.html
 		file_server
 
-		header /index.html Cache-Control "no-cache, must-revalidate"
+		header /console.html Cache-Control "no-cache, must-revalidate"
 		header /*.js Cache-Control "public, max-age=3600, must-revalidate"
 		header /*.svg Cache-Control "public, max-age=3600, must-revalidate"
 	}

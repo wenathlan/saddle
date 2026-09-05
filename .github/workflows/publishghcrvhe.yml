@@ -1,4 +1,4 @@
-# Combined container pipeline for e2ugh: validation + GHCR publication.
+# Combined container pipeline for the saddle vhe engine: validation + GHCR publication.
 #
 # Pipeline stages:
 #   validate (push)   - per-arch dry-run build + runtime validation for
@@ -46,7 +46,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Existing e2ugh tag to publish.
+        description: Existing saddle tag to publish.
         required: true
         type: string
 
@@ -215,7 +215,7 @@ jobs:
           PROFILERAM: ${{ matrix.profileram }}
         run: |
           set -euo pipefail
-          image="e2ugh-validate:${SLUG}-${PROFILE}"
+          image="saddle-vhe-validate:${SLUG}-${PROFILE}"
           run_contract() {
             docker run --rm --platform "${PLATFORM}" \
               --memory-swap=-1 --shm-size=2g "$image" "$@"
@@ -246,7 +246,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
-          image="e2ugh-validate:${SLUG}-${PROFILE}"
+          image="saddle-vhe-validate:${SLUG}-${PROFILE}"
           echo '--- clinfo: Rusticl on LLVMpipe (OpenCL 3.1) ---'
           docker run --rm --platform "${PLATFORM}" \
             --memory-swap=-1 --shm-size=2g "$image" \
@@ -261,7 +261,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
-          image="e2ugh-validate:${SLUG}-${PROFILE}"
+          image="saddle-vhe-validate:${SLUG}-${PROFILE}"
           echo '--- vulkaninfo --summary: Lavapipe (Vulkan 1.4) ---'
           docker run --rm --platform "${PLATFORM}" \
             --memory-swap=-1 --shm-size=2g "$image" \
@@ -271,7 +271,10 @@ jobs:
 
   resolve:
     name: Resolve release version
-    if: github.event_name != 'push'
+    # cache-mirror releases (mesa-cache-*) publish tarball assets, not
+    # versioned artifacts: the resolver skips them gracefully instead of
+    # failing the version gate; the proceed-gated jobs downstream follow.
+    if: github.event_name != 'push' && (github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v'))
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.resolve.outputs.version }}
@@ -347,15 +350,15 @@ jobs:
           # published yet" so a transient API failure does not silently
           # skip a publish. The GHCR container package is queried via the
           # /orgs/{owner}/packages/container/{package_name} endpoint with
-          # package_name = e2ugh (no namespace prefix) - the registry stores
+          # package_name = saddle (no namespace prefix) - the registry stores
           # container packages by their repo-name slug, not the full
           # owner/repo path.
-          api_out="$(gh api "/orgs/${OWNER}/packages/container/e2ugh/versions" --jq "[.[] | select(.metadata.container.tags[]? | startswith(\"${version}\"))] | length" 2>/dev/null || true)"
+          api_out="$(gh api "/orgs/${OWNER}/packages/container/saddle/versions" --jq "[.[] | select(.metadata.container.tags[]? | startswith(\"${version}\"))] | length" 2>/dev/null || true)"
           case "${api_out}" in
             ''|*[!0-9]*) api_out=0 ;;
           esac
           if [ "${api_out}" != "0" ]; then
-            echo "GHCR container ${OWNER}/e2ugh:${version} is already published; the duplicate workflow_run firing will no-op."
+            echo "GHCR container ${OWNER}/saddle:${version} is already published; the duplicate workflow_run firing will no-op."
             exit 0
           fi
           echo "proceed=true" >> "$GITHUB_OUTPUT"
@@ -444,7 +447,7 @@ jobs:
           platforms: linux/amd64
           push: false
           load: true
-          tags: e2ugh-release-scan:${{ needs.resolve.outputs.version }}
+          tags: saddle-vhe-release-scan:${{ needs.resolve.outputs.version }}
           build-args: |
             VHE_PROFILE_CPU=epyc9965
             VHE_PROFILE_VCPUS=192
@@ -459,7 +462,7 @@ jobs:
       - name: Scan the release image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: e2ugh-release-scan:${{ needs.resolve.outputs.version }}
+          image-ref: saddle-vhe-release-scan:${{ needs.resolve.outputs.version }}
           scanners: vuln,secret,misconfig
           severity: HIGH,CRITICAL
           ignore-unfixed: true
@@ -548,10 +551,13 @@ jobs:
           set -euo pipefail
           img="${IMAGE,,}"
           ver="${VERSION}"
-          suffix=""
-          if [ "${PROFILE}" != "max" ]; then suffix="-${PROFILE}"; fi
-          # ONE tag per version: the version itself (with the profile suffix
-          # for balanced/lite). No latest, no major.minor, no rolling alias.
+          suffix="-vhe"
+          if [ "${PROFILE}" != "max" ]; then suffix="-vhe-${PROFILE}"; fi
+          # ONE tag per version: the vhe family carries the -vhe prefix so
+          # the virtual-hardware engine surface and the node-engine surface
+          # of the same repository never collide (saddle:2.0.0 is the node
+          # engine, saddle:2.0.0-vhe* is the vhe engine). No latest, no
+          # major.minor, no rolling alias.
           echo "tag=${img}:${ver}${suffix}" >> "$GITHUB_OUTPUT"
           echo "resolved tag: ${img}:${ver}${suffix}"
 

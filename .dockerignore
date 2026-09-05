@@ -3,7 +3,8 @@
 #   vhe stages: the native sources at the root (virtualhardware.c,
 #     gpumonitor.cpp, virtualizationcore.cpp — the former libs/), qemubridge.py,
 #     the flat .ts engine sources with their manifests and hardware catalogs,
-#     and the e2ugh console at web/sandbox;
+#     and the console surface at the web root (the merged e2ugh console
+#     files: server, dispatcher, store, auth, mesh, static pages);
 #   saddle stages: package.json + lockfile, the full root source tree and
 #     tests/scripts/buildengine.mjs (the build gate).
 # The entrypoint bootstrap stays embedded in the Dockerfile heredoc (the one
@@ -54,12 +55,12 @@ __pycache__/
 
 # package-registry sources ship through their own workflows (maven, nuget,
 # rubygems); they are never consumed by any image stage.
-E2ugh.java
-E2ughCli.cs
-e2ugh.csproj
-e2ugh.gemspec
+Saddle.java
+SaddleCli.cs
+SaddleCli.rb
+saddle.csproj
+saddle.gemspec
 pom.xml
-e2ugh.pom.xml
 settings.xml
 
 # legacy scrape sub-project configs (preserved documents, not build inputs)
@@ -77,7 +78,32 @@ dist
 *.nupkg
 *.snupkg
 
-# the React interface tree stays out of both images except the e2ugh
-# console the vhe runtime carries at /engine/web:
+# the React interface tree stays out of both images; the console surface the
+# vhe runtime carries at /engine/web lives at the web root (the merged e2ugh
+# console: server + dispatcher + store + auth + mesh + static pages), so the
+# web root allows exactly the console files and excludes the React app tree
+# (App.tsx, pages, components, android, ios, desktop, extension shells).
 web/*
-!web/sandbox
+!web/server.js
+!web/sandbox.js
+!web/db.js
+!web/auth.js
+!web/mesh.js
+!web/localauth.js
+!web/dashboard.js
+!web/console.js
+!web/console.html
+!web/login.html
+!web/login.js
+!web/register.html
+!web/register.js
+!web/dashboard.html
+!web/init.sql
+!web/schema.prisma
+!web/drizzle.config.ts
+!web/caddyfile
+!web/netlify.toml
+!web/vercel.json
+!web/mime.types
+!web/readme.md
+!web/package.json

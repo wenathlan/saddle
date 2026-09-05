@@ -63,7 +63,7 @@ export function chunkmarkdown(markdown, options = {}) {
   let buffer = [];
   function flush() { if (!buffer.length) return; const content = buffer.join("\n").trim(); if (content) chunks.push({ content, headingpath: [...headingpath], tokencount: estimatetokens(content, options.model) }); buffer = []; }
   for (const line of lines) {
-    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    const heading = line.match(/^(#{1,6})[ \t]+(\S.*)$/);
     if (heading) { flush(); const level = heading[1].length; headingpath = headingpath.slice(0, level - 1); headingpath[level - 1] = heading[2].trim(); buffer.push(line); continue; }
     buffer.push(line);
     if (estimatetokens(buffer.join("\n"), options.model) > maxtokens) { const last = buffer.pop(); flush(); const overlaptext = buffer.slice(-overlap).join("\n"); buffer = overlaptext ? [overlaptext, last] : [last]; }

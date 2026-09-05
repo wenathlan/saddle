@@ -12,8 +12,8 @@
   NODE_VERSION = "26.7.0"
 
 # security headers mirroring web/server.js and the caddyfile; no
-# functions, no SPA rewrite: every page is a real html file (index,
-# login, register, dashboard), so /* -> /index.html 200 would only
+# functions, no SPA rewrite: every page is a real html file (console,
+# login, register, dashboard), so /* -> /console.html 200 would only
 # hide 404s.
 
 [[headers]]

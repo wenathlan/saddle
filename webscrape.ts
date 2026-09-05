@@ -986,10 +986,30 @@ function htmlToRedisJson(html: string, key = 'page'): string {
   return `JSON.SET ${key} $ ${JSON.stringify(json, null, 2)}`;
 }
 
+/** Single-pass HTML entity decode map: the replace callback resolves each entity exactly once so a double-escaped `&amp;lt;` decodes to the literal text `&lt;` and never again to `<`. */
+const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" };
+
+/** Linear single-pass script/style block removal: case-insensitive, tolerates `</script >` closing whitespace, and drops any unterminated block so no `<script` fragment can survive. One scan, no regex backtracking. */
+function stripblocks(html: string, ...tags: string[]): string {
+  const open = new RegExp(`<(${tags.join('|')})\\b[^<>]*>`, 'i');
+  let out = '';
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = open.exec(html.slice(cursor))) !== null) {
+    const start = cursor + match.index;
+    out += html.slice(cursor, start);
+    const closeTag = `</${match[1].toLowerCase()}`;
+    const close = html.toLowerCase().indexOf(closeTag, start + match[0].length);
+    if (close < 0) return out; /* unterminated block: the rest is dropped */
+    const gt = html.indexOf('>', close);
+    cursor = gt < 0 ? html.length : gt + 1;
+  }
+  return out + html.slice(cursor);
+}
+
+/** Converts sanitized HTML to plain text: script/style blocks drop in one linear pass, remaining tags strip once and entities decode once. */
 function plainText(html: string): string {
-  return html
-    .replace(/<style[^>]*>.*?<\/style>/gs, '')
-    .replace(/<script[^>]*>.*?<\/script>/gs, '')
+  return stripblocks(html, 'script', 'style')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<\/h[1-6]>/gi, '\n')
@@ -997,13 +1017,10 @@ function plainText(html: string): string {
     .replace(/<\/tr>/gi, '\n')
     .replace(/<\/td>/gi, ' | ')
     .replace(/<\/th>/gi, ' | ')
-    .replace(/<[^>]+>/g, '')
+    .replace(/<[^<>]+>/g, '')
+    .replace(/<\/?(?:script|style)\b[^<>]*$/i, '')
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&(amp|lt|gt|quot|#39);/g, (whole: string, entity: string) => ENTITIES[entity] ?? whole)
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }

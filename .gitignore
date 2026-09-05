@@ -11,3 +11,12 @@ coverage/
 *.nupkg
 *.snupkg
 target/
+
+# python bytecode caches are generated on the runners, never tracked
+__pycache__/
+*.pyc
+
+# runtime sqlite stores of the web console (self-hosted deploys)
+*.db
+*.sqlite
+*.sqlite3

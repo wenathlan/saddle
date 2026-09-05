@@ -20,9 +20,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { creategrid, multiplex } from './virtualization.js';
 import type { migprofileid } from './virtualmemory.js';
 
 /* ------------------------------------------------------------------ */
@@ -1392,61 +1390,6 @@ export function planlint(candidate: plan): readonly string[] {
     notes.push(`topology product ${plantopology(candidate)} differs from vcpus ${candidate.vcpus}`);
   }
   return notes;
-}
-
-/**
- * CLI entry point absorbed from architect.ts: when executed directly the
- * module renders a plan (defaulting to defaultplan, overridden by
- * vm.config.toml regex fields) preceded by the MTTG multiplex header.
- *
- * @example
- * ```ts
- * // doc-test ported from architect.test.ts:
- * // plantopology(defaultplan) === 32
- * // dockerrun(defaultplan) matches /--pids-limit=0/
- * // planlint({ ...defaultplan, mttg: true, mttgthreads: 1 }) flags the floor
- * // multiplex(creategrid(8, 8000)) === 1000
- * // creategrid(4, MTTG_MAX + 50).virtual === MTTG_MAX
- * ```
- */
-if (import.meta.filename === process.argv[1]) {
-  try {
-    const format = process.argv[2] ?? 'qemu';
-    let candidate: plan = { ...defaultplan };
-    try {
-      const raw = await readFile('vm.config.toml', 'utf8');
-      const vcpus = /vcpus = (\d+)/.exec(raw)?.[1];
-      const mem = /gib = (\d+)/.exec(raw)?.[1];
-      const mttg = /virtual_threads = (\d+)/.exec(raw)?.[1];
-      if (vcpus !== undefined) {
-        candidate = { ...candidate, vcpus: Number(vcpus) };
-      }
-      if (mem !== undefined) {
-        candidate = { ...candidate, memorygib: Number(mem) };
-      }
-      if (mttg !== undefined) {
-        candidate = { ...candidate, mttgthreads: Number(mttg), mttg: true };
-      }
-    } catch {
-      /* catcher: vm.config.toml is optional; defaults stay */
-    }
-    const grid = creategrid(undefined, candidate.mttgthreads);
-    const header = `# multiplex ${multiplex(grid).toFixed(1)}x on ${grid.host} host threads\n`;
-    const body =
-      format === 'docker'
-        ? dockerrun(candidate)
-        : format === 'toml'
-          ? plantoml(candidate)
-          : qemucommand(candidate);
-    process.stdout.write(`${header}${body}\n`);
-    for (const note of planlint(candidate)) {
-      process.stderr.write(`# ${note}\n`);
-    }
-  } catch (error) {
-    process.stderr.write(
-      `planner failed: ${error instanceof Error ? error.message : String(error)}\n`,
-    );
-  }
 }
 
 /* ------------------------------------------------------------------ */

@@ -11,6 +11,7 @@ import Compute from "./pages/Compute";
 import Integrations from "./pages/Integrations";
 import Docs from "./pages/Docs";
 import Playground from "./pages/Playground";
+import Console from "./pages/Console";
 
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
         <Route path={"/compute"} component={Compute} />
         <Route path={"/integrations"} component={Integrations} />
         <Route path={"/playground"} component={Playground} />
+        <Route path={"/console"} component={Console} />
         <Route path={"/docs"} component={Docs} />
         <Route path={"/404"} component={NotFound} />
         {/* Final fallback route */}

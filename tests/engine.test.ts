@@ -810,8 +810,8 @@ test("estimates token budgets and generates llms text", () => {
   assert.equal(fitscontext("1234", 1), true);
   assert.equal(tokenbudget("12345678", { context: 1 }).fits, false);
   const pages = [{ title: "Docs", url: "https://example.com/docs", description: "API docs", content: "Saddle API" }];
-  assert.equal(llmstxt({ title: "Saddle", pages }).includes("https://example.com/docs"), true);
-  assert.equal(llmsfull({ pages }).includes("Saddle API"), true);
+  assert.match(llmstxt({ title: "Saddle", pages }), /^# Saddle\n> [^\n]*\n\n## pages\n\n- \[Docs\]\(https:\/\/example\.com\/docs\): API docs\n$/);
+  assert.match(llmsfull({ pages }), /^# Docs\n\nsource: https:\/\/example\.com\/docs\n\nSaddle API$/);
 });
 
 test("verifies signed webhooks and drops duplicate deliveries", async () => {

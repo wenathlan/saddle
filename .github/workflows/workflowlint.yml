@@ -1,4 +1,13 @@
-# Verifies GitHub Actions syntax, expressions, action inputs and reusable workflow calls.
+# Verifies GitHub Actions syntax, expressions, action inputs and reusable
+# workflow calls across every workflow file of the repository. A malformed
+# workflow must never reach main, so the gate fails on errors. The actions
+# ride version tags instead of hard coded commit digests: the supply chain
+# review tracks the tag through the release lane, and no internal
+# cryptographic pin lives baked inside a workflow file (the family policy).
+# The lint runs on every pull request and every push that touches the
+# workflows folder - no composite actions folder exists anymore (the
+# one-workflow-file standard retired it), so the path filter covers the
+# workflows folder only.
 name: workflow lint
 
 on:
@@ -6,10 +15,18 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/**"
-      - ".github/actions/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: workflowlint-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
@@ -18,9 +35,12 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: checkout
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        uses: actions/checkout@v7.0.1
       - name: lint workflows
-        uses: reviewdog/action-actionlint@723b43e281169876cbcd247431484753fb341f0d
+        # actionlint validates GitHub Actions workflow syntax, expression
+        # contexts, action inputs and reusable workflow call graphs; the
+        # reviewdog wrapper reports findings inline on the pull request.
+        uses: reviewdog/action-actionlint@v1.73.2
         with:
           reporter: github-pr-check
           fail_level: error

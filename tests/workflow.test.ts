@@ -93,7 +93,7 @@ const skipdirs = new Set(['.git', 'node_modules', '__pycache__', 'dist', 'covera
 
 /** lists the root-level files matching a simple extension glob. */
 function globroot(pattern: string): string[] {
-  const ext = pattern.replace('*', '');
+  const ext = pattern.replaceAll('*', '');
   return readdirSync(reporoot).filter((name) => name.endsWith(ext));
 }
 
@@ -305,54 +305,76 @@ test('ci gate json: the ten data documents parse strictly with zero underscore o
 /* ------------------------------------------------------------------ */
 
 test('ci gate structure: the grand-merge layout contract', () => {
-  /* the merged repository carries two surfaces:
+  /* the merged repository carries one root surface:
      - the root: every logic TypeScript file sits flat at the repository
        root (the consolidation contract — no nested logic folders), with
-       only the support folders (docs, tests, examples) and the interface
-       tree (web: the React app, the native shells, the e2ugh console at
-       web/sandbox) beside them;
-     - web/sandbox: the e2ugh static console keeps its own flat layout
-       (no nesting below it). */
+       only the support folder (docs, tests) and the interface tree (web)
+       beside them; the alternate-forge pipeline folders retired (the
+       GitHub workflow set is the one CI authority, the deploy knowledge
+       lives in web/DEPLOYMENT.md);
+     - the web root: the merged e2ugh console files (server, dispatcher,
+       store, auth, mesh and the static pages) sit beside the React app
+       folders — every console file at the web root, no sandbox subfolder. */
   const logicfiles = globroot('*.ts').sort();
   assert.ok(
     logicfiles.length >= 30,
     `the root domain surface must stay populated (found ${logicfiles.length})`,
   );
-  const rootsupport = new Set([
-    '.github',
-    '.forgejo',
-    '.gitea',
-    '.gitlab',
-    '.woodpecker',
-    '.woodpecker',
-  ]);
   for (const entry of readdirSync(reporoot, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     assert.ok(
       entry.name === 'web' ||
         entry.name === 'docs' ||
         entry.name === 'tests' ||
-        entry.name === 'examples' ||
         entry.name === 'build' ||
         entry.name === 'dist' ||
-        rootsupport.has(entry.name) ||
-        entry.name.startsWith('.') ||
+        entry.name === '.github' ||
+        entry.name === '.git' ||
         entry.name === 'node_modules' ||
         entry.name === 'coverage' ||
         entry.name === '__pycache__',
-      `the directory ${entry.name} is neither the interface (web), support (docs, tests, examples) nor a config root — logic lives flat at the root`,
+      `the directory ${entry.name} is neither the interface (web), support (docs, tests) nor a config/tool root — logic lives flat at the root`,
     );
   }
-  /* the e2ugh console: flat, no nesting below web/sandbox. */
-  for (const entry of readdirSync(join(reporoot, 'web', 'sandbox'), { withFileTypes: true })) {
-    if (entry.isDirectory()) {
-      assert.fail(`web/sandbox nests a directory (${entry.name}); the console stays flat`);
-    }
+  /* the retired alternate-forge folders must stay retired. */
+  for (const retired of ['.forgejo', '.gitea', '.gitlab', '.woodpecker']) {
+    assert.equal(
+      existsSync(join(reporoot, retired)),
+      false,
+      `${retired} is retired — the GitHub workflow set is the one CI authority`,
+    );
   }
+  /* the console surface: the merged e2ugh console files at the web root. */
+  for (const required of [
+    'server.js',
+    'sandbox.js',
+    'db.js',
+    'auth.js',
+    'mesh.js',
+    'localauth.js',
+    'dashboard.js',
+    'console.js',
+    'console.html',
+    'login.html',
+    'register.html',
+    'dashboard.html',
+  ]) {
+    assert.ok(
+      existsSync(join(reporoot, 'web', required)),
+      `web/${required} — the console file lives at the web root`,
+    );
+  }
+  assert.equal(
+    existsSync(join(reporoot, 'web', 'sandbox')),
+    false,
+    'web/sandbox no longer exists — every console file sits at the web root',
+  );
   /* the dedupe contract scoped to the flat surfaces (root + console). */
   const files = [
     ...logicfiles,
-    ...readdirSync(join(reporoot, 'web', 'sandbox')).map((f) => `web/sandbox/${f}`),
+    ...readdirSync(join(reporoot, 'web'))
+      .filter((f) => f.endsWith('.js') || f.endsWith('.html'))
+      .map((f) => `web/${f}`),
   ];
   const seenhashes = new Map<string, string>();
   for (const file of files) {
@@ -474,7 +496,7 @@ test('ci gate release: sha256 manifest and SHA256SUMS render for every artifact'
   assert.equal(recomputed, sample.sha256, 're-hashing reproduces the manifest checksum');
   const manifest = {
     tag: `v${pkg.version}`,
-    archive: `e2ugh-v${pkg.version}-source.zip`,
+    archive: `saddle-v${pkg.version}-source.zip`,
     filecount: entries.length,
     entries,
     sha256sums,

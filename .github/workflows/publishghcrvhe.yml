@@ -13,8 +13,10 @@
 #                       profile ships ALL four architectures
 #                       (linux/amd64, linux/arm64, linux/ppc64le,
 #                       linux/s390x) and carries exactly ONE tag: the
-#                       version. max -> :<version>, balanced ->
-#                       :<version>-balanced, lite -> :<version>-lite.
+#                       version. max -> :<version>-vhe, balanced ->
+#                       :<version>-vhe-balanced, lite -> :<version>-vhe-lite
+#                       (the -vhe family never collides with the node
+#                       engine's bare :<version> tag of publish ghcr).
 #                       No latest, no major.minor, no rolling profile
 #                       tag - one tag per version, one version per release.
 #   verify             - asserts each published profile index carries the
@@ -608,14 +610,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # the SAME -vhe tag family the publish legs emit (max -> -vhe,
+          # balanced -> -vhe-balanced, lite -> -vhe-lite): the bare
+          # :<version> tag belongs to the node-engine image of the publish
+          # ghcr workflow - inspecting it here would verify the wrong image.
           - profile: max
-            suffix: ""
+            suffix: "-vhe"
             expectcpu: EPYC 9965
           - profile: balanced
-            suffix: "-balanced"
+            suffix: "-vhe-balanced"
             expectcpu: 9995WX
           - profile: lite
-            suffix: "-lite"
+            suffix: "-vhe-lite"
             expectcpu: 9950X3D
     steps:
       - name: Log in to GHCR

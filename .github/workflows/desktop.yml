@@ -259,33 +259,33 @@ jobs:
               rpm="$(find "$target_dir" -type f -path '*/bundle/rpm/*.rpm' -print -quit)"
               appimage="$(find "$target_dir" -type f -path '*/bundle/appimage/*.AppImage' -print -quit)"
               test -n "$deb" && test -n "$rpm" && test -n "$appimage"
-              cp "$deb" "build/release-assets/web/desktop/saddle.browser.${version}.${{ matrix.architecture }}.deb"
-              cp "$rpm" "build/release-assets/web/desktop/saddle.browser.${version}.${{ matrix.architecture }}.rpm"
-              cp "$appimage" "build/release-assets/web/desktop/saddle.browser.${version}.${{ matrix.architecture }}.appimage"
+              cp "$deb" "build/release-assets/desktop/saddle.browser.${version}.${{ matrix.architecture }}.deb"
+              cp "$rpm" "build/release-assets/desktop/saddle.browser.${version}.${{ matrix.architecture }}.rpm"
+              cp "$appimage" "build/release-assets/desktop/saddle.browser.${version}.${{ matrix.architecture }}.appimage"
               ;;
             windows)
               exe="$(find "$target_dir" -type f -path '*/bundle/nsis/*.exe' -print -quit)"
               msi="$(find "$target_dir" -type f -path '*/bundle/msi/*.msi' -print -quit)"
               test -n "$exe" && test -n "$msi"
-              cp "$exe" "build/release-assets/web/desktop/saddle.browser.${version}.${{ matrix.architecture }}.exe"
-              cp "$msi" "build/release-assets/web/desktop/saddle.browser.${version}.${{ matrix.architecture }}.msi"
+              cp "$exe" "build/release-assets/desktop/saddle.browser.${version}.${{ matrix.architecture }}.exe"
+              cp "$msi" "build/release-assets/desktop/saddle.browser.${version}.${{ matrix.architecture }}.msi"
               ;;
             macos)
               dmg="$(find "$target_dir" -type f -path '*/bundle/dmg/*.dmg' -print -quit)"
               app="$(find "$target_dir" -type d -path '*/bundle/macos/*.app' -print -quit)"
               test -n "$dmg" && test -n "$app"
-              cp "$dmg" "build/release-assets/web/desktop/saddle.browser.${version}.${{ matrix.architecture }}.dmg"
-              ditto -c -k --sequesterRsrc --keepParent "$app" "build/release-assets/web/desktop/saddle.browser.${version}.${{ matrix.architecture }}.app.zip"
+              cp "$dmg" "build/release-assets/desktop/saddle.browser.${version}.${{ matrix.architecture }}.dmg"
+              ditto -c -k --sequesterRsrc --keepParent "$app" "build/release-assets/desktop/saddle.browser.${version}.${{ matrix.architecture }}.app.zip"
               ;;
           esac
           test -n "$(find build/release-assets/desktop -type f -print -quit)"
           checksums="sha256.desktop.${{ matrix.platform }}.${{ matrix.architecture }}.${version}"
           manifest="manifest.desktop.${{ matrix.platform }}.${{ matrix.architecture }}.${version}.json"
-          if command -v sha256sum >/dev/null 2>&1; then sha256sum build/release-assets/web/desktop/saddle.browser.* > "build/release-assets/web/desktop/${checksums}"; else shasum -a 256 build/release-assets/web/desktop/saddle.browser.* > "build/release-assets/web/desktop/${checksums}"; fi
-          sed -i.bak 's#build/release-assets/web/desktop/##g' "build/release-assets/web/desktop/${checksums}" && rm -f "build/release-assets/web/desktop/${checksums}.bak"
-          printf '{\n  "version": "%s",\n  "platform": "%s",\n  "architecture": "%s",\n  "signing": "%s",\n  "notarization": "%s",\n  "files": [' "$version" "${{ matrix.platform }}" "${{ matrix.architecture }}" "${SADDLE_SIGNING}" "${SADDLE_NOTARIZATION:-not-applicable}" > "build/release-assets/web/desktop/${manifest}"
-          find build/release-assets/desktop -type f ! -name "${checksums}" ! -name "${manifest}" -exec basename {} \; | awk 'BEGIN { first=1 } { if (!first) printf ","; printf "\"%s\"", $0; first=0 }' >> "build/release-assets/web/desktop/${manifest}"
-          printf ']\n}\n' >> "build/release-assets/web/desktop/${manifest}"
+          if command -v sha256sum >/dev/null 2>&1; then sha256sum build/release-assets/desktop/saddle.browser.* > "build/release-assets/desktop/${checksums}"; else shasum -a 256 build/release-assets/desktop/saddle.browser.* > "build/release-assets/desktop/${checksums}"; fi
+          sed -i.bak 's#build/release-assets/desktop/##g' "build/release-assets/desktop/${checksums}" && rm -f "build/release-assets/desktop/${checksums}.bak"
+          printf '{\n  "version": "%s",\n  "platform": "%s",\n  "architecture": "%s",\n  "signing": "%s",\n  "notarization": "%s",\n  "files": [' "$version" "${{ matrix.platform }}" "${{ matrix.architecture }}" "${SADDLE_SIGNING}" "${SADDLE_NOTARIZATION:-not-applicable}" > "build/release-assets/desktop/${manifest}"
+          find build/release-assets/desktop -type f ! -name "${checksums}" ! -name "${manifest}" -exec basename {} \; | awk 'BEGIN { first=1 } { if (!first) printf ","; printf "\"%s\"", $0; first=0 }' >> "build/release-assets/desktop/${manifest}"
+          printf ']\n}\n' >> "build/release-assets/desktop/${manifest}"
           ! find build/release-assets/desktop -type f \( -name 'build_script_build*.exe' -o -name 'build-script-build.exe' -o -name '*_*' \) -print -quit | grep -q .
 
       - name: upload workflow artifacts
@@ -300,4 +300,4 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$RELEASE_TAG" build/release-assets/web/desktop/* --clobber
+        run: gh release upload "$RELEASE_TAG" build/release-assets/desktop/* --clobber

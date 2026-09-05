@@ -1,5 +1,15 @@
 # saddle release notes
 
+## 2.0.5 — the android wrapper and the desktop artifact layout close
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| The gradle distribution (the mobile leg, second round) | The wrapper pinned gradle-9.5-all.zip - a distribution that does not exist (services.gradle.org 404s; the 9.5 line ships as 9.5.0/9.5.1). The wrapper now resolves gradle-9.5.1-all.zip, the real compatible line for the android gradle plugin 8.13. |
+| The vhe verify tag family | The verify jobs inspected the pre-merge tag names (:<version>, -balanced, -lite) while the publish legs emit the -vhe family the grand merge established (:<version>-vhe, -vhe-balanced, -vhe-lite - the bare version tag belongs to the node-engine image) - every verify leg failed with "not found" against images that were published and healthy. The verify matrix and the pipeline header now carry the real family. |
+| The desktop artifact layout (one path, not two) | The collect step half-carried the grand-merge web/desktop prefix: the mkdir and the upload used build/release-assets/desktop while every cp, checksum, manifest and release-upload wrote into build/release-assets/web/desktop (a directory never created). The step now uses the flat build/release-assets/desktop layout end to end - the bundle builds already succeed, the artifacts land where the upload reads them. |
+
 ## 2.0.4 — the desktop and mobile builds close (the last two red lanes)
 
 ### Changed

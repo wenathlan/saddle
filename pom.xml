@@ -36,7 +36,7 @@
     </repository>
   </distributionManagement>
   <properties>
-    <revision>2.0.3</revision>
+    <revision>2.0.4</revision>
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>

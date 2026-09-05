@@ -1,5 +1,15 @@
 # saddle release notes
 
+## 2.0.4 — the desktop and mobile builds close (the last two red lanes)
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| The tauri frontend path (the 03b8089 disease, desktop leg) | The desktop shells moved from desktop/ to web/desktop in the grand merge but the tauri config kept frontendDist at ../web/dist/public - which resolves from web/desktop to web/web/dist/public, a path that never exists, so every platform's bundle build failed with "Unable to find your web assets". The frontendDist now points at ../dist/public (web/desktop/../dist/public = web/dist/public, where the workflow's web:build:pages step puts the shared build) and the dev command points at the repository root (cd ../.. && npm run web:dev, where the script actually lives). |
+| The gradle wrapper (the mobile leg) | The android shell's gradle wrapper pinned 9.7.1, but the android gradle plugin 8.13.0 uses internal Gradle APIs removed in 9.6 - every build failed at plugin application ("relying on org.gradle.api.problems.internal.InternalProblems... use Gradle 9.5"). The wrapper drops to the compatible 9.5 line. |
+| The tauri envelope lockstep | web/desktop/tauri.conf.json now carries the release version in lockstep with the other envelopes (the desktop workflow patches it at build time; the committed file stops drifting at the grand-merge 2.0.0). |
+
 ## 2.0.3 — the cascade failures close (five root fixes from the first firing)
 
 ### Changed

@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Saddle Browser",
-  "version": "2.0.0",
+  "version": "2.0.4",
   "identifier": "com.wenathlan.saddle",
   "build": {
-    "beforeDevCommand": "cd .. && npm run web:dev",
-    "frontendDist": "../web/dist/public"
+    "beforeDevCommand": "cd ../.. && npm run web:dev",
+    "frontendDist": "../dist/public"
   },
   "app": {
     "windows": [

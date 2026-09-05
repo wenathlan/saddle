@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { chunkMarkdown, chunkText, formatChunksForRAG } from '../scrape/chunking.js';
+import { chunkMarkdown, chunkText, formatChunksForRAG } from "../acquisition.js";
 
 describe('chunkMarkdown', () => {
   it('chunks by headings', () => {

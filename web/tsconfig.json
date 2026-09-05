@@ -19,7 +19,7 @@
     "types": ["node", "vite/client"],
     "paths": {
       "@/*": ["./*"],
-      "@saddle/isolation": ["../isolation/contracts.ts"]
+      "@saddle/isolation": ["../isolation.ts"]
     }
   }
 }

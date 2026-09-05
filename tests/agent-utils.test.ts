@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatForAgent, buildContext } from '../scrape/agent.js';
-import { slugify, truncate, estimateTokens, chunkText, isValidUrl, isInternalUrl } from '../scrape/utils.js';
+import { formatForAgent, buildContext } from "../acquisition.js";
+import { slugify, truncate, legacyestimatetokens, legacychunktext, isValidUrl, isInternalUrl } from "../acquisition.js";
 
 const SAMPLE_RESULT = {
   url: 'https://example.com',
@@ -52,11 +52,11 @@ describe('utils', () => {
   });
 
   it('estimateTokens works', () => {
-    expect(estimateTokens('Hello World')).toBe(3);
+    expect(legacyestimatetokens('Hello World')).toBe(3);
   });
 
   it('chunkText splits correctly', () => {
-    const chunks = chunkText('Hello\nWorld\nTest\nFour', 10);
+    const chunks = legacychunktext('Hello\nWorld\nTest\nFour', 10);
     expect(chunks.length).toBeGreaterThan(1);
   });
 

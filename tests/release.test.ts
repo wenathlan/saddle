@@ -7,10 +7,10 @@ import { test } from "node:test";
 import { readFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createassets } from "../release/assets.js";
-import { retentionplan } from "../release/assets.js";
-import { verifyassets } from "../release/verify.js";
-import { evaluateevidence, evidencefromverification } from "../release/evidence.js";
+import { createassets } from "../distribution.js";
+import { retentionplan } from "../distribution.js";
+import { verifyassets } from "../distribution.js";
+import { evaluateevidence, evidencefromverification } from "../distribution.js";
 
 test("creates reproducible checksums, SBOM and provenance subjects", async () => {
   const directory = await mkdtemp(join(tmpdir(), "saddle-release-"));

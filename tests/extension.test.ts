@@ -4,16 +4,18 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createcommand, createerror, createsnapshot, isfreshsnapshot, snapshotdiff } from "../extension/protocol.js";
-import { createworkerrouter } from "../extension/serviceworker.js";
-import { startworker } from "../extension/worker.js";
-import { extensionpermissions, permissionpolicy, requestpermission } from "../extension/permissions.js";
-import { buildextension } from "../extension/build.js";
+import { createcommand, createerror, createsnapshot, isfreshsnapshot, snapshotdiff } from "../browser.js";
+import { createworkerrouter } from "../browser.js";
+import { startworker } from "../browser.js";
+import { extensionpermissions, permissionpolicy, requestpermission } from "../browser.js";
+import { buildextension } from "../browser.js";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import "../extension/content.js";
-import "../extension/pagebridge.js";
+/* the content and pagebridge sections of the merged browser.ts register
+   globalThis.saddlecontent and globalThis.saddlepagebridge at module load —
+   the former side-effect imports of extension/content.js and
+   extension/pagebridge.js are covered by the browser.js imports above. */
 
 test("creates versioned extension commands and correlated responses", async () => {
   const command = createcommand("snapshot", { tabid: 7 }, { id: "request1" });

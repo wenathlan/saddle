@@ -220,7 +220,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(import.meta.dirname),
       // The playground consumes source here so CI never depends on a prebuilt dist directory.
-      "@saddle/isolation": path.resolve(import.meta.dirname, "..", "isolation", "contracts.ts"),
+      "@saddle/isolation": path.resolve(import.meta.dirname, "..", "isolation.ts"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },

@@ -7,9 +7,14 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test } from "node:test";
-import { releaseartifactmatrix } from "../packager/manifest.js";
+import { releaseartifactmatrix } from "../distribution.js";
 
-const transportneutral = ["dist/index.js", "dist/storage/index.js", "dist/runners/scheduler.js", "dist/core/sessions.js", "dist/modes/resolve.js", "dist/modes/matrix.js", "dist/browser/index.js", "dist/automation/bot.js", "dist/captcha/contract.js", "dist/modes/deploy.js", "dist/extension/index.js", "dist/core/hash.js", "dist/runtime/worker.js"];
+/* The transport-neutral graph of the grand merge: the flat domain files
+   bundle full-stack sections, so the browser-loadable surface is the curated
+   set of domains whose whole import closure stays free of Node-only modules
+   (foundation, intelligence, automation). The node-only capabilities keep
+   their deep exports (./memory-*, ./sessions-file, ./release-*, ...). */
+const transportneutral = ["dist/foundation.js", "dist/intelligence.js", "dist/automation.js"];
 
 test("imports every declared package export target in Node", async () => {
   const root = dirname(new URL(import.meta.url).pathname);
@@ -28,7 +33,7 @@ test("declares runtime metadata and an optional browser provider peer", async ()
   assert.equal(packagejson.packageManager, "npm@12.0.2");
   assert.equal(packagejson.peerDependencies.playwright, "^1.62.1");
   assert.equal(packagejson.peerDependenciesMeta.playwright.optional, true);
-  assert.equal(packagejson.exports["./browser-playwright"], "./dist/browser/playwright.js");
+  assert.equal(packagejson.exports["./browser-playwright"], "./dist/browser.js");
 });
 
 test("keeps transport-neutral export graphs free of Node-only imports", async () => {
@@ -48,8 +53,8 @@ test("keeps transport-neutral export graphs free of Node-only imports", async ()
       pending.push(child.endsWith(".js") ? child : `${child}.js`);
     }
   }
-  assert.equal(seen.has(resolve(root, "..", "dist/index.js")), true);
-  assert.equal(seen.has(resolve(root, "..", "dist/extension/index.js")), true);
+  assert.equal(seen.has(resolve(root, "..", "dist/foundation.js")), true);
+  assert.equal(seen.has(resolve(root, "..", "dist/automation.js")), true);
 });
 
 test("creates the expanded release matrix without vendor coupling", () => {

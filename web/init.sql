@@ -1,4 +1,4 @@
--- init.sql — e2ugh v7 schema (worklog task v7-BACK).
+-- init.sql — saddle v7 schema (worklog task v7-BACK).
 --
 -- the pure sql mirror of the embedded migrations in web/db.js: the same
 -- six tables and the same indexes, for operators that prefer the

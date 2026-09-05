@@ -1,5 +1,5 @@
 /**
- * db.js — node:sqlite data layer for the e2ugh web node (v7-BACK).
+ * db.js — node:sqlite data layer for the saddle web node (v7-BACK).
  *
  * the whole persistence surface of a node (main or clone) lives in this
  * module: one sqlite database opened through the native node:sqlite
@@ -27,8 +27,8 @@ import process from 'node:process';
 /* ------------------------------------------------------------------ */
 
 /**
- * resolves the database file location once at import time: the e2ugh_db
- * environment variable wins, then ./e2ugh.db relative to the current
+ * resolves the database file location once at import time: the saddle_db
+ * environment variable wins, then ./saddle.db relative to the current
  * working directory. the special value ":memory:" keeps the database in
  * ram (used by tests and throwaway boots).
  *
@@ -36,13 +36,13 @@ import process from 'node:process';
  */
 function resolvedbpath() {
   try {
-    const fromenv = process.env.E2UGH_DB ?? '';
+    const fromenv = process.env.SADDLE_DB ?? '';
     if (fromenv.length > 0) {
       return fromenv;
     }
-    return resolve('./e2ugh.db');
+    return resolve('./saddle.db');
   } catch {
-    return resolve('./e2ugh.db');
+    return resolve('./saddle.db');
   }
 }
 
@@ -120,7 +120,7 @@ function opendatabase(path) {
 
 /**
  * resolves the per-sandbox workspace quota in bytes once per call: the
- * e2ugh_sandbox_quota_bytes environment variable wins (any positive
+ * saddle_sandbox_quota_bytes environment variable wins (any positive
  * integer), otherwise the 16 mib default documented in the readme.
  *
  * @returns {number} the quota in bytes.
@@ -128,7 +128,7 @@ function opendatabase(path) {
 export function sandboxquota() {
   try {
     const parsed = Number.parseInt(
-      String(process.env.E2UGH_SANDBOX_QUOTA_BYTES ?? ''),
+      String(process.env.SADDLE_SANDBOX_QUOTA_BYTES ?? ''),
       10,
     );
     if (Number.isInteger(parsed) && parsed > 0) {

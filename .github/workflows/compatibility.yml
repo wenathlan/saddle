@@ -19,9 +19,9 @@ jobs:
         runtime: [node, bun, deno]
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
       - name: setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 26.7.0
       - name: install and build
@@ -50,9 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
       - name: setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 26.7.0
       - name: install

@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
       # the release-version resolver, inlined from the retired composite
       # action (the one-workflow-file standard: every workflow carries its
       # own steps - the .github/actions folder no longer exists).
@@ -78,7 +78,7 @@ jobs:
           printf '{\n  "version": "%s",\n  "platform": "container",\n  "image": "ghcr.io/%s:%s",\n  "archive": "%s",\n  "signing": "caller-owned"\n}\n' "$version" "${{ github.repository }}" "$version" "$archive" > "$manifest"
           ! find . -maxdepth 1 -type f \( -name 'build_script_build*.exe' -o -name 'build-script-build.exe' -o -name '*_*' \) -print -quit | grep -q .
       - name: upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: saddle.container.${{ steps.releaseversion.outputs.version }}
           path: |

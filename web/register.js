@@ -3,7 +3,7 @@
    * the username charset (3-32 of [a-z0-9.-], lowercased as the visitor
    * types), scores the password strength from length plus character
    * classes, requires the confirmation to match, then posts to
-   * /api/v1/auth/register. on success the backend sets the e2ughsession
+   * /api/v1/auth/register. on success the backend sets the saddlesession
    * cookie and the page moves straight to the dashboard.
    *
    * static edge fallback: when no api answers at the resolved base (the
@@ -14,7 +14,7 @@
    * real cookie sessions.
    *
    * the api base resolution mirrors login.html: ?api= query string
-   * (persisted), window.E2UGH_API, the "e2ugh_api" localstorage key or
+   * (persisted), window.SADDLE_API, the "saddle_api" localstorage key or
    * same origin; cross-origin targets switch to credentials: "include".
    */
   (function () {
@@ -44,10 +44,10 @@
         const fromquery = new URLSearchParams(window.location.search).get('api');
         if (fromquery !== null && fromquery.trim() !== '') {
           const trimmed = fromquery.trim().replace(/\/+$/, '');
-          window.localStorage.setItem('e2ugh_api', trimmed);
+          window.localStorage.setItem('saddle_api', trimmed);
           return trimmed;
         }
-        const preset = window.E2UGH_API || window.localStorage.getItem('e2ugh_api') || '';
+        const preset = window.SADDLE_API || window.localStorage.getItem('saddle_api') || '';
         return String(preset).trim().replace(/\/+$/, '');
       } catch {
         return '';

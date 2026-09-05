@@ -3,7 +3,7 @@
    * any node (my sandboxes, bus events, account info) and the admin view
    * for the main node (overview, mesh nodes with ping, users, global
    * sandboxes, audit log). the session lives exclusively in the
-   * e2ughsession cookie: no passwords or tokens are ever written to
+   * saddlesession cookie: no passwords or tokens are ever written to
    * localstorage (only the optional cross-origin api base, mirroring
    * login.html). every payload is rendered defensively through
    * textcontent because the backend routes ship in parallel.
@@ -18,10 +18,10 @@
         const fromquery = new URLSearchParams(window.location.search).get('api');
         if (fromquery !== null && fromquery.trim() !== '') {
           const trimmed = fromquery.trim().replace(/\/+$/, '');
-          window.localStorage.setItem('e2ugh_api', trimmed);
+          window.localStorage.setItem('saddle_api', trimmed);
           return trimmed;
         }
-        const preset = window.E2UGH_API || window.localStorage.getItem('e2ugh_api') || '';
+        const preset = window.SADDLE_API || window.localStorage.getItem('saddle_api') || '';
         return String(preset).trim().replace(/\/+$/, '');
       } catch {
         return '';
@@ -719,7 +719,7 @@
      * console, no server involved. sandboxes live in sessionStorage so
      * they survive reloads but never persist as state anywhere else. */
     let sandboxmodule = null;
-    const localstoragekey = 'e2ugh_local_sandboxes';
+    const localstoragekey = 'saddle_local_sandboxes';
 
     function readlocalsandboxes() {
       try {
@@ -885,7 +885,7 @@
         tabadmin.hidden = localsession.role !== 'admin';
         if (localsession.role === 'admin') {
           const accounts = window.localauth.available()
-            ? Object.keys(JSON.parse(window.localStorage.getItem('e2ugh_local_users') ?? '{}'))
+            ? Object.keys(JSON.parse(window.localStorage.getItem('saddle_local_users') ?? '{}'))
             : [];
           const localboxes = readlocalsandboxes();
           document.getElementById('ov-users').textContent = String(accounts.length);

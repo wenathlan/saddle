@@ -101,7 +101,7 @@ const sessionttlms = 24 * 60 * 60 * 1000;
 
 /**
  * resolves the listen port once at boot: --port argument wins, then the
- * port or e2ugh_port environment variables, then a random port in the
+ * port or saddle_port environment variables, then a random port in the
  * documented 30000-59999 range.
  *
  * @returns {number} the tcp port to bind.
@@ -116,7 +116,7 @@ function resolveport() {
       }
     }
     const envport = Number.parseInt(
-      process.env.PORT ?? process.env.E2UGH_PORT ?? '',
+      process.env.PORT ?? process.env.SADDLE_PORT ?? '',
       10,
     );
     if (Number.isInteger(envport) && envport > 0 && envport < 65536) {
@@ -128,10 +128,10 @@ function resolveport() {
   }
 }
 
-/** listen host: 0.0.0.0 unless e2ugh_host overrides; never localhost. */
+/** listen host: 0.0.0.0 unless saddle_host overrides; never localhost. */
 const host =
-  process.env.E2UGH_HOST && process.env.E2UGH_HOST.length > 0
-    ? process.env.E2UGH_HOST
+  process.env.SADDLE_HOST && process.env.SADDLE_HOST.length > 0
+    ? process.env.SADDLE_HOST
     : '0.0.0.0';
 const port = resolveport();
 
@@ -209,14 +209,14 @@ function cachefor(extension) {
 /* ------------------------------------------------------------------ */
 
 /**
- * resolves the comma separated e2ugh_allowed_origins list once per
+ * resolves the comma separated saddle_allowed_origins list once per
  * request (cheap) so operators can change it without a restart tool.
  *
  * @returns {string[]} the allowed origin list, possibly empty.
  */
 function allowedorigins() {
   try {
-    return String(process.env.E2UGH_ALLOWED_ORIGINS ?? '')
+    return String(process.env.SADDLE_ALLOWED_ORIGINS ?? '')
       .split(',')
       .map((entry) => entry.trim())
       .filter((entry) => entry.length > 0);
@@ -258,7 +258,7 @@ function securityheaders(req) {
  * computes the cors header set: public mode answers access-control-
  * allow-origin * (health and the spec catalogs), credentials mode
  * echoes the origin and allows credentials only for origins listed in
- * e2ugh_allowed_origins.
+ * saddle_allowed_origins.
  *
  * @param {import('node:http').IncomingMessage} req the incoming request.
  * @param {'public' | 'credentials'} mode the cors mode.
@@ -270,7 +270,7 @@ function corsheaders(req, mode) {
     const headers = {
       'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
       'access-control-allow-headers':
-        'content-type, authorization, x-e2ugh-timestamp, x-e2ugh-signature',
+        'content-type, authorization, x-saddle-timestamp, x-saddle-signature',
       vary: 'Origin',
     };
     if (typeof origin === 'string' && allowedorigins().includes(origin)) {
@@ -447,7 +447,7 @@ async function getspeccatalog(key) {
 
 /**
  * resolves whether expired sandbox workspaces are explicitly retained
- * (e2ugh_sandbox_persist=true); the default behavior already keeps the
+ * (saddle_sandbox_persist=true); the default behavior already keeps the
  * files because the sandbox is self-contained, the flag only records
  * the operator's intent in the expiry event.
  *
@@ -455,7 +455,7 @@ async function getspeccatalog(key) {
  */
 function workspacepersist() {
   try {
-    return String(process.env.E2UGH_SANDBOX_PERSIST ?? '') === 'true';
+    return String(process.env.SADDLE_SANDBOX_PERSIST ?? '') === 'true';
   } catch {
     return false;
   }
@@ -550,9 +550,9 @@ const sandboxes = new Map();
 function createsandbox(body, user) {
   // no per-user sandbox cap by design: the project is open source and the
   // shelf grows with the account; the workspace quota per sandbox already
-  // bounds the database, and operators who want a cap set E2UGH_MAX_SANDBOXES
+  // bounds the database, and operators who want a cap set SADDLE_MAX_SANDBOXES
   // (0 or unset means unlimited - the default).
-  const configuredcap = Math.max(0, Number(process.env.E2UGH_MAX_SANDBOXES ?? '0') || 0);
+  const configuredcap = Math.max(0, Number(process.env.SADDLE_MAX_SANDBOXES ?? '0') || 0);
   if (configuredcap > 0) {
     const mine = store.listsandboxesbyuser(user.id, 1000).filter(
       (row) => row.state !== 'destroyed',
@@ -1160,7 +1160,7 @@ async function handleauth(req, res, path, segments) {
 async function cacheforwarded(forwarded, req, headers, res) {
   const ip = clientip(req);
   const useragent = clientuseragent(req);
-  const cookie = forwarded.setcookie.find((entry) => entry.startsWith('e2ughsession='));
+  const cookie = forwarded.setcookie.find((entry) => entry.startsWith('saddlesession='));
   const user =
     forwarded.body !== null && typeof forwarded.body === 'object'
       ? forwarded.body?.user
@@ -1172,7 +1172,7 @@ async function cacheforwarded(forwarded, req, headers, res) {
     user !== null &&
     typeof user === 'object'
   ) {
-    const token = cookie.split(';')[0].slice('e2ughsession='.length);
+    const token = cookie.split(';')[0].slice('saddlesession='.length);
     /* cache the remote user row (best effort) so requireauth resolves
      * sessions minted by the main authority on the clone too */
     try {
@@ -1216,7 +1216,7 @@ async function cacheforwarded(forwarded, req, headers, res) {
 /**
  * handles the signed mesh surface: clone registration, heartbeats and
  * the node listing served by the main/standalone authority. every
- * request must carry the x-e2ugh-timestamp and x-e2ugh-signature
+ * request must carry the x-saddle-timestamp and x-saddle-signature
  * headers verified by mesh.js.
  *
  * @param {import('node:http').IncomingMessage} req the incoming request.
@@ -1232,7 +1232,7 @@ async function handlemesh(req, res, path, segments) {
   const headers = respondheaders(req, 'credentials');
   const secret = meshsecret();
   if (secret.length === 0) {
-    writeerror(res, 401, 'mesh-unconfigured', 'E2UGH_MESH_SECRET is not configured on this node', headers);
+    writeerror(res, 401, 'mesh-unconfigured', 'SADDLE_MESH_SECRET is not configured on this node', headers);
     return true;
   }
   let raw = '';
@@ -1959,7 +1959,7 @@ async function handleapi(req, res, url) {
 
 /** the http server: static files plus the /api/v1 router. */
 const server = createServer((req, res) => {
-  const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'e2ugh.internal'}`);
+  const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'saddle.internal'}`);
   if (url.pathname === '/api/v1' || url.pathname.startsWith('/api/v1/')) {
     handleapi(req, res, url).catch((error) => {
       writeerror(res, 500, 'internal', safemsg(error));
@@ -2018,15 +2018,16 @@ if (role === 'main') {
 /* clone nodes announce themselves to the main registry every 60 s. */
 if (role === 'clone') {
   startheartbeat({
-    url: String(process.env.E2UGH_NODE_URL ?? ''),
-    region: String(process.env.E2UGH_REGION ?? ''),
+    url: String(process.env.SADDLE_NODE_URL ?? ''),
+    region: String(process.env.SADDLE_REGION ?? ''),
     rolename: 'clone',
   });
 }
 
 /* seed the CODEOWNERS admin accounts (idempotent) so a fresh or wiped
  * database always carries the admin allowlist with the documented
- * bootstrap password; only iakadion and akadion are admins. */
+ * bootstrap password; only the CODEOWNERS accounts (iakadion, inathlan,
+ * aasblor, nasblor) are admins. */
 const seededadmins = seedadmins();
 if (seededadmins.length > 0) {
   process.stdout.write(`admin seed: ${seededadmins.join(', ')} (CODEOWNERS allowlist)\n`);
@@ -2035,7 +2036,7 @@ if (seededadmins.length > 0) {
 server.listen(port, host, () => {
   process.stdout.write(
     [
-      `e2ugh web sandbox api v${version} (self-hosted node, zero deps, no serverless functions)`,
+      `saddle web sandbox api v${version} (self-hosted node, zero deps, no serverless functions)`,
       `role: ${role}${role === 'clone' && mainurl().length > 0 ? ` -> main ${mainurl()}` : ''}`,
       `listening on ${host}:${port} (random default range 30000-59999; override with --port or PORT)`,
       `static root: ${webdir} (content types: ${mimetable.size} extensions from web/mime.types)`,
@@ -2048,8 +2049,8 @@ server.listen(port, host, () => {
       '  POST /api/v1/mesh/register | POST /api/v1/mesh/heartbeat | GET /api/v1/mesh/nodes (signed) |',
       '  GET /api/v1/admin/{overview,users,nodes,sandboxes,audit} (admin)',
       `sandbox ttl: ${ttlms / 60000} min, sweep every ${sweepperiodms / 1000} s`,
-      `sandbox workspace: persistent per sandbox id, ${store.sandboxquota()} byte quota (E2UGH_SANDBOX_QUOTA_BYTES, default 16 MiB)`,
-      `sandbox expiry keeps workspace files (self-contained); manual DELETE purges them${workspacepersist() ? ' [E2UGH_SANDBOX_PERSIST=true]' : ''}`,
+      `sandbox workspace: persistent per sandbox id, ${store.sandboxquota()} byte quota (SADDLE_SANDBOX_QUOTA_BYTES, default 16 MiB)`,
+      `sandbox expiry keeps workspace files (self-contained); manual DELETE purges them${workspacepersist() ? ' [SADDLE_SANDBOX_PERSIST=true]' : ''}`,
     ].join('\n') + '\n',
   );
 });

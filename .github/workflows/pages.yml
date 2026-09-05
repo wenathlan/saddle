@@ -24,9 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
       - name: setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 26.7.0
           cache: npm
@@ -34,7 +34,7 @@ jobs:
         run: npm ci
       - name: configure pages
         id: pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6.0.0
       - name: check web
         run: npm run web:check
       - name: normalize pages base path
@@ -52,7 +52,7 @@ jobs:
       - name: prepare pages fallback
         run: cp web/dist/public/index.html web/dist/public/404.html && touch web/dist/public/.nojekyll
       - name: upload pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: web/dist/public
   deploy:
@@ -67,4 +67,4 @@ jobs:
     steps:
       - name: deploy pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5.0.1

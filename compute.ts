@@ -1,5 +1,5 @@
 /**
- * compute.ts — compute, WebAssembly, WebGPU and AI workload domain for e2ugh v6.
+ * compute.ts — compute, WebAssembly, WebGPU and AI workload domain for saddle v6.
  *
  * the module absorbs the compute-facing families of the removed
  * future.ts file (55-feature ledger, v2) into their proper domain:
@@ -661,7 +661,7 @@ export class temporalscheduler {
         task();
       } catch (err) {
         process.emitWarning(`temporal task ${taskName} failed: ${String(err)}`, {
-          code: 'E2UGH_TEMPORAL_TASK',
+          code: 'SADDLE_TEMPORAL_TASK',
         });
       }
     }, delayMs);
@@ -1642,10 +1642,10 @@ export class partykitchannelbuilder {
       throw new Error('partykit room name is empty after normalization');
     }
     return {
-      appid: 'e2ugh',
+      appid: 'saddle',
       room: normalized,
       protocol: 'wss',
-      url: `wss://${this.#host}/party/e2ugh/${normalized}`,
+      url: `wss://${this.#host}/party/saddle/${normalized}`,
       presence: ['join', 'leave', 'update'],
       heartbeatms: 100,
       maxconnections: 256,
@@ -1929,7 +1929,7 @@ export function p2pcontentaddress(payload: Uint8Array, peerid = 'engine-seed-pee
     multihashhex: `1220${direct.toString('hex')}`,
     cidv1raw: `bafk${base32hex(direct).toLowerCase()}`,
     bittorrentv2roothex: root.toString('hex'),
-    magnet: `magnet:?xt=urn:btih:${root.toString('hex')}&dn=e2ugh-artifact`,
+    magnet: `magnet:?xt=urn:btih:${root.toString('hex')}&dn=saddle-artifact`,
     multiaddr: `/p2p/${peerid}/p2p-circuit`,
     pieceleaves: leaves.length,
   } satisfies p2partifact;
@@ -1997,7 +1997,7 @@ export class tailscaleendpointplanner {
   readonly #tailnet: string;
   readonly #derp: string;
 
-  constructor(tailnet = 'e2ugh.ts.net', derp = 'derp-fra-1') {
+  constructor(tailnet = 'saddle.ts.net', derp = 'derp-fra-1') {
     this.#tailnet = tailnet;
     this.#derp = derp;
   }
@@ -2492,7 +2492,7 @@ export function planrayvllmcluster(opts: {
               '--kv-cache-dtype=fp8',
               '--max-model-len=32768',
               '--enable-chunked-prefill',
-              '--served-model-name=e2ugh-llm',
+              '--served-model-name=saddle-llm',
             ]
           : [],
     }));
@@ -2537,7 +2537,7 @@ export function buildvmcrdmanifest(opts?: {
   kind?: string;
 }): crdmanifestplan {
   try {
-    const group = opts?.group ?? 'e2ugh.dev';
+    const group = opts?.group ?? 'saddle.dev';
     const version = opts?.version ?? 'v1';
     const kind = opts?.kind ?? 'VirtualMachine';
     if (!/^[a-z0-9.-]+$/.test(group)) throw new Error(`group ${group} is not a valid dns group`);
@@ -2622,7 +2622,7 @@ export function buildvmcrdmanifest(opts?: {
       'kind: ' + kind,
       'metadata:',
       '  name: demo-vm',
-      '  namespace: e2ugh',
+      '  namespace: saddle',
       'spec:',
       '  cpus: 16',
       '  memorymb: 32768',
@@ -2768,7 +2768,7 @@ export function planwebtransportendpoint(opts?: {
 }): webtransportplan {
   try {
     const port = opts?.port ?? 443;
-    const host = opts?.host ?? 'passage.e2ugh.dev';
+    const host = opts?.host ?? 'passage.saddle.dev';
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
       throw new Error('port must be 1..65535');
     }

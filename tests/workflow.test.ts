@@ -516,15 +516,23 @@ test('ci gate release: sha256 manifest and SHA256SUMS render for every artifact'
 
 test('ci gate container: the one Dockerfile carries the merged compose and entrypoint contract', () => {
   /* the compose stack and the entrypoint bootstrap are merged INTO the
-   * Dockerfile and deleted: docker-compose.yml and entrypoint.sh must
-   * not exist, and the one container file must carry every setting the
-   * compose gate used to verify (memswap -1, shm 2g, the services, the
-   * state volumes, the non-root user and the healthcheck). */
-  assert.equal(
-    existsSync(join(reporoot, 'docker-compose.yml')),
-    false,
-    'docker-compose.yml is merged into the Dockerfile and must not exist',
-  );
+   * Dockerfile and deleted: every compose spelling (docker-compose.yml,
+   * compose.yml, compose.yaml, docker-compose.yaml) and entrypoint.sh
+   * must not exist, and the one container file must carry every setting
+   * the compose gate used to verify (memswap -1, shm 2g, the services,
+   * the state volumes, the non-root user and the healthcheck). */
+  for (const composefile of [
+    'docker-compose.yml',
+    'docker-compose.yaml',
+    'compose.yml',
+    'compose.yaml',
+  ]) {
+    assert.equal(
+      existsSync(join(reporoot, composefile)),
+      false,
+      `${composefile} is merged into the Dockerfile and must not exist`,
+    );
+  }
   assert.equal(
     existsSync(join(reporoot, 'entrypoint.sh')),
     false,
@@ -548,7 +556,9 @@ test('ci gate container: the one Dockerfile carries the merged compose and entry
   );
 
   /* the orchestration contract of the former compose x-vhe-common
-   * anchor rides on the hardened docker run recipes of the header. */
+   * anchor rides on the hardened docker run recipes of the header - one
+   * recipe per former compose service, the saddle node service included
+   * (the compose.yml service folded into the one container file). */
   assert.ok(
     containerfile.includes('--memory-swap -1'),
     'the docker run recipes keep the unlimited swap contract (the former memswap_limit -1)',
@@ -557,18 +567,30 @@ test('ci gate container: the one Dockerfile carries the merged compose and entry
     containerfile.includes('--shm-size 2g'),
     'the docker run recipes keep the 2g shm contract',
   );
-  for (const service of ['vhe', 'vheqemu', 'vhegpu', 'qemubridge']) {
+  for (const service of ['vhe', 'vheqemu', 'vhegpu', 'qemubridge', 'saddle-node']) {
     assert.ok(
       containerfile.includes(`#   ${service} (`),
       `the ${service} docker run recipe must be documented in the header`,
     );
   }
+  assert.ok(
+    containerfile.includes('--read-only'),
+    'the saddle-node recipe keeps the read-only rootfs contract (the former compose read_only)',
+  );
+  assert.ok(
+    containerfile.includes('--pids-limit 512'),
+    'the saddle-node recipe keeps the pids contract (the former compose pids_limit)',
+  );
+  assert.ok(
+    containerfile.includes('SADDLE_MEMORY_ENGINE=ram'),
+    'the saddle-node service ENV surface (memory engine, sbot platform, cdn) rides in the one container file',
+  );
 
   /* the image-side settings of the former compose services are ENV,
    * EXPOSE and VOLUME facts of the one container file. */
   assert.ok(
-    containerfile.includes('E2UGH_DB="/data/web/e2ugh.db"'),
-    'the web node database ENV of the former vhe service is baked in',
+    containerfile.includes('SADDLE_DB="/data/web/saddle.db"'),
+    'the web node database ENV of the former vhe service is baked in (SADDLE_*, the env surface web/db.js reads)',
   );
   assert.ok(
     /^EXPOSE 8080$/m.test(containerfile),

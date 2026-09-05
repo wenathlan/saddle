@@ -208,7 +208,7 @@
       }
     }
 
-    termprint(`e2ugh sandbox booting (${spec.model}, ${state.vcpus} vcpus, ${spec.ramgb} gb, ${spec.gpu})`, 'boot');
+    termprint(`saddle sandbox booting (${spec.model}, ${state.vcpus} vcpus, ${spec.ramgb} gb, ${spec.gpu})`, 'boot');
     const lines = bootSequence(spec.model, state.vcpus, spec.ramgb, spec.gpu);
     for (const bootline of lines) {
       termprint(bootline, 'boot');

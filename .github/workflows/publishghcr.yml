@@ -2,7 +2,7 @@ name: publish ghcr
 
 on:
   release:
-    types: [created]
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -20,11 +20,11 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.event.release.tag_name || github.ref_name }}
       - name: setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 26.7.0
       # the release-version resolver, inlined from the retired composite
@@ -80,7 +80,6 @@ jobs:
             echo "version=${version}"
             echo 'tags<<EOF'
             echo "${image}:${version}"
-            echo "${image}:latest"
             echo 'EOF'
           } >> "${GITHUB_OUTPUT}"
       - name: build image for security scan

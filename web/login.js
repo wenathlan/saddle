@@ -1,7 +1,7 @@
   /**
    * login page controller: pure vanilla, zero dependencies. posts the
    * credentials to /api/v1/auth/login, keeps the session exclusively in
-   * the e2ughsession cookie (nothing sensitive is ever stored in
+   * the saddlesession cookie (nothing sensitive is ever stored in
    * localstorage) and redirects to the sanitized ?next= target or
    * dashboard.html on success.
    *
@@ -13,8 +13,8 @@
    *
    * when this page is deployed as a static clone (vercel/netlify) the api
    * lives on another origin: the base url resolves from the ?api= query
-   * string (persisted for convenience), window.E2UGH_API or the
-   * "e2ugh_api" localstorage key, and cross-origin requests switch to
+   * string (persisted for convenience), window.SADDLE_API or the
+   * "saddle_api" localstorage key, and cross-origin requests switch to
    * credentials: "include" so the session cookie still flows.
    */
   (function () {
@@ -34,10 +34,10 @@
         const fromquery = new URLSearchParams(window.location.search).get('api');
         if (fromquery !== null && fromquery.trim() !== '') {
           const trimmed = fromquery.trim().replace(/\/+$/, '');
-          window.localStorage.setItem('e2ugh_api', trimmed);
+          window.localStorage.setItem('saddle_api', trimmed);
           return trimmed;
         }
-        const preset = window.E2UGH_API || window.localStorage.getItem('e2ugh_api') || '';
+        const preset = window.SADDLE_API || window.localStorage.getItem('saddle_api') || '';
         return String(preset).trim().replace(/\/+$/, '');
       } catch {
         return '';
@@ -96,7 +96,7 @@
      *  data:), control characters and path traversal are all rejected.
      *  targets stay page-relative (no leading slash) so the redirect works
      *  both on the self-hosted node (/, /login) and inside sub-path static
-     *  hosting such as github pages (/e2ugh/login.html). the redirect
+     *  hosting such as github pages (/saddle/login.html). the redirect
      *  target never depends on an unvalidated user value. */
     function safenext() {
       try {

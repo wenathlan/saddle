@@ -77,11 +77,11 @@ jobs:
           - { target: container, format: oci }
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - name: setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 26.7.0
           package-manager-cache: false
@@ -125,7 +125,7 @@ jobs:
       - name: write target plan
         run: node dist/packager/targetcli.js "${{ matrix.target }}" "${{ matrix.format }}" build/targets
       - name: upload target plan
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: saddle-${{ matrix.target }}-${{ matrix.format }}-plan
           path: build/targets/${{ matrix.target }}-${{ matrix.format }}.json

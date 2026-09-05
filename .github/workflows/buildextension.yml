@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
 
       # the release-version resolver, inlined from the retired composite
       # action (the one-workflow-file standard: every workflow carries its
@@ -62,7 +62,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 26.7.0
 
@@ -93,7 +93,7 @@ jobs:
           zip -qr "../../saddle.extension.${{ steps.releaseversion.outputs.version }}.zip" .
 
       - name: upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: saddle.extension.${{ steps.releaseversion.outputs.version }}
           path: saddle.extension.${{ steps.releaseversion.outputs.version }}.zip

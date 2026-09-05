@@ -2,7 +2,7 @@
 # saddle v2.0.0 grand merge — THE ONE CONTAINER FILE.
 #
 # this Dockerfile carries BOTH container surfaces of the merged repository:
-#   1. the e2ugh virtual-hardware engine image (the five stages below:
+#   1. the saddle virtual-hardware engine image (the five stages below:
 #      builder, python-bridge, qemu, qemu-runtime, runtime) — the default
 #      build target, published as ghcr.io/wenathlan/saddle:vhe-<version>
 #      across three profiles and four architectures;
@@ -12,7 +12,7 @@
 #      (`docker build --target saddle-runtime .`), the node 26 storage and
 #      compute service published as ghcr.io/wenathlan/saddle:<version>.
 #
-# e2ugh v9 - virtual hardware engine, multi-stage, multi-arch image.
+# saddle v2 (grand merge) - virtual hardware engine, multi-stage, multi-arch image.
 #
 # the five stages mirror the stages section of docker.config
 # (multi-stage-cache-optimized strategy, parallel-friendly):
@@ -80,7 +80,7 @@
 # host port in 30000-60000 - nothing below is a fixed address):
 #
 #   vhe (the engine service, default target):
-#   docker run -d --name e2ugh-engine \
+#   docker run -d --name saddle-engine \
 #     --restart unless-stopped --init \
 #     --cap-drop ALL --security-opt no-new-privileges:true \
 #     --ulimit nofile=65536:65536 \
@@ -91,12 +91,12 @@
 #     -v vmdata:/data/vmdata -v webdata:/data/web \
 #     -v ./vm.config.json:/engine/vm.config.json:ro \
 #     -e PORT=8080 -e NODE_ENV=production -p 31280:8080 \
-#     ghcr.io/wenathlan/saddle:vhe-2.0.0
+#     ghcr.io/wenathlan/saddle:vhe-2.0.1
 #
 #   vheqemu (the guest runner; build it first with
-#   docker build --target qemu-runtime -t e2ugh/qemu:11.1.0 . because the
+#   docker build --target qemu-runtime -t saddle/qemu:11.1.0 . because the
 #   published registry image is the runtime target):
-#   docker run -d --name e2ugh-qemu \
+#   docker run -d --name saddle-qemu \
 #     --restart unless-stopped --init \
 #     --security-opt no-new-privileges:true \
 #     --ulimit nofile=65536:65536 \
@@ -106,7 +106,7 @@
 #     -v qemudata:/data/qemudata -v ovmfvars:/data/ovmfvars \
 #     -v ./qemu.config:/engine/qemu.config:ro \
 #     -p 31281:31281 -it \
-#     e2ugh/qemu:11.1.0 \
+#     saddle/qemu:11.1.0 \
 #     -accel tcg,thread=multi,tb-size=1024 -cpu EPYC-v5 \
 #     -smp 192,sockets=1,cores=192,threads=2,maxcpus=384 \
 #     -m 131072 -machine q35 -nodefaults -no-reboot -nographic \
@@ -115,7 +115,7 @@
 #     -append "console=ttyS0 panic=-1"
 #
 #   vhegpu (the fake gpu sidecar, same engine image):
-#   docker run -d --name e2ugh-gpu \
+#   docker run -d --name saddle-gpu \
 #     --restart unless-stopped --init \
 #     --cap-drop ALL --security-opt no-new-privileges:true \
 #     --ulimit nofile=65536:65536 \
@@ -125,7 +125,7 @@
 #     -e VHE_GPU_PROFILE=b200 -e VHE_GPUS=8 -e VHE_MIG=1 \
 #     -e VHE_SMI_DRIVER=575.57.08 -e VHE_SMI_CUDA=12.9 \
 #     -e VHE_SMI_INTERVAL=30 -e VHE_SKIP_XVFB=1 -e VHE_SKIP_VALIDATE=1 \
-#     ghcr.io/wenathlan/saddle:vhe-2.0.0 /bin/bash -c '
+#     ghcr.io/wenathlan/saddle:vhe-2.0.1 /bin/bash -c '
 #       while true; do
 #         /usr/local/bin/nvidia-smi "$VHE_GPU_PROFILE" "$VHE_GPUS" || true
 #         sleep "$VHE_SMI_INTERVAL"
@@ -133,7 +133,7 @@
 #     '
 #
 #   qemubridge (the python QMP bridge, same engine image):
-#   docker run -d --name e2ugh-bridge \
+#   docker run -d --name saddle-bridge \
 #     --restart unless-stopped --init \
 #     --security-opt no-new-privileges:true \
 #     --ulimit nofile=65536:65536 \
@@ -142,8 +142,22 @@
 #     -v qemudata:/data/qemudata \
 #     -v ./qemubridge.py:/engine/qemubridge.py:ro \
 #     -e QMP_SOCKET=/run/vhe/vm.qmp -e PYTHONUNBUFFERED=1 \
-#     ghcr.io/wenathlan/saddle:vhe-2.0.0 \
+#     ghcr.io/wenathlan/saddle:vhe-2.0.1 \
 #     python3 /engine/qemubridge.py --socket /run/vhe/vm.qmp status
+#
+#   saddle-node (the node-engine service, the former compose.yml
+#   service folded here; build it with
+#   docker build --target saddle-runtime -t saddle:<version> .):
+#   docker run -d --name saddle-node \
+#     --restart unless-stopped --init --read-only \
+#     --cap-drop ALL --security-opt no-new-privileges:true \
+#     --pids-limit 512 --network none \
+#     --ulimit nofile=65536:65536 \
+#     --log-driver json-file --log-opt max-size=50m --log-opt max-file=5 \
+#     --tmpfs /tmp:size=2g,mode=1777 \
+#     -e SADDLE_MEMORY_ENGINE=ram -e SBOT_PLATFORM= -e SBOT_CDN_URL= \
+#     ghcr.io/wenathlan/saddle:2.0.1 \
+#     node dist/cli.js plan
 #
 #   observability (the former prometheus scraper of the full profile)
 #   runs from its own upstream image (prom/prometheus:v3.4.1) with
@@ -382,7 +396,7 @@ RUN set -eux; \
     curl_opts="-fL --retry 5 --retry-all-errors --retry-delay 5 \
         --connect-timeout 30 --max-time 900"; \
     tarball="mesa-${MESA_VERSION}.tar.xz"; \
-    repo="${GITHUB_REPOSITORY:-wenathlan/e2ugh}"; \
+    repo="${GITHUB_REPOSITORY:-wenathlan/saddle}"; \
     github_release="https://github.com/${repo}/releases/download/mesa-cache-${MESA_VERSION}/${tarball}"; \
     sums_url="https://github.com/${repo}/releases/download/mesa-cache-${MESA_VERSION}/SHA256SUMS"; \
     upstream="https://mesa.freedesktop.org/archive/${tarball}"; \
@@ -859,7 +873,7 @@ COPY qemu.config mttg.config passage.config docker.config /engine/
 # the web node ships inside the main container: the mesh edition (auth,
 # sqlite database, dashboard and the browser sandbox pages) runs from the
 # same image, so one container serves the engine AND the web surface.
-# run it with: docker run ghcr.io/wenathlan/e2ugh node /engine/web/server.js
+# run it with: docker run ghcr.io/wenathlan/saddle node /engine/web/server.js
 COPY web /engine/web
 
 RUN set -eux; \
@@ -888,7 +902,7 @@ RUN set -eux; \
 COPY <<'ENTRYPOINT_SCRIPT_EOF' /entrypoint.sh
 #!/usr/bin/env bash
 #
-# entrypoint.sh - runtime bootstrap for the e2ugh v6 virtual hardware
+# entrypoint.sh - runtime bootstrap for the saddle virtual hardware
 # engine image.
 #
 # responsibilities, in order:
@@ -934,10 +948,10 @@ set -Eeuo pipefail
 
 # ---------------------------------------------------------------- logging --
 
-log()  { printf '[e2ugh-entrypoint] %s\n' "$*" >&2; }
-dbg()  { [[ "${VHE_DEBUG:-0}" == "1" ]] && printf '[e2ugh-entrypoint:debug] %s\n' "$*" >&2 || true; }
-warn() { printf '[e2ugh-entrypoint:warn] %s\n' "$*" >&2; }
-die()  { printf '[e2ugh-entrypoint:fatal] %s\n' "$*" >&2; exit 1; }
+log()  { printf '[saddle-entrypoint] %s\n' "$*" >&2; }
+dbg()  { [[ "${VHE_DEBUG:-0}" == "1" ]] && printf '[saddle-entrypoint:debug] %s\n' "$*" >&2 || true; }
+warn() { printf '[saddle-entrypoint:warn] %s\n' "$*" >&2; }
+die()  { printf '[saddle-entrypoint:fatal] %s\n' "$*" >&2; exit 1; }
 
 # ------------------------------------------------------------- variables --
 
@@ -974,9 +988,9 @@ vhe_ram="$(awk '/^MemTotal/ { print $2; exit }' /etc/virtual/meminfo 2>/dev/null
 case "${vhe_ram}" in *[!0-9]*) vhe_ram="" ;; esac
 if [ -n "${vhe_model}" ] && [ -n "${vhe_ram}" ]; then
     vhe_ram_gb=$(( vhe_ram / 1024 / 1024 ))
-    log "e2ugh v6 virtual hardware engine (${vhe_model}, ${vhe_ram_gb} GiB, mesa 26.2.1)"
+    log "saddle virtual hardware engine (${vhe_model}, ${vhe_ram_gb} GiB, mesa 26.2.1)"
 else
-    log "e2ugh v6 virtual hardware engine (mesa 26.2.1)"
+    log "saddle virtual hardware engine (mesa 26.2.1)"
 fi
 log "docker contract: memory-swap=-1 shm-size=2g tmpfs shader cache 20G, Xvfb ${vdisplayid}"
 
@@ -1167,7 +1181,7 @@ RUN chmod 0755 /entrypoint.sh
 # rusticl on llvmpipe reporting a gpu device on OpenCL 3.1, display :99 for
 # Xvfb, plus the default virtual profile knobs consumed by
 # libvirtualhardware and the former compose service settings merged
-# here (the web node database E2UGH_DB the recipes bind their webdata
+# here (the web node database SADDLE_DB the recipes bind their webdata
 # volume at, and NODE_ENV).
 ENV LIBGL_ALWAYS_SOFTWARE="true" \
     GALLIUM_DRIVER="llvmpipe" \
@@ -1189,7 +1203,7 @@ ENV LIBGL_ALWAYS_SOFTWARE="true" \
     VHE_GPU_PROFILE="${VHE_PROFILE_GPU}" \
     VHE_GPUS="${VHE_PROFILE_GPUS}" \
     VHE_MEMINFO_REFRESH="5" \
-    E2UGH_DB="/data/web/e2ugh.db" \
+    SADDLE_DB="/data/web/saddle.db" \
     NODE_ENV="production" \
     PATH="/engine/native:${PATH}"
 
@@ -1222,9 +1236,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --start-interval=5s 
         || exit 1
 
 # OCI labels for registry introspection.
-LABEL org.opencontainers.image.title="saddle grand-merge: e2ugh v9 virtual hardware engine" \
+LABEL org.opencontainers.image.title="saddle virtual-hardware engine (the grand merge)" \
       org.opencontainers.image.description="100% software virtual hardware: per-profile CPU/memory spoofing via LD_PRELOAD (max/balanced/lite), mesa 26.2.1 llvmpipe/lavapipe/rusticl, QEMU 11.1.0 TCG/MTTCG, virtual nvidia-smi adapter + NVML/CUDA shims, node 26.7.0, python bridge" \
-      org.opencontainers.image.version="2.0.0" \
+      org.opencontainers.image.version="2.0.1" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/wenathlan/saddle" \
       org.opencontainers.image.documentation="https://github.com/wenathlan/saddle/blob/main/README.md" \
@@ -1243,7 +1257,7 @@ EXPOSE 8080
 
 # the state surface of the docker run recipes (the former compose named
 # volumes): /data carries vmdata (virtual machine images, bridge plans)
-# and webdata (the web node sqlite E2UGH_DB points at);
+# and webdata (the web node sqlite SADDLE_DB points at);
 # /cache/mesa_shader_cache keeps the JIT'd llvmpipe/lavapipe shaders
 # off the overlay filesystem (the recipe mounts a 20g tmpfs there).
 # without an explicit -v docker provisions anonymous volumes at these
@@ -1286,8 +1300,14 @@ LABEL org.opencontainers.image.title="Saddle" \
 
 WORKDIR /app
 
+# the service ENV surface of the former compose.yml (folded here so the
+# one container file carries the whole container context: memory engine
+# tier selection, the sbot platform tag and the sbot cdn url override)
 ENV NODE_ENV=production \
-    NPM_CONFIG_LEGACY_PEER_DEPS=true
+    NPM_CONFIG_LEGACY_PEER_DEPS=true \
+    SADDLE_MEMORY_ENGINE=ram \
+    SBOT_PLATFORM="" \
+    SBOT_CDN_URL=""
 
 COPY --from=saddle-build /app/package.json /app/package-lock.json ./
 RUN apt-get update \

@@ -1,5 +1,5 @@
 /**
- * quantum.ts — classical quantum-simulation layer for e2ugh v18.
+ * quantum.ts — classical quantum-simulation layer for saddle v18.
  *
  * the module is a 100 percent classical software statevector simulator:
  * no hardware, no photons, no qpu. the engine "supports" quantum the same

@@ -2,11 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "meta": {
     "name": "processors.json",
-    "title": "e2ugh v6 - Unified Virtual Processor Database",
+    "title": "saddle - Unified Virtual Processor Database",
     "version": "2.0.0",
     "date": "2026-08-22",
     "language": "en",
-    "description": "Union of the v5 canonical CPU database (6 x86_64 identities), the E2ugh processor catalog (55 SKUs incl. ARM/Apple/Xeon), Zen5/X3D microarchitecture specs and pool minis. Field conflicts resolved V5-first (model_name/max_boost_ghz/tdp_watts canonical); OMNI complementary fields (arch, core_type, topology, memory_support, release_date) merged in place. Versions re-pinned date-first 2026-08-22.",
+    "description": "Union of the v5 canonical CPU database (6 x86_64 identities), the e2ugh processor catalog (55 SKUs incl. ARM/Apple/Xeon; lineage kept), Zen5/X3D microarchitecture specs and pool minis. Field conflicts resolved V5-first (model_name/max_boost_ghz/tdp_watts canonical); OMNI complementary fields (arch, core_type, topology, memory_support, release_date) merged in place. Versions re-pinned date-first 2026-08-22.",
     "totalProcessors": 57,
     "mergeReport": {
       "v5CpuJson": 6,
@@ -31,7 +31,7 @@
       "https://www.techpowerup.com/cpu-specs/core-ultra-9-285k.c3773",
       "https://www.techpowerup.com/cpu-specs/",
       "https://gitlab.com/qemu-project/qemu",
-      "pool:processors.json (E2ugh V5 catalog, 55 CPUs)",
+      "pool:processors.json (e2ugh V5 catalog lineage, 55 CPUs)",
       "pool:specs_amd_ryzen_x_series.json (Zen5/X3D v5.0)",
       "pool:amdryzenxseries.json (Zen5/X3D v6.0 camelCase superset)",
       "pool:nested_epyc9965.json (mini; root epyc9965.json corrupted)",

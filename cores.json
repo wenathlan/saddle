@@ -68,7 +68,7 @@
       }
     },
     "name": "cores.json",
-    "title": "e2ugh v6 - Virtual Cores Registry (core types, presets, topology, vCPU factory)",
+    "title": "saddle - Virtual Cores Registry (core types, presets, topology, vCPU factory)",
     "sources": [
       "pool:cores.json [S6 base]",
       "pool:nested_cores.json [modularity]",

@@ -1,27 +1,90 @@
 name: release validation
 
+# The release lane of the family doctrine: a version-bump push to main
+# auto-tags (v<version>) and auto-creates the GitHub release, which fires
+# the release-triggered pipeline (container, mobile, desktop, targets,
+# buildextension and every publish workflow) without a manual step. The
+# validation job then runs the full deterministic battery on the tag.
+
 on:
+  push:
+    branches: [main]
   release:
-    types: [created]
+    types: [published]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  auto-tag:
+    # the bump detector: only a push whose package.json version is newer
+    # than the latest existing tag creates the release; every other push
+    # to main skips silently (the CI lane owns those runs).
+    if: github.event_name == 'push'
+    name: auto-tag the version bump
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: resolve bumped version and latest tag
+        id: versions
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          latest="$(git tag --list 'v*' --sort=-v:refname | head -n 1 || true)"
+          latest_version="${latest#v}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "latest_tag=${latest}" >> "$GITHUB_OUTPUT"
+          changed="$(node -e "
+            const version = '${version}';
+            const latest = '${latest_version}';
+            const numeric = (s) => s.split('-')[0].split('.').map(Number);
+            const [a, b] = [numeric(version), numeric(latest.length ? latest : '0.0.0')];
+            let newer = false;
+            for (let i = 0; i < 3 && !newer; i++) {
+              if (a[i] !== b[i]) { newer = a[i] > b[i]; }
+            }
+            console.log(version !== latest && newer ? 'true' : 'false');
+          ")"
+          echo "changed=${changed}" >> "$GITHUB_OUTPUT"
+      - name: tag and release the bumped version
+        if: steps.versions.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.versions.outputs.version }}
+        run: |
+          set -euo pipefail
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+          gh release create "v${VERSION}" \
+            --title "saddle ${VERSION}" \
+            --generate-notes \
+            --verify-tag
+
   validate:
     # cache-mirror releases (mesa-cache-*) publish tarball assets, not
     # versioned artifacts: the release-triggered jobs skip them gracefully
-    # instead of failing the version resolver.
-    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
+    # instead of failing the version resolver. Push events belong to the
+    # auto-tag lane only — the push battery lives in ci.yml (one battery,
+    # one lane).
+    if: github.event_name != 'push' && (github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v'))
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.event.repository.default_branch }}
       - name: setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 26.7.0
           registry-url: https://registry.npmjs.org

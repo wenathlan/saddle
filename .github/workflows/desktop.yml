@@ -65,7 +65,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
 
       # the release-version resolver, inlined from the retired composite
       # action (the one-workflow-file standard: every workflow carries its
@@ -102,7 +102,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 26.7.0
 
@@ -277,7 +277,7 @@ jobs:
           ! find build/release-assets/desktop -type f \( -name 'build_script_build*.exe' -o -name 'build-script-build.exe' -o -name '*_*' \) -print -quit | grep -q .
 
       - name: upload workflow artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: saddle.browser.${{ matrix.platform }}.${{ matrix.architecture }}.${{ steps.releaseversion.outputs.version }}
           path: build/release-assets/desktop

@@ -1,5 +1,5 @@
 /**
- * tiers - the "everything is VRAM" virtual memory layer of e2ugh.
+ * tiers - the "everything is VRAM" virtual memory layer of saddle.
  *
  * The v17 doctrine: in the end everything is VRAM. The VM impersonates
  * physical hardware the way browsers spoof headers, and the only physical
@@ -326,7 +326,7 @@ export type kvstats = {
 
 /**
  * sqlitekv is the real L3 local backend: a node:sqlite DatabaseSync file
- * opened in the tmpdir by default (E2UGH_TIERS_DB overrides the path)
+ * opened in the tmpdir by default (SADDLE_TIERS_DB overrides the path)
  * with the canonical RAM pragmas (WAL, synchronous=NORMAL,
  * cache_size=10000, temp_store=MEMORY) and the kvstore table of the
  * docs. Reads touch the LRU column through UPDATE ... SET accessedat =
@@ -344,7 +344,7 @@ export class sqlitekv implements Disposable {
   #delstmt: StatementSync | null = null;
 
   constructor(path?: string) {
-    this.path = path ?? process.env.E2UGH_TIERS_DB ?? join(tmpdir(), 'e2ugh-tiers.db');
+    this.path = path ?? process.env.SADDLE_TIERS_DB ?? join(tmpdir(), 'saddle-tiers.db');
     this.#db = guard('sqlitekv', `sqlitekv open ${this.path}`, () => {
       const db = new DatabaseSync(this.path);
       db.exec(
@@ -850,7 +850,7 @@ export function plannpmchunks(
   options?: npmchunkoptions,
 ): npmchunklayout {
   return guard('npmchunks', 'plannpmchunks', () => {
-    const scope = sanitizescope(options?.scope ?? 'e2ugh');
+    const scope = sanitizescope(options?.scope ?? 'saddle');
     const chunkbytes = options?.chunkbytes ?? NPMCHUNKBYTES;
     const version = options?.version ?? '1.0.0';
     if (!Number.isFinite(chunkbytes) || chunkbytes < 1) {
@@ -986,7 +986,7 @@ export class npmchunkregistry implements storagebackend {
   #layouts = new Map<string, npmchunklayout>();
 
   constructor(options?: { readonly scope?: string; readonly chunkbytes?: number }) {
-    this.#scope = sanitizescope(options?.scope ?? 'e2ugh');
+    this.#scope = sanitizescope(options?.scope ?? 'saddle');
     this.#chunkbytes = options?.chunkbytes ?? NPMCHUNKBYTES;
   }
 
@@ -1072,7 +1072,7 @@ export type githubblob = {
  * uploads.github.com (2 GiB per file, enforced locally before the wire)
  * and the contents API as the page-table sync (GET to read, PUT with the
  * sha of the previous revision: the honest If-Match equivalent). Without
- * E2UGH_GITHUB_TOKEN every call degrades to planner mode and returns the
+ * SADDLE_GITHUB_TOKEN every call degrades to planner mode and returns the
  * exact request it would have sent. The public REST surface documents
  * list/get/delete plus the zip download redirect; the upload path
  * POSTs to /actions/artifacts/{id} as the Actions runtime does.
@@ -1097,7 +1097,7 @@ export class githubstorage implements storagebackend {
       return {
         owner: options.owner,
         repo: options.repo,
-        token: options.token ?? process.env.E2UGH_GITHUB_TOKEN ?? null,
+        token: options.token ?? process.env.SADDLE_GITHUB_TOKEN ?? null,
       };
     });
     this.owner = parsed.owner;
@@ -1123,7 +1123,7 @@ export class githubstorage implements storagebackend {
       }
       const zip = zipbuild([{ name: `${name}.bin`, data: buffer }]);
       const target = `/repos/${this.owner}/${this.repo}/actions/artifacts/${artifactid ?? '<artifact-id>'}`;
-      const boundary = 'e2ughtiersartifactboundary';
+      const boundary = 'saddletiersartifactboundary';
       const multipart = Buffer.concat([
         Buffer.from(
           `--${boundary}\r\nContent-Disposition: form-data; name="artifact"; filename="${name}.zip"\r\nContent-Type: application/zip\r\n\r\n`,
@@ -1140,7 +1140,7 @@ export class githubstorage implements storagebackend {
         this.#planned.set(name, { bytes: buffer.byteLength, url: target });
         return {
           planned: true,
-          reason: 'E2UGH_GITHUB_TOKEN is not set: the backend stays in planner mode',
+          reason: 'SADDLE_GITHUB_TOKEN is not set: the backend stays in planner mode',
           method: 'POST',
           url,
           headers,
@@ -1166,7 +1166,7 @@ export class githubstorage implements storagebackend {
       if (this.#token === null) {
         return {
           planned: true,
-          reason: 'E2UGH_GITHUB_TOKEN is not set: the backend stays in planner mode',
+          reason: 'SADDLE_GITHUB_TOKEN is not set: the backend stays in planner mode',
           method: 'GET',
           url,
           headers: this.#headers(),
@@ -1202,7 +1202,7 @@ export class githubstorage implements storagebackend {
       if (this.#token === null) {
         return {
           planned: true,
-          reason: 'E2UGH_GITHUB_TOKEN is not set: the backend stays in planner mode',
+          reason: 'SADDLE_GITHUB_TOKEN is not set: the backend stays in planner mode',
           method: 'POST',
           url,
           headers,
@@ -1269,7 +1269,7 @@ export class githubstorage implements storagebackend {
       if (this.#token === null) {
         return {
           planned: true,
-          reason: 'E2UGH_GITHUB_TOKEN is not set: the backend stays in planner mode',
+          reason: 'SADDLE_GITHUB_TOKEN is not set: the backend stays in planner mode',
           method: 'PUT',
           url,
           headers,
@@ -1362,7 +1362,7 @@ export class githubstorage implements storagebackend {
     const headers: Record<string, string> = {
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': this.#apiversion,
-      'User-Agent': 'e2ugh-tiers',
+      'User-Agent': 'saddle-tiers',
       ...extra,
     };
     if (this.#token !== null) {
@@ -1621,7 +1621,7 @@ export type ringoptions = {
 /**
  * vrdringbuffer is the L1 VDRAM: one SharedArrayBuffer with a Float32Array
  * view, 4-byte aligned slots and the auto-flush ceiling of the design
- * (512 MB default, E2UGH_VDR_CAP in MB overrides). When a write no longer
+ * (512 MB default, SADDLE_VDR_CAP in MB overrides). When a write no longer
  * fits, every live block is flushed through the onflush callback (the
  * transparent demotion to L3) and the cursor restarts at zero: ring
  * paging at the RAM ceiling, exactly like the VDR notes describe.
@@ -1639,7 +1639,7 @@ export class vrdringbuffer {
 
   constructor(options?: ringoptions) {
     const built = guard('ring', 'vrdringbuffer constructor', () => {
-      const envcap = Number.parseInt(process.env.E2UGH_VDR_CAP ?? '', 10);
+      const envcap = Number.parseInt(process.env.SADDLE_VDR_CAP ?? '', 10);
       const capmb = options?.capmb ?? (Number.isFinite(envcap) ? envcap : 512);
       const capbytes = options?.capbytes ?? Math.max(64 * 1024, Math.floor(capmb * 1024 * 1024));
       if (!Number.isFinite(capbytes) || capbytes < 64 * 1024) {
@@ -2451,7 +2451,7 @@ export class memoryengine implements Disposable {
   #counters = { loads: 0, l1hits: 0, demotions: 0, persists: 0, releases: 0 };
 
   constructor(options?: { readonly backends?: readonly storagebackend[]; readonly name?: string }) {
-    this.name = options?.name ?? 'e2ugh tiers engine';
+    this.name = options?.name ?? 'saddle tiers engine';
     this.#backends = options?.backends ?? [];
   }
 
@@ -2644,9 +2644,9 @@ export type tiersstack = {
 
 /**
  * creatiersengine wires the full stack from one config: the L1 ram
- * working set, the L3 sqlite kvstore (default tmpdir, E2UGH_TIERS_DB
+ * working set, the L3 sqlite kvstore (default tmpdir, SADDLE_TIERS_DB
  * overrides), the npm chunk planner (planner backend), the GitHub backend
- * (planner without E2UGH_GITHUB_TOKEN, live with it) and, when vdr is
+ * (planner without SADDLE_GITHUB_TOKEN, live with it) and, when vdr is
  * requested, the universal VDR engine whose ring demotes into the same
  * sqlite kv and whose page table persists there. The modes array states
  * honestly which backends plan and which execute.
@@ -2848,7 +2848,7 @@ export function quotaplanner(kind: catalogkind, options: catalogoptions = {}): c
 export function tiersreport(): string {
   return guard('report', 'tiersreport', () => {
     const pool = freepooltotalgb();
-    const lines: string[] = ['e2ugh tiers: everything is VRAM', ''];
+    const lines: string[] = ['saddle tiers: everything is VRAM', ''];
     for (const tier of Object.values(TIERS)) {
       lines.push(
         `${tier.id} ${tier.label.padEnd(14)} ${String(tier.latencyns).padStart(6)} ns  ${tier.capacity}`,
@@ -2864,7 +2864,7 @@ export function tiersreport(): string {
       ...FREEPOOL.map((entry) => `  ${entry.backend.padEnd(12)} ${entry.quota}`),
       '',
       'autoscale: <64 MB memfs, <1 GB mmap, larger sqlite/r2',
-      `vdr: 0x0..0xffffffffffffffff (${VDRADDRESSEB} EB), ring cap 512 MB default (E2UGH_VDR_CAP MB)`,
+      `vdr: 0x0..0xffffffffffffffff (${VDRADDRESSEB} EB), ring cap 512 MB default (SADDLE_VDR_CAP MB)`,
     );
     return lines.join('\n');
   });

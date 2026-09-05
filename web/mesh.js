@@ -1,14 +1,14 @@
 /**
- * mesh.js — signed node-to-node communication for the e2ugh web mesh
+ * mesh.js — signed node-to-node communication for the saddle web mesh
  * (v7-BACK).
  *
  * the mesh connects clone nodes to the main authority: requests are
  * signed with HMAC-SHA256 over `${timestamp}.${method}.${path}.${bodyhash}`,
  * protected by a 60-second anti-replay window with a 1024-entry nonce
  * cache, and may optionally encrypt payloads with AES-256-GCM using the
- * E2UGH_MESH_KEY hex secret. the module also carries the node role
- * (E2UGH_ROLE=main|clone|standalone, default standalone), the signed
- * fetch client towards E2UGH_MAIN_URL and the 60-second heartbeat
+ * SADDLE_MESH_KEY hex secret. the module also carries the node role
+ * (SADDLE_ROLE=main|clone|standalone, default standalone), the signed
+ * fetch client towards SADDLE_MAIN_URL and the 60-second heartbeat
  * loop clones run against the main registry.
  *
  * contexts (8): noderole, requestsigning, antireplay, payloadcrypto,
@@ -35,7 +35,7 @@ import process from 'node:process';
 /* ------------------------------------------------------------------ */
 
 /**
- * resolves the node role once at import time: e2ugh_role accepts the
+ * resolves the node role once at import time: saddle_role accepts the
  * values main, clone and standalone; anything else (including unset)
  * falls back to standalone so a bare `node web/server.js` boot behaves
  * as a self-contained authority.
@@ -43,7 +43,7 @@ import process from 'node:process';
  * @returns {'main' | 'clone' | 'standalone'} the resolved role.
  */
 function resolverole() {
-  const value = String(process.env.E2UGH_ROLE ?? 'standalone').toLowerCase();
+  const value = String(process.env.SADDLE_ROLE ?? 'standalone').toLowerCase();
   if (value === 'main' || value === 'clone' || value === 'standalone') {
     return value;
   }
@@ -59,7 +59,7 @@ export const role = resolverole();
  * @returns {string} the secret or an empty string when unconfigured.
  */
 export function meshsecret() {
-  return String(process.env.E2UGH_MESH_SECRET ?? '');
+  return String(process.env.SADDLE_MESH_SECRET ?? '');
 }
 
 /**
@@ -69,7 +69,7 @@ export function meshsecret() {
  * @returns {string} the trimmed base url or an empty string.
  */
 export function mainurl() {
-  return String(process.env.E2UGH_MAIN_URL ?? '').replace(/\/+$/, '');
+  return String(process.env.SADDLE_MAIN_URL ?? '').replace(/\/+$/, '');
 }
 
 /* ------------------------------------------------------------------ */
@@ -139,8 +139,8 @@ function recordnonce(signature) {
 }
 
 /**
- * verifies one incoming mesh request: the x-e2ugh-timestamp header must
- * sit inside the 60-second window, the x-e2ugh-signature header must
+ * verifies one incoming mesh request: the x-saddle-timestamp header must
+ * sit inside the 60-second window, the x-saddle-signature header must
  * match the recomputed HMAC over the raw body, and the signature must
  * not have been seen before (replay protection).
  *
@@ -152,14 +152,14 @@ function recordnonce(signature) {
  */
 export function verifymesh(req, rawbody, secret) {
   try {
-    const timestamp = req.headers?.['x-e2ugh-timestamp'];
-    const signature = req.headers?.['x-e2ugh-signature'];
+    const timestamp = req.headers?.['x-saddle-timestamp'];
+    const signature = req.headers?.['x-saddle-signature'];
     if (typeof timestamp !== 'string' || typeof signature !== 'string') {
       return {
         ok: false,
         status: 401,
         code: 'mesh-unauthenticated',
-        message: 'mesh requests require x-e2ugh-timestamp and x-e2ugh-signature headers',
+        message: 'mesh requests require x-saddle-timestamp and x-saddle-signature headers',
       };
     }
     const skew = Math.abs(Date.now() - Number.parseInt(timestamp, 10));
@@ -217,14 +217,14 @@ const ivlen = 12;
 const taglen = 16;
 
 /**
- * resolves the optional E2UGH_MESH_KEY (32 bytes hex) used for payload
+ * resolves the optional SADDLE_MESH_KEY (32 bytes hex) used for payload
  * encryption between nodes.
  *
  * @returns {Buffer | null} the key or null when unset/invalid.
  */
 function meshkey() {
   try {
-    const raw = String(process.env.E2UGH_MESH_KEY ?? '');
+    const raw = String(process.env.SADDLE_MESH_KEY ?? '');
     if (raw.length === 0) {
       return null;
     }
@@ -356,8 +356,8 @@ const requesttimeoutms = 10 * 1000;
 
 /**
  * performs one signed POST towards the main node described by
- * E2UGH_MAIN_URL using the global fetch; the signature headers are
- * computed with the shared E2UGH_MESH_SECRET.
+ * SADDLE_MAIN_URL using the global fetch; the signature headers are
+ * computed with the shared SADDLE_MESH_SECRET.
  *
  * @param {string} path the full api path (e.g. /api/v1/auth/login).
  * @param {unknown} body the json-serializable payload.
@@ -371,7 +371,7 @@ export async function postmain(path, body) {
   const secret = meshsecret();
   if (base.length === 0 || secret.length === 0) {
     throw Object.assign(
-      new Error('E2UGH_MAIN_URL and E2UGH_MESH_SECRET are required for mesh forwarding'),
+      new Error('SADDLE_MAIN_URL and SADDLE_MESH_SECRET are required for mesh forwarding'),
       { code: 'mesh-unconfigured' },
     );
   }
@@ -384,8 +384,8 @@ export async function postmain(path, body) {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-e2ugh-timestamp': timestamp,
-        'x-e2ugh-signature': signature,
+        'x-saddle-timestamp': timestamp,
+        'x-saddle-signature': signature,
       },
       body: payload,
       signal: AbortSignal.timeout(requesttimeoutms),

@@ -1,5 +1,5 @@
 /**
- * orchestrator.ts — merged sandbox and vm orchestration for e2ugh v6.
+ * orchestrator.ts — merged sandbox and vm orchestration for saddle v6.
  *
  * this file is the heaviest merge of the v2 effort (map T6): the v5
  * orchestrator (six runtime strategies — docker 29.7.2, firecracker 1.16.1,
@@ -2305,7 +2305,7 @@ class orchestrator {
   #schedulerinterval: ReturnType<typeof setInterval> | null = null;
   #shuttingdown = false;
   #errorcatcherinstalled = false;
-  readonly version = '2.0.0-e2ugh-20260822';
+  readonly version = '2.0.0-saddle-20260822';
   readonly stack: Readonly<Record<string, string>> = stackcatalog;
 
   constructor(options: orchestratoroptions = {}) {
@@ -4394,7 +4394,7 @@ class orchestrator {
   #defaultconfigcontents(): Record<configfilename, string> {
     return {
       'vm.config': [
-        `# e2ugh v6 vm.config — qemu ${runtimecatalog.qemu} — ${new Date().toISOString()}`,
+        `# saddle v6 vm.config — qemu ${runtimecatalog.qemu} — ${new Date().toISOString()}`,
         'vm_default_vcpus=4',
         'vm_default_ram_mb=4096',
         'vm_default_disk_gb=40',
@@ -4402,21 +4402,21 @@ class orchestrator {
         '',
       ].join('\n'),
       'gpu.config': [
-        '# e2ugh v6 gpu.config — blackwell / ryzen x',
+        '# saddle v6 gpu.config — blackwell / ryzen x',
         'gpu_mode=passthrough',
         'gpu_default_vram=24576',
         'sriov_enabled=true',
         '',
       ].join('\n'),
       'passage.config': [
-        '# e2ugh v6 passage.config — ovs 3.7.1 / dpdk 26.07.0',
+        '# saddle v6 passage.config — ovs 3.7.1 / dpdk 26.07.0',
         'passage_bridge=br-vhe',
         'passageMtu=9000',
         'vxlan_port=4789',
         '',
       ].join('\n'),
       'qemu.config': [
-        `# e2ugh v6 qemu.config — qemu ${runtimecatalog.qemu}`,
+        `# saddle v6 qemu.config — qemu ${runtimecatalog.qemu}`,
         'qemu_binary=/usr/bin/qemu-system-x86_64',
         'qemuMachine=q35',
         'qemu_accel=kvm',
@@ -4424,14 +4424,14 @@ class orchestrator {
         '',
       ].join('\n'),
       'mttg.config': [
-        '# e2ugh v6 mttg.config — cgroups v2 / sched_ext 6.12',
+        '# saddle v6 mttg.config — cgroups v2 / sched_ext 6.12',
         'mttg_workers=16',
         'mttg_priority_levels=8',
         'mttg_max_retries=3',
         '',
       ].join('\n'),
       'docker.config': [
-        `# e2ugh v6 docker.config — docker ${runtimecatalog.docker}`,
+        `# saddle v6 docker.config — docker ${runtimecatalog.docker}`,
         'docker_runtime=runc',
         'docker_network=bridge',
         'dockerBuildx=vhe-builder',
@@ -4580,7 +4580,7 @@ class orchestrator {
           const fallback = defaults[name];
           writeFileSync(
             fullpath,
-            fallback ?? (name.endsWith('.json') ? '{}' : '# e2ugh v6'),
+            fallback ?? (name.endsWith('.json') ? '{}' : '# saddle v6'),
             'utf8',
           );
         }
@@ -5313,7 +5313,7 @@ export function planfluxgitops(
   } = {},
 ): fluxgitopsplan {
   try {
-    const repo = opts.repo ?? 'github.com/wenathlan/e2ugh-gitops';
+    const repo = opts.repo ?? 'github.com/wenathlan/saddle-gitops';
     if (!/^[a-z0-9./:-]+$/.test(repo)) throw new Error(`repo ${repo} must be a lowercase git url`);
     const clusters = opts.clusters ?? ['staging', 'prod'];
     if (clusters.length === 0) throw new Error('at least one cluster is required');

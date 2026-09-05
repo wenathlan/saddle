@@ -1,11 +1,11 @@
-# e2ugh web — the sandbox in your browser
+# saddle web — the sandbox in your browser
 
-the web edition of the e2ugh virtual hardware engine: one page that boots a
+the web edition of the saddle virtual hardware engine: one page that boots a
 virtual container — cpu, ram, gpu, mesa software graphics — entirely in the
 browser, plus one self-hosted node api exposing the exact same sandbox over
 http for automation. no framework, no build step, no serverless functions.
 
-version 2.0.0 — reported by `/api/v1/health` and kept in lockstep with
+version 2.0.1 — reported by `/api/v1/health` and kept in lockstep with
 `package.json` and the `meta.version` envelope of the ten data documents
 (v6-SYNC worklog task).
 
@@ -15,7 +15,7 @@ version 2.0.0 — reported by `/api/v1/health` and kept in lockstep with
 # the whole thing: static console + self-hosted api (zero dependencies)
 node web/server.js
 # it prints the endpoint once, e.g. listening on 0.0.0.0:48213
-# override with --port 8080 or PORT=8080 / E2UGH_HOST
+# override with --port 8080 or PORT=8080 / SADDLE_HOST
 
 # the static console alone also opens from any static host:
 # the browser port (sandbox.js) runs 100% client-side; the api badge stays
@@ -46,15 +46,24 @@ vm:stopped, vm:deleted).
 
 | file          | role |
 |---------------|------|
-| `index.html`  | vanilla spa: spec panel, boot sequence, terminal, bus event timeline |
+| `console.html` | vanilla spa: spec panel, boot sequence, terminal, bus event timeline |
 | `login.html`  | sign in page: username + password, `?next=` redirect, generic errors |
 | `register.html` | account creation: 3-32 `[a-z0-9.-]` username, password strength meter, no e-mail by policy |
 | `dashboard.html` | user dashboard (my sandboxes, bus events, account) + admin dashboard (overview, mesh nodes, users, audit) |
+| `console.js`  | console page controller: terminal driver, spec form, api-backed sandbox mode |
+| `login.js` / `register.js` / `dashboard.js` | page controllers of the three account pages (api base resolution, static-edge fallbacks) |
 | `sandbox.js`  | browser-pure port of the engine generators (zero imports, runs in node too) |
-| `localauth.js` | static-edge account fallback: when no api answers (github pages / netlify / vercel clones), login/register/dashboard switch to browser-local accounts (pbkdf2-sha256 via webcrypto, never synced). persistence: accounts are mirrored to IndexedDB and repaired in both directions on load (a partial storage clear never loses them), the CODEOWNERS admins (iakadion + akadion, shared bootstrap password `cdw782FG7pjxQVw`, kept in lockstep with the server seed in `auth.js`) are re-seeded whenever missing, and the dashboard ships explicit backup/restore keyfile buttons for a full wipe; only the CODEOWNERS accounts are admins |
+| `localauth.js` | static-edge account fallback: when no api answers (github pages / netlify / vercel clones), login/register/dashboard switch to browser-local accounts (pbkdf2-sha256 via webcrypto, never synced). persistence: accounts are mirrored to IndexedDB and repaired in both directions on load (a partial storage clear never loses them), the CODEOWNERS admins (iakadion, inathlan, aasblor and nasblor, shared bootstrap password `cdw782FG7pjxQVw`, kept in lockstep with the server seed in `auth.js`) are re-seeded whenever missing, and the dashboard ships explicit backup/restore keyfile buttons for a full wipe; only the CODEOWNERS accounts are admins |
 | `server.js`   | self-hosted node:http api: static serving + `/api/v1` |
-| `package.json` | deploy manifest only (`@wenathlan/e2ugh-web`, private, never published): vercel/netlify require it at the deploy root; the published npm package is the central `@wenathlan/e2ugh` without web |
-| `Dockerfile`  | web node image for ghcr.io/wenathlan/e2ugh (the main image; web/ ships inside) |
+| `db.js`       | node:sqlite data layer: users, sessions, nodes, sandboxes, sandboxfiles, events, audit |
+| `auth.js`     | security layer: scrypt hashing, saddlesession cookies, rate limiter, request guards, CODEOWNERS admin seed |
+| `mesh.js`     | signed node-to-node mesh: hmac requests, aes-gcm payloads, clone heartbeat |
+| `schema.prisma` / `init.sql` / `drizzle.config.ts` | the three schema mirrors of the db.js migrations (prisma, raw sql, drizzle kit) |
+| `mime.types`  | the extension to content-type table parsed by server.js at boot |
+| `index.html` + `main.tsx` + `App.tsx` | the React app entry (vite build; the Pages-published surface) |
+| `pages/` + `components/` + `hooks/` + `lib/` + `contexts/` | the React app folders that sit beside the console files at the web root |
+| `package.json` | deploy manifest only (`@wenathlan/saddle-web`, private, never published): vercel/netlify require it at the deploy root; the published npm package is the central `@wenathlan/saddle` without web |
+| `Dockerfile` (repo root) | container image for ghcr.io/wenathlan/saddle (the main image; web/ ships inside) |
 | `vercel.json` | static hosting config, **no functions** |
 | `netlify.toml`| static hosting config, **no functions** |
 | `caddyfile`   | self-host reverse proxy for the node api (devthink.pro + www) |
@@ -93,7 +102,7 @@ errors are standardized `{error:{code,message}}`; cors is open
 (`access-control-allow-origin: *` plus the options preflight handler);
 every response carries `x-content-type-options: nosniff`; the listen port
 defaults once at boot to a random 30000-59999 value and is overridable by
-`--port`, `PORT` or `E2UGH_PORT`; no address is hardcoded to localhost.
+`--port`, `PORT` or `SADDLE_PORT`; no address is hardcoded to localhost.
 
 ## mesh architecture
 
@@ -106,15 +115,15 @@ the web tier ships as one directory that deploys in three shapes:
   pure static files. the pages detect the missing `/api/v1` and fall back
   to the local browser engine; for auth-backed features the visitor points
   the page at the main node with `?api=https://devthink.pro` (persisted in
-  `localStorage` as `e2ugh_api`; cross-origin requests switch to
-  `credentials: "include"` so the `e2ughsession` cookie flows).
-- **standalone**: `index.html` opened from any static host or disk — the
+  `localStorage` as `saddle_api`; cross-origin requests switch to
+  `credentials: "include"` so the `saddlesession` cookie flows).
+- **standalone**: `console.html` opened from any static host or disk — the
   terminal runs 100% client-side, no account, no api.
 
 auth flow (identical on main and clones): `login.html`/`register.html`
 post to `/api/v1/auth/{login,register}`; the backend validates, hashes
 with scrypt, creates the session server-side and answers with the
-httponly `e2ughsession` cookie; `dashboard.html` calls
+httponly `saddlesession` cookie; `dashboard.html` calls
 `/api/v1/auth/me`, renders the user view, and unlocks the admin view when
 the role is `admin` (overview cards, mesh node table with ping through
 `/api/v1/mesh/*`, users, global sandboxes, audit log). logout posts
@@ -131,11 +140,11 @@ the role is `admin` (overview cards, mesh node table with ping through
                   www.devthink.pro ---> devthink.pro
                            |  reverse_proxy /api/* -> 127.0.0.1:39721
                            v
-              [ ghcr.io/wenathlan/e2ugh (the main image; web/ ships inside) ]
+              [ ghcr.io/wenathlan/saddle (the main image; web/ ships inside) ]
                 node 26 slim - server.js
                 /api/v1/auth - /api/v1/admin - /api/v1/sandboxes
                 mesh: HMAC-signed gossip + AES-GCM payloads
-                sqlite /data/e2ugh.db (0600)
+                sqlite /data/saddle.db (0600)
                            |
                            +-- future mesh peers (other nodes,
                                 same image, same contract)
@@ -146,10 +155,10 @@ the role is `admin` (overview cards, mesh node table with ping through
 - **passwords**: scrypt (server-side, per-user salt); the wire carries
   username + password only over https; hashes and salts never appear in
   any api response — the admin users table renders account fields only.
-- **sessions**: opaque `e2ughsession` httponly cookie; the session store
+- **sessions**: opaque `saddlesession` httponly cookie; the session store
   keeps only hashes of the token, never the token itself. no password or
   token is ever written to `localStorage` — the only client-side key is
-  the optional cross-origin api base (`e2ugh_api`), which is not a
+  the optional cross-origin api base (`saddle_api`), which is not a
   credential.
 - **rate limiting**: login, register and auth-protected routes are rate
   limited per ip + username on the api; the login page answers failures
@@ -160,8 +169,8 @@ the role is `admin` (overview cards, mesh node table with ping through
 - **mesh**: node-to-node traffic is hmac-signed (replay-windowed
   timestamps) with aes-gcm encrypted payloads; mesh keys live only in the
   main-node environment, never in the browser.
-- **database**: sqlite at `$E2UGH_DB` (container default
-  `/data/e2ugh.db`), volume-mounted, file mode 0600, never baked into the
+- **database**: sqlite at `$SADDLE_DB` (container default
+  `/data/saddle.db`), volume-mounted, file mode 0600, never baked into the
   image.
 
 ## deploy matrix
@@ -170,7 +179,7 @@ the role is `admin` (overview cards, mesh node table with ping through
 |--------|--------|-----------|
 | vercel (clone) | `web/vercel.json`, static output | bytes only: local engine, `?api=` pointing at the main node for auth |
 | netlify (clone) | `web/netlify.toml`, `publish = "."` (file lives inside `web/`), node 26.7.0 | bytes only: same behavior as vercel |
-| self-host (main, devthink.pro) | `docker build -f web/Dockerfile .` -> `ghcr.io/wenathlan/e2ugh (the main image; web/ ships inside)`, caddyfile in front | static pages + full `/api/v1` (auth, admin, mesh) + sqlite on `/data` |
+| self-host (main, devthink.pro) | `docker build .` (the repo-root Dockerfile) -> `ghcr.io/wenathlan/saddle` (the main image; web/ ships inside), caddyfile in front | static pages + full `/api/v1` (auth, admin, mesh) + sqlite on `/data` |
 
 ## why the static + node split
 
@@ -192,7 +201,7 @@ single dependency.
   `publish = "."` on node 26.7.0 with security headers. same rule:
   static edge only, no functions.
 - **self-host (devthink.pro pattern)** — run `node web/server.js` (or the
-  `ghcr.io/wenathlan/e2ugh (the main image; web/ ships inside)` container behind `web/caddyfile`):
+  `ghcr.io/wenathlan/saddle (the main image; web/ ships inside)` container behind `web/caddyfile`):
   caddy serves the static files on devthink.pro (+ www redirect, gzip,
   security headers, auto tls) and reverse-proxies `/api/*` to the node
   process on the documented port. this is the only mode where the
@@ -202,7 +211,7 @@ single dependency.
 
 saddle is the "vm published as a package" surface family
 (package/extension/workflow/native/web) that the sedal runtime consumes.
-this web edition is the **web surface of that family for e2ugh**: the
+this web edition is the **web surface of that family for saddle**: the
 browser page is the zero-install demo of the virtual container, and the
 node api is the self-hostable control plane with the same lifecycle and
 exec contracts saddle exposes natively. because the api is plain node:http
@@ -223,7 +232,7 @@ node process the operator runs — nothing in between.
 frontend-web pass over `web/` while v7-BACK lands the api in parallel.
 created `login.html` (username + password, generic inline errors,
 sanitized `?next=` redirect, configurable api base via `?api=` /
-`window.E2UGH_API` / `localStorage`, `credentials: "include"` on
+`window.SADDLE_API` / `localStorage`, `credentials: "include"` on
 cross-origin clones), `register.html` (3-32 `[a-z0-9.-]` username with
 auto-lowercase, min-8 password with a length+class strength meter,
 confirmation match, rule checklist, no e-mail per project policy) and
@@ -235,7 +244,7 @@ without hash/salt columns, global sandboxes, audit log, username filter,
 skeleton loaders, empty states, 401 gate to the login link). added
 `package.json` (deploy manifest only, never published; zero dependencies, engines
 `>=26.7.0`, honored by the root `.nvmrc`), `web/Dockerfile` (node:26-slim image for
-ghcr.io/wenathlan/e2ugh (the main image; web/ ships inside), `/data` volume for `$E2UGH_DB`, unprivileged
+ghcr.io/wenathlan/saddle (the main image; web/ ships inside), `/data` volume for `$SADDLE_DB`, unprivileged
 user, fetch-based healthcheck on 127.0.0.1 justified in-file); updated
 `netlify.toml` (publish `.` from inside `web/`, node 26.7.0, security
 headers, still zero functions), `caddyfile` (devthink.pro + www redirect,
@@ -311,7 +320,7 @@ os 8 cpus e 7 gpus de cpudata/gpudata batem com processors.json/gpus.json
 (cores/threads/vram/pci id); os 22 pins de actions do package.json batem
 com os `uses:` reais dos cinco workflows; todos os alvos de exports/files
 existem no disco; todos os COPYs do Dockerfile apontam para arquivos
-existentes; bibliografia = 145 entradas reais; E2UGH_MAX_SANDBOXES
+existentes; bibliografia = 145 entradas reais; SADDLE_MAX_SANDBOXES
 documentado (server.js:516 + fim deste readme).
 
 ## api surface additions
@@ -319,7 +328,7 @@ documentado (server.js:516 + fim deste readme).
 - `GET /api/v1/sandboxes` - the user shelf: every sandbox row of the account (live and expired) with files/bytes/resumable
 - `POST /api/v1/sandboxes/:id/resume` - take the container back: rebuilds the engine from the stored spec, rebinds the persistent workspace, renews the ttl
 - `streaming` terminal command + `planmodelstreaming` (npm api) - the streaming memory plan: any workload size inside a small hot window
-- sandbox creation is uncapped by default (`E2UGH_MAX_SANDBOXES=0`)
+- sandbox creation is uncapped by default (`SADDLE_MAX_SANDBOXES=0`)
 
 ## bottleneck analysis: where each layer really lives
 
@@ -332,7 +341,7 @@ engineering truth, not marketing.
 | layer | where data lives | reported identity | real ceiling | verdict |
 |---|---|---|---|---|
 | browser terminal (clones) | tab memory (ram of the visitor device, sandboxed by the browser itself) | EPYC 9965, 1 TiB, B200 | tab memory budget of the browser (~2-4 GiB typical); zero disk writes | no physical server touched; ceiling is the visitor browser, not any host |
-| sandbox id workspace | `sandboxfiles` table inside the container sqlite (`/data/e2ugh.db`), quota 16 MiB per id | `df -h` shows the quota as a filesystem | the container volume size; survives process restart, dies with `docker rm` unless the volume persists | auto-contained: the id, the files and the quota travel with the container |
+| sandbox id workspace | `sandboxfiles` table inside the container sqlite (`/data/saddle.db`), quota 16 MiB per id | `df -h` shows the quota as a filesystem | the container volume size; survives process restart, dies with `docker rm` unless the volume persists | auto-contained: the id, the files and the quota travel with the container |
 | container memory plan | `/etc/virtual/meminfo` snapshot (1 TiB) + LD_PRELOAD overlay | `free -h` reports 1 TiB | host ram + swap with `--memory-swap=-1`; the kernel OOM killer is the only real wall | unlimited is virtual identity; physical OOM never happens in the browser path because nothing heavy runs there |
 | vCPU / threads | cpuinfo spoof (192c/384t) + llvmpipe `LP_NUM_THREADS=0` | `lscpu` reports 192c/384t | host cores; llvmpipe caps at 32 threads (MR 31551) | virtual topology is free; compute-bound work is bounded by host cores |
 | vGPU | software adapters (llvmpipe/lavapipe/rusticl + smi tables) | `nvidia-smi` lists 8x B200 | cpu rasterization throughput; no cuda kernels run | identity is unlimited; throughput is cpu-bound by design |
@@ -370,4 +379,4 @@ Combined: the identity layer reports unlimited (18 tb, 384 threads), the
 streaming layer makes any workload size executable inside a small window,
 and federation multiplies the window across free hosts. That is the
 no-limits architecture; the sandbox shelf itself is uncapped by default
-(E2UGH_MAX_SANDBOXES=0).
+(SADDLE_MAX_SANDBOXES=0).

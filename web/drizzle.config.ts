@@ -1,5 +1,5 @@
 /**
- * drizzle.config.ts — e2ugh v7 drizzle kit configuration (worklog task
+ * drizzle.config.ts — saddle v7 drizzle kit configuration (worklog task
  * v7-BACK).
  *
  * a plain typed object with the three fields drizzle-kit expects for a

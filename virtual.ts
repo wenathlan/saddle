@@ -3,7 +3,7 @@
  *
  * This file is the v2.0.0 grand-merge consolidation of the former nested
  * folders of the repository (memory, storage, persistence) into the single
- * root-level domain file of the e2ugh family standard: one optimized
+ * root-level domain file of the saddle family standard: one optimized
  * TypeScript file per correlated domain, ordinal sections, JSDoc on every
  * block, intra-domain imports dissolved, cross-domain imports rewritten to
  * ./<domain>.js. Every capability of every source file is preserved here;

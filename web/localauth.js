@@ -17,7 +17,8 @@
    *   localauth.session()     - the open local session or null
    *   localauth.logout()      - closes the local session
    *
-   * built-in admins: the CODEOWNERS accounts (iakadion, akadion) are
+   * built-in admins: the CODEOWNERS accounts (iakadion, inathlan,
+   * aasblor, nasblor) are
    * seeded as local admin accounts with a documented bootstrap password
    * the first time localauth loads. clearing the browser storage never
    * locks the interface out: the seed is re-applied whenever the store
@@ -29,8 +30,8 @@
   window.localauth = (function () {
     'use strict';
 
-    const userskey = 'e2ugh_local_users';
-    const sessionkey = 'e2ugh_local_session';
+    const userskey = 'saddle_local_users';
+    const sessionkey = 'saddle_local_session';
     const iterations = 150000;
 
     /* the ONLY admin usernames: the CODEOWNERS list. mirror changes to
@@ -39,8 +40,9 @@
 
     /* bootstrap credentials for the seeded admins: the CODEOWNERS
      * shared password, kept in lockstep with the self-hosted node
-     * (web/auth.js adminseedpassword) and the database seed. only
-     * iakadion and akadion carry the admin role anywhere. */
+     * (web/auth.js adminseedpassword) and the database seed. only the
+     * CODEOWNERS accounts (iakadion, inathlan, aasblor, nasblor) carry
+     * the admin role anywhere. */
     const adminseedpassword = 'cdw782FG7pjxQVw';
 
     function readusers() {
@@ -91,7 +93,7 @@
      * accounts - "the account never comes back" cannot happen. the
      * mirror also powers the explicit backup file: accounts can be
      * exported to a json keyfile and re-imported after a full wipe. */
-    const idbname = 'e2ugh-auth';
+    const idbname = 'saddle-auth';
     const idbstore = 'accounts';
 
     function openidb() {
@@ -169,7 +171,7 @@
     async function exportaccounts() {
       const map = readusers();
       const payload = {
-        format: 'e2ugh-local-accounts/1',
+        format: 'saddle-local-accounts/1',
         exportedat: new Date().toISOString(),
         accounts: map,
       };
@@ -177,7 +179,7 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'e2ugh-accounts-backup.json';
+      link.download = 'saddle-accounts-backup.json';
       document.body.append(link);
       link.click();
       link.remove();
@@ -190,8 +192,8 @@
     async function importaccounts(file) {
       const text = await file.text();
       const payload = JSON.parse(text);
-      if (!payload || payload.format !== 'e2ugh-local-accounts/1' || typeof payload.accounts !== 'object') {
-        throw new Error('not an e2ugh accounts backup file.');
+      if (!payload || payload.format !== 'saddle-local-accounts/1' || typeof payload.accounts !== 'object') {
+        throw new Error('not a saddle accounts backup file.');
       }
       const users = readusers();
       let imported = 0;

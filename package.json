@@ -1,7 +1,7 @@
 {
   "name": "@wenathlan/saddle",
-  "version": "2.0.0",
-  "description": "binary computing engine that turns distributed storage into a publishable working set \u2014 now carrying the e2ugh virtual-hardware engine (the grand merge)",
+  "version": "2.0.1",
+  "description": "binary computing engine that turns distributed storage into a publishable working set carrying the merged virtual-hardware engine (the saddle + e2ugh grand merge)",
   "type": "module",
   "private": false,
   "license": "GPL-3.0-only",
@@ -197,14 +197,14 @@
     "vm:create": "node ./index.ts --create-vm",
     "vm:validate": "node ./index.ts --validate-vm",
     "gpu:list": "node ./index.ts --list-gpus",
-    "docker:build": "docker build -f Dockerfile -t e2ugh:2.0.0 .",
-    "docker:run": "docker run --rm --memory-swap=-1 --shm-size=2g e2ugh:2.0.0",
-    "docker:health": "docker run --rm e2ugh:2.0.0 qemu-system-x86_64 --version && curl -fsS http://localhost:8080/health || true",
-    "firecracker:boot": "firecracker --api-sock /tmp/fc-e2ugh.sock --config-file vmconfig.json 2>/dev/null || echo 'firecracker 1.16.1 warm-pool boot 125ms target'",
+    "docker:build": "docker build -f Dockerfile -t saddle:2.0.1 .",
+    "docker:run": "docker run --rm --memory-swap=-1 --shm-size=2g saddle:2.0.1",
+    "docker:health": "docker run --rm saddle:2.0.1 qemu-system-x86_64 --version && curl -fsS http://localhost:8080/health || true",
+    "firecracker:boot": "firecracker --api-sock /tmp/fc-saddle.sock --config-file vmconfig.json 2>/dev/null || echo 'firecracker 1.16.1 warm-pool boot 125ms target'",
     "py:bridge": "python3 qemubridge.py",
     "py:test": "python3 -m pytest -q || python3 qemubridge.py",
     "clean": "rm -rf dist coverage .biome __pycache__",
-    "prepare": "echo 'e2ugh v9 toolchain 2026-08-23: Node 26.7.0 Current / 24.19.0 LTS, npm 12.0.2, TS 7.0.2, Python 3.14.7, Docker 29.7.2, QEMU 11.1.0, Mesa 26.2.1, LLVM 22.1.8, Firecracker 1.16.1'",
+    "prepare": "echo 'saddle grand-merge toolchain 2026-08-23: Node 26.7.0 Current / 24.19.0 LTS, npm 12.0.2, TS 7.0.2, Python 3.14.7, Docker 29.7.2, QEMU 11.1.0, Mesa 26.2.1, LLVM 22.1.8, Firecracker 1.16.1'",
     "start:engine": "node --import tsx ./cli.ts plan"
   },
   "devDependencies": {
@@ -297,7 +297,8 @@
     "firecracker": "1.16.1",
     "docker": "29.7.2"
   },
-  "e2ugh": {
+  "//grand-merge": "v2.0.0 — e2ugh merged into saddle: root TS domains carry both engines; the e2ugh static console and self-hosted API live at the web root; the specs/* exports carry the virtual-hardware envelopes",
+  "saddle": {
     "date": "2026-08-23",
     "toolchain": {
       "node": "26.7.0",
@@ -396,7 +397,7 @@
       },
       {
         "action": "trivyPin",
-        "version": "pinned by commit sha ed142fd0673e97e23eac54620cfb913e5ce36c25 (tag v0.36.0; CVE-2026-33634 march 2026 tag compromise)"
+        "version": "tag v0.36.0 (the tag-pin doctrine of the family: actions pin by version tag, never by commit sha; the workflows reference trivy-action@v0.36.0)"
       },
       {
         "action": "upload-artifact",
@@ -437,7 +438,7 @@
       "variants": "pool nested_package.json [v3-blindada: firecracker:boot, docker:run, os/cpu, system libs as deps -> systemLibraries note]",
       "optionalDependencies": "server/cli module modes only (express/dockerode/commander per versioncatalog modules); runtime stays zero-dep",
       "exportsNote": "flat v2 filenames; vm.config.json exported as canonical VM profile schema"
-    }
-  },
-  "//grand-merge": "v2.0.0 \u2014 e2ugh merged into saddle: root TS domains carry both engines; web/sandbox hosts the e2ugh static console; the specs/* exports carry the virtual-hardware envelopes"
+    },
+    "note": "merged e2ugh toolchain metadata carried under the saddle name (grand merge: nothing lost, names readapted)"
+  }
 }

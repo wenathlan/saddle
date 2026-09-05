@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
       # the release-version resolver, inlined from the retired composite
       # action (the one-workflow-file standard: every workflow carries its
       # own steps - the .github/actions folder no longer exists).
@@ -75,11 +75,11 @@ jobs:
             echo "version=$version"
           } >> "$GITHUB_OUTPUT"
       - name: setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 26.7.0
       - name: setup java
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v6.0.0
         with:
           distribution: temurin
           java-version: "21"
@@ -153,7 +153,7 @@ jobs:
         shell: bash
         run: |
           chmod +x web/android/gradlew
-          cd android
+          cd web/android
           ./gradlew --no-daemon --stacktrace assembleRelease bundleRelease
       - name: collect android artifacts
         shell: bash
@@ -181,7 +181,7 @@ jobs:
         run: |
           ! find build/release-assets/android -type f \( -name 'build_script_build*.exe' -o -name 'build-script-build.exe' -o -name '*_*' \) -print -quit | grep -q .
       - name: upload android artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: saddle.android.${{ steps.releaseversion.outputs.version }}
           path: build/release-assets/android
@@ -201,7 +201,7 @@ jobs:
     runs-on: macos-15
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
       # the release-version resolver, inlined from the retired composite
       # action (the one-workflow-file standard: every workflow carries its
       # own steps - the .github/actions folder no longer exists).
@@ -236,7 +236,7 @@ jobs:
             echo "version=$version"
           } >> "$GITHUB_OUTPUT"
       - name: setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 26.7.0
       - name: install node dependencies
@@ -331,7 +331,7 @@ jobs:
         run: |
           ! find build/release-assets/ios -type f \( -name 'build_script_build*.exe' -o -name 'build-script-build.exe' -o -name '*_*' \) -print -quit | grep -q .
       - name: upload ios artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: saddle.ios.${{ steps.releaseversion.outputs.version }}
           path: build/release-assets/ios

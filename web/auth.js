@@ -1,10 +1,10 @@
 /**
- * auth.js — security layer for the e2ugh web node (v7-BACK).
+ * auth.js — security layer for the saddle web node (v7-BACK).
  *
  * everything that touches credentials and sessions lives here: scrypt
  * password hashing (n=16384, r=8, p=1) with timing-safe verification,
  * opaque base64url session tokens stored only as sha256 hashes, the
- * e2ughsession cookie builder, the in-memory ip rate limiter, and the
+ * saddlesession cookie builder, the in-memory ip rate limiter, and the
  * requireauth/requireadmin request guards. the bootstrap rule is part
  * of the contract: the first user registered on a node with zero users
  * is granted role admin (see createsession caller in server.js), so a
@@ -99,7 +99,7 @@ const dummysalt = '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e
  * @returns {boolean} always false.
  */
 function burndummy() {
-  verifypassword('e2ugh-timing-equalizer', dummyhash, dummysalt);
+  verifypassword('saddle-timing-equalizer', dummyhash, dummysalt);
   return false;
 }
 
@@ -223,7 +223,7 @@ export function destroysession(token) {
 /* ------------------------------------------------------------------ */
 
 /** the session cookie name shared by every node in the mesh. */
-export const cookiename = 'e2ughsession';
+export const cookiename = 'saddlesession';
 
 /** the cookie max-age in seconds (24 hours). */
 const cookiemaxage = 86400;
@@ -254,7 +254,7 @@ export function cookieclear() {
 }
 
 /**
- * extracts the session token from the e2ughsession cookie or the
+ * extracts the session token from the saddlesession cookie or the
  * Authorization: Bearer header of one request.
  *
  * @param {import('node:http').IncomingMessage} req the incoming request.
@@ -444,9 +444,9 @@ export const ratelimits = {
 /* ------------------------------------------------------------------ */
 
 /**
- * the ONLY admin usernames: the CODEOWNERS allowlist (iakadion and
- * akadion). the web admin surface mirrors the repository CODEOWNERS
- * file - the two files are the same contract.
+ * the ONLY admin usernames: the CODEOWNERS allowlist (iakadion,
+ * inathlan, aasblor and nasblor). the web admin surface mirrors the
+ * repository CODEOWNERS file - the two files are the same contract.
  */
 export const adminusernames = ['iakadion', 'inathlan', 'aasblor', 'nasblor'];
 

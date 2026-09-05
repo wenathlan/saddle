@@ -1,9 +1,9 @@
-// schema.prisma — e2ugh v7 schema mirror (worklog task v7-BACK).
+// schema.prisma — saddle v7 schema mirror (worklog task v7-BACK).
 //
 // prisma view of the exact tables created by web/init.sql
 // and web/db.js. the map attributes pin the column names so prisma and
 // the zero-dependency node:sqlite layer share one database file
-// without drift. usage: point E2UGH_DB at the same file used by
+// without drift. usage: point SADDLE_DB at the same file used by
 // web/server.js and run prisma db pull / db push as usual.
 
 generator client {
@@ -12,7 +12,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("E2UGH_DB")
+  url      = env("SADDLE_DB")
 }
 
 /// credentials holder; the first user of an empty node is promoted to

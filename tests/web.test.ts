@@ -1,5 +1,5 @@
 /**
- * real tests for the e2ugh v7 web edition (worklog tasks v6-SYNC,
+ * real tests for the saddle web edition (the e2ugh v7 lineage) (worklog tasks v6-SYNC,
  * v7-BACK and v10-SBX): the suite imports web.js (the
  * browser-pure engine port) and asserts the bank, the procfs payloads,
  * the mesa summaries and the command dispatcher (including the v10
@@ -10,7 +10,7 @@
  * admin bootstrap, login, me, the generic 401, the login rate limit,
  * auth-required sandboxes) and the signed mesh register route; checks
  * the v10 sandbox workspace surface (files endpoints, quota via
- * E2UGH_SANDBOX_QUOTA_BYTES, self-contained persistence across a real
+ * SADDLE_SANDBOX_QUOTA_BYTES, self-contained persistence across a real
  * server restart on the same sqlite file); and checks the deployment
  * adapters (vercel.json, netlify.toml, caddyfile) stay in sync with the
  * files they publish.
@@ -124,10 +124,10 @@ test('web dispatch: terminal commands run against the sandbox state', () => {
  *   dbpath: string}} the spawned server handle.
  */
 function bootserver(port: number, extraenv: Record<string, string> = {}, pinneddb?: string) {
-  const dbpath = pinneddb ?? join(tmpdir(), `e2ugh-web-${randomUUID()}.db`);
+  const dbpath = pinneddb ?? join(tmpdir(), `saddle-web-${randomUUID()}.db`);
   const child = spawn(process.execPath, ['web/server.js', '--port', String(port)], {
     cwd: reporoot,
-    env: { ...process.env, E2UGH_HOST: '127.0.0.1', E2UGH_DB: dbpath, ...extraenv },
+    env: { ...process.env, SADDLE_HOST: '127.0.0.1', SADDLE_DB: dbpath, ...extraenv },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   return { child, base: `http://127.0.0.1:${port}`, dbpath };
@@ -170,7 +170,7 @@ async function waitforhealth(base: string): Promise<Response | undefined> {
   return health;
 }
 
-/** extracts the e2ughsession cookie pair from one set-cookie header. */
+/** extracts the saddlesession cookie pair from one set-cookie header. */
 function sessioncookie(response: Response): string {
   const raw = response.headers.get('set-cookie') ?? '';
   return raw.split(';')[0];
@@ -261,7 +261,7 @@ test('web server: health, specs, sandbox lifecycle, exec and static assets', asy
     });
     assert.equal(registered.status, 201);
     const cookie = sessioncookie(registered);
-    assert.ok(cookie.startsWith('e2ughsession='), 'register issues the session cookie');
+    assert.ok(cookie.startsWith('saddlesession='), 'register issues the session cookie');
 
     const created = await fetch(`${base}/api/v1/sandboxes`, {
       method: 'POST',
@@ -374,7 +374,7 @@ test('web auth: bootstrap admin, me, generic 401, weak register, login rate limi
       body: JSON.stringify({ username: 'operator', password: 'operatorpass' }),
     });
     assert.equal(login.status, 200, 'login with good credentials answers 200');
-    assert.ok((login.headers.get('set-cookie') ?? '').startsWith('e2ughsession='));
+    assert.ok((login.headers.get('set-cookie') ?? '').startsWith('saddlesession='));
 
     const wrong = await fetch(`${base}/api/v1/auth/login`, {
       method: 'POST',
@@ -444,7 +444,7 @@ test('web auth: bootstrap admin, me, generic 401, weak register, login rate limi
 test('web mesh: register demands a valid HMAC signature and rejects replays', async () => {
   const secret = 'webtestmeshsecret';
   const { child, base, dbpath } = bootserver(randomInt(30000) + 30000, {
-    E2UGH_MESH_SECRET: secret,
+    SADDLE_MESH_SECRET: secret,
   });
   try {
     assert.ok((await waitforhealth(base)) !== undefined, 'the server must boot');
@@ -467,8 +467,8 @@ test('web mesh: register demands a valid HMAC signature and rejects replays', as
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-e2ugh-timestamp': timestamp,
-        'x-e2ugh-signature': signature,
+        'x-saddle-timestamp': timestamp,
+        'x-saddle-signature': signature,
       },
       body,
     });
@@ -481,8 +481,8 @@ test('web mesh: register demands a valid HMAC signature and rejects replays', as
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-e2ugh-timestamp': timestamp,
-        'x-e2ugh-signature': signature,
+        'x-saddle-timestamp': timestamp,
+        'x-saddle-signature': signature,
       },
       body,
     });
@@ -625,8 +625,8 @@ test('web files: dispatcher workspace commands, boot banner and the quota wall',
 /* ------------------------------------------------------------------ */
 
 test('web files: sandbox workspace is self-contained across a server restart', async () => {
-  const dbfile = join(tmpdir(), `e2ugh-persist-${randomUUID()}.db`);
-  const idshell = bootserver(randomInt(30000) + 30000, { E2UGH_SANDBOX_PERSIST: 'true' }, dbfile);
+  const dbfile = join(tmpdir(), `saddle-persist-${randomUUID()}.db`);
+  const idshell = bootserver(randomInt(30000) + 30000, { SADDLE_SANDBOX_PERSIST: 'true' }, dbfile);
   let sandboxid = '';
   try {
     assert.ok((await waitforhealth(idshell.base)) !== undefined, 'the first server must boot');
@@ -781,7 +781,7 @@ test('web files: sandbox workspace is self-contained across a server restart', a
 
 test('web files: the configured quota rejects over-limit writes over http', async () => {
   const { child, base, dbpath } = bootserver(randomInt(30000) + 30000, {
-    E2UGH_SANDBOX_QUOTA_BYTES: '24',
+    SADDLE_SANDBOX_QUOTA_BYTES: '24',
   });
   try {
     const health = (await await (await waitforhealth(base))?.json()) as {
@@ -899,8 +899,8 @@ test('web adapters: caddyfile proxies the api without hardcoded hosts', () => {
   const caddy = readFileSync(join(webroot, 'caddyfile'), 'utf8');
   assert.ok(caddy.includes('reverse_proxy'), 'the api tier is reverse proxied');
   assert.ok(caddy.includes('root * web'), 'the static tier serves the web directory');
-  assert.ok(caddy.includes('{$E2UGH_SITE_ADDRESS'), 'the site address comes from the environment');
-  assert.ok(caddy.includes('{$E2UGH_API_UPSTREAM'), 'the upstream comes from the environment');
+  assert.ok(caddy.includes('{$SADDLE_SITE_ADDRESS'), 'the site address comes from the environment');
+  assert.ok(caddy.includes('{$SADDLE_API_UPSTREAM'), 'the upstream comes from the environment');
 });
 
 test('web docs: the web readme documents every sibling and pins the envelope version', () => {
@@ -915,6 +915,7 @@ test('web docs: the web readme documents every sibling and pins the envelope ver
   ]) {
     assert.ok(webreadme.includes(sibling), `web/readme.md must document ${sibling}`);
   }
-  assert.ok(webreadme.includes('2.0.0'), 'the web readme pins the envelope version');
+  const envelopeversion = JSON.parse(readFileSync(join(reporoot, 'package.json'), 'utf8')).version;
+  assert.ok(webreadme.includes(envelopeversion), `the web readme pins the envelope version (${envelopeversion})`);
   assert.ok(webreadme.includes('/api/v1/health'), 'the run instructions cite the health route');
 });

@@ -1,5 +1,5 @@
 /**
- * media.ts — media pipeline and transcode domain for e2ugh v6.
+ * media.ts — media pipeline and transcode domain for saddle v6.
  *
  * the module absorbs the media-facing halves of the pool
  * pipelinememorypassage.ts (saddle v6 orchestrator) and

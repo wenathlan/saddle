@@ -29,7 +29,7 @@
 # Toolchain (version-tagged, same convention as DevThink / Saddle):
 # docker/build-push-action@v7.3.0, docker/setup-qemu-action@v4.2.0,
 # docker/setup-buildx-action@v4.3.0, docker/login-action@v4.6.0,
-# aquasecurity/trivy-action@v0.36.0, actions/checkout@v7.0.1.
+# aquasecurity/trivy-action@v0.36.0, actions/checkout@v7.0.1
 # No SHA pinning - the version tag is the contract.
 
 name: publish ghcr vhe
@@ -41,7 +41,7 @@ on:
   release:
     types: [published]
   workflow_run:
-    workflows: ["Release"]
+    workflows: ["release validation"]
     types: [completed]
   workflow_dispatch:
     inputs:

@@ -30,8 +30,8 @@ the non-root `node` user with the same no-port-by-default posture.
 
 The public repository must not include provider keys, session cookies,
 database files, captured authorization headers or `.env` payloads. The
-web console node reads its mesh HMAC key from the `E2UGH_MESH_KEY`
-environment variable and its database path from `E2UGH_DB`; both are
+web console node reads its mesh HMAC key from the `SADDLE_MESH_KEY`
+environment variable and its database path from `SADDLE_DB`; both are
 operator supplied and never committed. The CI secret-scan gates
 (TruffleHog with `--results=verified` over the full git history) and
 the Trivy filesystem scan (vuln, secret, misconfig) run on every push

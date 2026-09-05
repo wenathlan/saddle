@@ -1,5 +1,5 @@
 /**
- * virtualization.ts — kernel level virtualization surface for e2ugh v6.
+ * virtualization.ts — kernel level virtualization surface for saddle v6.
  *
  * the module merges four sources identified by the merge map (T7):
  * - qemu-wrapper.ts: the full "turbo" qemu 11.1.0 argv builder with
@@ -1321,7 +1321,7 @@ export function planznszones(
     const qemuargv = [
       '-blockdev driver=file,filename=zns0.img,node-name=znsfile',
       `-blockdev driver=raw,file=znsfile,node-name=znsraw`,
-      `-device nvme,drive=znsraw,serial=e2ughzns,logical_block_size=4096` +
+      `-device nvme,drive=znsraw,serial=saddlezns,logical_block_size=4096` +
         `,zoned=true,zone_size=${first.zonecapmb}M,zone_cap=${first.zonecapmb}M` +
         `,max_open_zones=${first.maxopen},max_active_zones=${zonecount}` +
         `,zone_append_size_limit=128K`,
@@ -1346,7 +1346,7 @@ export function planznszones(
       descriptorbytes: zonecount * 64,
       qemuargv,
       nvmecli,
-      mkfs: ['mkfs.btrfs -m zone-single -L e2ugh-zns /dev/nvme0n1'],
+      mkfs: ['mkfs.btrfs -m zone-single -L saddle-zns /dev/nvme0n1'],
     };
   } catch (error) {
     throw new Error(

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft-07/schema#",
   "$id": "boards.json",
   "meta": {
-    "project": "e2ugh v6 (boards lineage merged from saddle-v6)",
+    "project": "saddle (boards lineage merged from saddle-v6 + e2ugh)",
     "artifact": "boards.json",
     "date": "2026-08-22",
     "dateFirstDoctrine": "The observer validates all specifications against the latest stable releases available on 2026-08-22.",
@@ -89,11 +89,11 @@
     },
     "name": "boards.json",
     "version": "2.0.0",
-    "title": "e2ugh v6 - Virtual Motherboard Database (retail boards + platform reference sockets)",
+    "title": "saddle - Virtual Motherboard Database (retail boards + platform reference sockets)",
     "sources": [
       "pool:boards.json [S6, 20 retail boards]",
       "pool:nested_boards.json [platform_reference sockets SP5/TR5/AM5 + interconnect - UNIQUE]",
-      "note: processors.json (E2ugh) verified to contain NO boards fields; nothing merged from it",
+      "note: processors.json (e2ugh lineage) verified to contain NO boards fields; nothing merged from it",
       "pool:boards.json [SADDLE v5 platforms — sp5/am5/str5-wrx90/str5-trx50/lga1851 + form factors + microvm + SMBIOS rules — UNIQUE]"
     ],
     "mergeReport": {

@@ -1,5 +1,5 @@
 /**
- * sandbox.js — browser-pure port of the e2ugh virtual hardware engine.
+ * sandbox.js — browser-pure port of the saddle virtual hardware engine.
  *
  * this module is a lightweight rewrite of the engine generators
  * (virtualcpu.ts, virtualmemory.ts, virtualgpu.ts and render.ts) that runs
@@ -1200,7 +1200,7 @@ export function bootSequence(model, vcpus, ramgb = 32, gpu = 'rtx5090', quota = 
   const stamp = (seconds) => `[${seconds.toFixed(6).padStart(12)}]`;
   const onlinetime = 0.039 + 0.00042 * topology.vcpus;
   return [
-    `${stamp(0)} Linux version 6.12.0-e2ugh (root@e2ugh) (gcc 15.1.0, ld 2.44) #1 SMP PREEMPT_DYNAMIC ${arch}`,
+    `${stamp(0)} Linux version 6.12.0-saddle (root@saddle) (gcc 15.1.0, ld 2.44) #1 SMP PREEMPT_DYNAMIC ${arch}`,
     `${stamp(0.000049)} Command line: root=/dev/vda rw console=ttyS0 reboot=k panic=1 pci=off i8042.noaux i8042.nomux i8042.nopnp i8042.dumbkbd`,
     `${stamp(0.004201)} BIOS-provided physical RAM map (virtio-mem + memfd hugetlb backend)`,
     `${stamp(0.008913)} Memory: ${pagealign(ramgb * 1024 * 1024 - 131072)}K available (${ramgb} GB guest plan, 4 kB pages)`,
@@ -1212,15 +1212,15 @@ export function bootSequence(model, vcpus, ramgb = 32, gpu = 'rtx5090', quota = 
     `${stamp(onlinetime + 0.0148)} NUMA: ${Math.max(1, Math.round(topology.vcpus / 64))} node(s), interleave enabled`,
     `${stamp(onlinetime + 0.0283)} hugepage: 2048 kB pages reserved, thp=always`,
     `${stamp(onlinetime + 0.0422)} docker: engine 29.7.2 ready, containerd 2.3.1, memswap=-1 shm=2g`,
-    `${stamp(onlinetime + 0.0551)} qemu-system-${arch}: bridge 11.1.0 attached (qmp unix:/run/e2ugh/qemu-0.sock)`,
+    `${stamp(onlinetime + 0.0551)} qemu-system-${arch}: bridge 11.1.0 attached (qmp unix:/run/saddle/qemu-0.sock)`,
     `${stamp(onlinetime + 0.0784)} mesa ${mesastack.mesa}: llvmpipe rasterizer, lp_num_threads=${Math.min(topology.vcpus, 32)}, lp_max_threads=32`,
     `${stamp(onlinetime + 0.0789)} llvmpipe: avx-512 vector width 512 selected by gallivm (llvm ${mesastack.llvm})`,
     `${stamp(onlinetime + 0.0812)} lavapipe: vulkan ${mesastack.vulkan}, icd lvp_icd.${arch}.json, wsi headless`,
     `${stamp(onlinetime + 0.0837)} rusticl: opencl ${mesastack.opencl} on llvmpipe, features fp64 (fp16 default since 25.2)`,
     `${stamp(onlinetime + 0.091)} virtualgpu: identity ${gpuspec.name} [${gpuspec.pcivendor}:${gpuspec.pcidevice}] ${gpuspec.memtype} ${gpuspec.vrammib / 1024} GB`,
     `${stamp(onlinetime + 0.0922)} nvml shim: FAKE_MODEL="${gpuspec.name}" FAKE_VRAM=${gpuspec.smireportedmib} (fake-nvidia-smi adapter ready)`,
-    `${stamp(onlinetime + 0.1045)} e2ugh: virtual hardware engine v2.0.0, sandbox created -> running`,
-    `${stamp(onlinetime + 0.1047)} e2ugh: persistent workspace: ${humanbytes(quota)} quota, data stays with the sandbox id`,
+    `${stamp(onlinetime + 0.1045)} saddle: virtual hardware engine v2.0.0, sandbox created -> running`,
+    `${stamp(onlinetime + 0.1047)} saddle: persistent workspace: ${humanbytes(quota)} quota, data stays with the sandbox id`,
     `${stamp(onlinetime + 0.1046)} Freeing unused kernel image memory`,
   ];
 }
@@ -1256,9 +1256,9 @@ export function createSandboxState(spec) {
     gpu: gpu.id,
     mig: getmig(spec.mig) === null ? 'off' : spec.mig,
     id,
-    hostname: `e2ugh-${id.replace(/^sb-/, '').slice(0, 8)}`,
+    hostname: `saddle-${id.replace(/^sb-/, '').slice(0, 8)}`,
     boottime: Date.now(),
-    kernel: cpu.arch === 'arm64' ? '6.12.0-e2ugh-aarch64' : '6.12.0-e2ugh',
+    kernel: cpu.arch === 'arm64' ? '6.12.0-saddle-aarch64' : '6.12.0-saddle',
     memsnapshot: meminfo(ramgb, { vcpus: topology.vcpus }),
     history: [],
     files: new Map(),
@@ -1296,7 +1296,7 @@ function helpText() {
     ['qemu-system-x86_64 --version', 'qemu bridge version'],
     ['uptime', 'sandbox uptime and load average'],
     ['whoami', 'current user'],
-    ['neofetch', 'e2ugh ascii logo and sandbox specs'],
+    ['neofetch', 'saddle ascii logo and sandbox specs'],
     ['clear', 'clear the terminal'],
     ['echo <text>', 'print text'],
     ['echo <text> > <file>', 'write text to a workspace file'],
@@ -1314,7 +1314,7 @@ function helpText() {
   return rows.map(([name, about]) => `  ${pad(name, 32)}${about}`).join('\n');
 }
 
-/** renders the neofetch block: the e2ugh ascii logo beside sandbox specs. */
+/** renders the neofetch block: the saddle ascii logo beside sandbox specs. */
 function neofetch(state) {
   const cpu = state.cpuspec;
   const gpu = state.gpuspec;
@@ -1322,7 +1322,7 @@ function neofetch(state) {
     '      ``-://////:-``          ',
     '    ./+++++++++++++/-.        ',
     '   -+++++++++++++++++++-`     ',
-    '  ./+++ e2ugh sandbox ++/.    ',
+    '  ./+++ saddle sandbox ++/.    ',
     '  -+++++++++++++++++++++-`    ',
     '   `-:/+++++++++++++/-.       ',
     '      .-://////:-.            ',
@@ -1337,7 +1337,7 @@ function neofetch(state) {
   const info = [
     `root@${state.hostname}`,
     '-----------------',
-    'OS: e2ugh linux (virtual hardware engine v2.0.0)',
+    'OS: saddle linux (virtual hardware engine v2.0.0)',
     'Host: firecracker microvm (125 ms boot)',
     `Kernel: ${state.kernel}`,
     `Uptime: ${uptimeText}`,
@@ -1374,12 +1374,12 @@ function envText(state) {
     ...mesaenv(state.vcpus),
     FAKE_MODEL: state.gpuspec.name,
     FAKE_VRAM: String(mig !== null ? mig.slicegb * 1024 : state.gpuspec.smireportedmib),
-    E2UGH_VERSION: '2.0.0',
-    E2UGH_SANDBOX: state.id,
-    E2UGH_STATE: 'running',
-    E2UGH_CPU: state.model,
-    E2UGH_GPU: state.gpu,
-    E2UGH_MIG: state.mig,
+    SADDLE_VERSION: '2.0.0',
+    SADDLE_SANDBOX: state.id,
+    SADDLE_STATE: 'running',
+    SADDLE_CPU: state.model,
+    SADDLE_GPU: state.gpu,
+    SADDLE_MIG: state.mig,
     HOSTNAME: state.hostname,
     TERM: 'xterm-256color',
     SHELL: '/bin/bash',
@@ -1565,7 +1565,7 @@ export function dispatch(command, state, context) {
     }
     switch (head) {
       case 'help':
-        return { output: `e2ugh sandbox commands:\n${helpText()}`, exitCode: 0 };
+        return { output: `saddle sandbox commands:\n${helpText()}`, exitCode: 0 };
       case 'lscpu':
         return { output: lscpu(state.model, state.vcpus, 1), exitCode: 0 };
       case 'cat': {
@@ -1650,7 +1650,7 @@ export function dispatch(command, state, context) {
       case 'qemu-system-x86_64':
         return {
           output: [
-            'QEMU emulator version 11.1.0 (e2ugh bridge)',
+            'QEMU emulator version 11.1.0 (saddle bridge)',
             'Copyright (c) 2003-2026 Fabrice Bellard and the QEMU Project developers',
           ].join('\n'),
           exitCode: 0,
@@ -1746,7 +1746,7 @@ export function dispatch(command, state, context) {
           output: [
             `  File: ${file.path ?? statnorm.path}`,
             `  Size: ${padstart(String(file.size), 10)}\tBlocks: ${padstart(String(Math.ceil(file.size / 512)), 6)}          IO Block: 4096   regular file`,
-            `Device: e2ugh/virtual\tInode: ${padstart(String(state.files instanceof Map ? state.files.size + 1 : 1), 12)}   Links: 1`,
+            `Device: saddle/virtual\tInode: ${padstart(String(state.files instanceof Map ? state.files.size + 1 : 1), 12)}   Links: 1`,
             `Modify: ${file.updatedat}`,
           ].join('\n'),
           exitCode: 0,
@@ -1810,7 +1810,7 @@ export function dispatch(command, state, context) {
  */
 export function quantumdemo() {
   return [
-    'e2ugh quantum layer (100 percent classical simulation)',
+    'saddle quantum layer (100 percent classical simulation)',
     '  simulator   statevector, float64 interleaved re/im, 1-20 qubits',
     '  gates       h x y z s t rx ry rz cnot cz toffoli swap',
     '  algorithms  bellstate, ghz, grover2 (provable), grover3, deutsch, teleport',
@@ -1826,7 +1826,7 @@ export function quantumdemo() {
 export function tiersdemo() {
   const ladder = ['ram ~100ns', 'zram ~500ns', 'tmpfs ~1us', 'mmap ~5us', 'sqlite ~10us', 'r2 ~50us'];
   return [
-    'e2ugh tiered virtual memory (everything is vram)',
+    'saddle tiered virtual memory (everything is vram)',
     '  l1 ram      working set, ephemeral            ~100 ns',
     '  l2 vram     compute-bound identity layer       spoofed',
     '  l3 storage  repos as ram (sqlite kv, lru)     ~10 us',
@@ -1847,7 +1847,7 @@ export function streamingdemo(totalbytes = 1649267441664, windowbytes = 4 * 1024
   const batches = Math.ceil(count / Math.max(1, Math.floor(windowbytes / layerbytes)));
   const fmt = (b) => (b >= 1024 ** 4 ? (b / 1024 ** 4).toFixed(2) + ' TB' : (b / 1024 ** 3).toFixed(1) + ' GB');
   return [
-    'e2ugh streaming memory plan',
+    'saddle streaming memory plan',
     `  workload:  ${fmt(totalbytes)} decomposed into ${count} layers of ${layerbytes / 1024 ** 2} MiB`,
     `  window:    ${fmt(windowbytes)} hot-set budget (peak resident)`,
     `  batches:   ${batches} load/run/evict passes over the weights`,

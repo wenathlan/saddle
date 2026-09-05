@@ -36,9 +36,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
       - name: setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -55,7 +55,7 @@ jobs:
           printf '%s\n' "$status" > build/security/npm-audit.exit
       - name: upload npm audit evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: saddle.security.npm-audit
           path: build/security/npm-audit.*
@@ -69,7 +69,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
       - name: install cargo audit
@@ -98,7 +98,7 @@ jobs:
           if [ "$gate_status" -ne 0 ]; then exit "$gate_status"; fi
       - name: upload cargo audit evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: saddle.security.cargo-audit
           path: build/security/cargo-audit.*
@@ -122,7 +122,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: checkout full history
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - name: trufflehog
@@ -135,7 +135,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
       - name: trivy filesystem scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -158,7 +158,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
       - name: prepare SBOM directory
         run: mkdir -p build/security
       - name: generate CycloneDX SBOM
@@ -170,7 +170,7 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
       - name: upload SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: saddle.security.sbom
           path: build/security/saddle.sbom.cdx.json

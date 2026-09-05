@@ -1,5 +1,5 @@
 /**
- * scheduler.ts — tenant scheduling and allocation domain for e2ugh v6.
+ * scheduler.ts — tenant scheduling and allocation domain for saddle v6.
  *
  * the module absorbs the scheduling-facing families of the removed
  * future.ts file (55-feature ledger, v2) into their proper domain: the
@@ -904,7 +904,7 @@ export class anomalydetector {
       resourceLogs: [
         {
           resource: {
-            attributes: [{ key: 'service.name', value: { stringValue: 'e2ugh-scheduler' } }],
+            attributes: [{ key: 'service.name', value: { stringValue: 'saddle-scheduler' } }],
           },
           scopeLogs: [
             {
@@ -1035,8 +1035,8 @@ export class otelmetricsbridge {
     scopeMetrics: { scope: { name: string }; metrics: readonly otlpmetricpoint[] };
   } {
     return {
-      resource: { 'service.name': 'e2ugh-scheduler' },
-      scopeMetrics: { scope: { name: 'e2ugh.scheduler' }, metrics: [...this.#points.values()] },
+      resource: { 'service.name': 'saddle-scheduler' },
+      scopeMetrics: { scope: { name: 'saddle.scheduler' }, metrics: [...this.#points.values()] },
     };
   }
 }

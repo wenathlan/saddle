@@ -91,7 +91,7 @@
 #     -v vmdata:/data/vmdata -v webdata:/data/web \
 #     -v ./vm.config.json:/engine/vm.config.json:ro \
 #     -e PORT=8080 -e NODE_ENV=production -p 31280:8080 \
-#     ghcr.io/wenathlan/saddle:vhe-2.0.2
+#     ghcr.io/wenathlan/saddle:vhe-2.0.3
 #
 #   vheqemu (the guest runner; build it first with
 #   docker build --target qemu-runtime -t saddle/qemu:11.1.0 . because the
@@ -125,7 +125,7 @@
 #     -e VHE_GPU_PROFILE=b200 -e VHE_GPUS=8 -e VHE_MIG=1 \
 #     -e VHE_SMI_DRIVER=575.57.08 -e VHE_SMI_CUDA=12.9 \
 #     -e VHE_SMI_INTERVAL=30 -e VHE_SKIP_XVFB=1 -e VHE_SKIP_VALIDATE=1 \
-#     ghcr.io/wenathlan/saddle:vhe-2.0.2 /bin/bash -c '
+#     ghcr.io/wenathlan/saddle:vhe-2.0.3 /bin/bash -c '
 #       while true; do
 #         /usr/local/bin/nvidia-smi "$VHE_GPU_PROFILE" "$VHE_GPUS" || true
 #         sleep "$VHE_SMI_INTERVAL"
@@ -142,7 +142,7 @@
 #     -v qemudata:/data/qemudata \
 #     -v ./qemubridge.py:/engine/qemubridge.py:ro \
 #     -e QMP_SOCKET=/run/vhe/vm.qmp -e PYTHONUNBUFFERED=1 \
-#     ghcr.io/wenathlan/saddle:vhe-2.0.2 \
+#     ghcr.io/wenathlan/saddle:vhe-2.0.3 \
 #     python3 /engine/qemubridge.py --socket /run/vhe/vm.qmp status
 #
 #   saddle-node (the node-engine service, the former compose.yml
@@ -156,7 +156,7 @@
 #     --log-driver json-file --log-opt max-size=50m --log-opt max-file=5 \
 #     --tmpfs /tmp:size=2g,mode=1777 \
 #     -e SADDLE_MEMORY_ENGINE=ram -e SBOT_PLATFORM= -e SBOT_CDN_URL= \
-#     ghcr.io/wenathlan/saddle:2.0.2 \
+#     ghcr.io/wenathlan/saddle:2.0.3 \
 #     node dist/cli.js plan
 #
 #   observability (the former prometheus scraper of the full profile)
@@ -1238,7 +1238,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --start-interval=5s 
 # OCI labels for registry introspection.
 LABEL org.opencontainers.image.title="saddle virtual-hardware engine (the grand merge)" \
       org.opencontainers.image.description="100% software virtual hardware: per-profile CPU/memory spoofing via LD_PRELOAD (max/balanced/lite), mesa 26.2.1 llvmpipe/lavapipe/rusticl, QEMU 11.1.0 TCG/MTTCG, virtual nvidia-smi adapter + NVML/CUDA shims, node 26.7.0, python bridge" \
-      org.opencontainers.image.version="2.0.2" \
+      org.opencontainers.image.version="2.0.3" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/wenathlan/saddle" \
       org.opencontainers.image.documentation="https://github.com/wenathlan/saddle/blob/main/README.md" \
@@ -1315,10 +1315,17 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && npm install --global npm@12.0.2 \
     && tempdir="$(mktemp -d)" \
-    && npm pack brace-expansion@5.0.9 ip-address@10.3.1 --pack-destination "$tempdir" \
-    && mkdir -p /usr/local/lib/node_modules/npm/node_modules/brace-expansion /usr/local/lib/node_modules/npm/node_modules/ip-address \
+    && npm pack brace-expansion@5.0.9 ip-address@10.3.1 tar@7.5.22 --pack-destination "$tempdir" \
+    && mkdir -p /usr/local/lib/node_modules/npm/node_modules/brace-expansion /usr/local/lib/node_modules/npm/node_modules/ip-address /usr/local/lib/node_modules/npm/node_modules/tar \
     && tar -xzf "$tempdir/brace-expansion-5.0.9.tgz" --strip-components=1 -C /usr/local/lib/node_modules/npm/node_modules/brace-expansion \
     && tar -xzf "$tempdir/ip-address-10.3.1.tgz" --strip-components=1 -C /usr/local/lib/node_modules/npm/node_modules/ip-address \
+    # the npm@12.0.2 tarball freezes its bundled node_modules at publish
+    # time (the same lesson as the vhe builder's fixdep): its tar@7.5.19
+    # carries CVE-2026-73566 (long-path DoS), fixed in 7.5.21+. The
+    # lockfile already resolves app tar to 7.5.22 - the global npm tree
+    # gets the same treatment and the version is asserted after install.
+    && tar -xzf "$tempdir/tar-7.5.22.tgz" --strip-components=1 -C /usr/local/lib/node_modules/npm/node_modules/tar \
+    && test "$(node -p "require('/usr/local/lib/node_modules/npm/node_modules/tar/package.json').version")" = "7.5.22" \
     && rm -rf "$tempdir" \
     && npm ci --omit=dev --ignore-scripts --legacy-peer-deps \
     # prune the vendored build toolchains of optional native deps: the

@@ -1,5 +1,17 @@
 # saddle release notes
 
+## 2.0.3 — the cascade failures close (five root fixes from the first firing)
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| The tar CVE (both container gates) | The trivy gates flagged CVE-2026-73566 (tar long-path DoS, HIGH, fixed in 7.5.21+) inside both scanned images — the npm@12.0.2 tarball freezes its bundled node_modules at publish time, and its tar@7.5.19 rides the /usr/local global tree of the node-engine runtime. The runtime stage now swaps tar@7.5.22 into that tree with the same pack-extract-assert pattern the vhe builder's fixdep uses for brace-expansion and ip-address (the lockfile already resolved the app tree to 7.5.22). |
+| The vhe scan target | The vhe workflow's release-image scan built without a target - scanning the Dockerfile's last stage (the node-engine saddle-runtime, publish ghcr's own responsibility) instead of the vhe image this pipeline publishes. The scan leg now builds target: runtime, the same image the publish legs ship. |
+| The desktop paths (the 03b8089 disease) | The desktop workflow's build step still did cd desktop - the pre-merge path - while every other step already points at web/desktop (the grand merge moved the tauri shell there); the step now enters web/desktop. The windows legs also gained shell: bash on the release-version resolver (the shared script is bash; the windows runners default to pwsh and failed parsing it). |
+| The mobile signing gate | The automatic workflow_run path of the android build was not a recognized release context for the CI test-key fallback (only release and allow_test_signing were), so the cascade firing failed with "Manual Android builds require production signing secrets". The workflow_run completion of a version-bump push is the automatic release path and now unlocks the clearly-labeled CI test key exactly like the release event. |
+| The target manifest CLI (the absorbed entry point) | The targets workflow invokes node dist/packager/targetcli.js - the historical entry the grand merge folded into distribution.ts (Section 7) whose CLI main only activates when argv[1] ends with targetcli.js. The build never regenerated the entry, so every targets leg failed with MODULE_NOT_FOUND (silent until the first release fired it). The build engine now emits the thin dist/packager/targetcli.js wrapper (import "../distribution.js") after tsc, restoring the invocation contract. |
+
 ## 2.0.2 — the publish cascade fires (the e2ugh dual-trigger architecture lands)
 
 ### Changed

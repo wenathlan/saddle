@@ -81,6 +81,9 @@ jobs:
       # own steps - the .github/actions folder no longer exists).
       - name: resolve release version
         id: releaseversion
+        # bash on every platform: the windows runners default to pwsh and
+        # the shared resolver is a bash script
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ env.RELEASE_TAG }}
@@ -200,7 +203,7 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          cd desktop
+          cd web/desktop
           if [ "${SADDLE_SIGNING}" = "caller-owned" ]; then
             npx --yes @tauri-apps/cli@2.11.4 build --ci --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
           else

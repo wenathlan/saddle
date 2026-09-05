@@ -12,7 +12,7 @@
 # the merged spec fixes that by shipping the adapter it declares).
 Gem::Specification.new do |spec|
   spec.name = "saddle"
-  spec.version = ENV.fetch("SADDLE_VERSION", "2.0.2")
+  spec.version = ENV.fetch("SADDLE_VERSION", "2.0.3")
   spec.authors = ["wenathlan"]
   spec.email = ["support@users.noreply.github.com"]
   spec.summary = "Binary computing engine for distributed storage with the merged virtual-hardware engine CLI adapter"

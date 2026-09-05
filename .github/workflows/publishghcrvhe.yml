@@ -444,6 +444,12 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          # the scan must cover the image this pipeline publishes: the
+          # vhe runtime stage (the same target: runtime the publish legs
+          # build). Without it the last stage of the Dockerfile - the
+          # node-engine saddle-runtime - would be scanned instead (the
+          # publish ghcr workflow owns that image's gate).
+          target: runtime
           platforms: linux/amd64
           push: false
           load: true

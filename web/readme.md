@@ -5,7 +5,7 @@ virtual container — cpu, ram, gpu, mesa software graphics — entirely in the
 browser, plus one self-hosted node api exposing the exact same sandbox over
 http for automation. no framework, no build step, no serverless functions.
 
-version 2.0.2 — reported by `/api/v1/health` and kept in lockstep with
+version 2.0.3 — reported by `/api/v1/health` and kept in lockstep with
 `package.json` and the `meta.version` envelope of the ten data documents
 (v6-SYNC worklog task).
 

@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <PackageId>Saddle</PackageId>
-    <Version Condition="'$(PackageVersion)' == ''">2.0.2</Version>
+    <Version Condition="'$(PackageVersion)' == ''">2.0.3</Version>
     <Authors>wenathlan</Authors>
     <Description>Binary computing engine that turns distributed storage into a publishable working set, carrying the merged e2ugh virtual-hardware engine CLI adapter (the 2.0.0 grand merge).</Description>
     <PackageProjectUrl>https://github.com/wenathlan/saddle</PackageProjectUrl>

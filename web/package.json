@@ -1,6 +1,6 @@
 {
   "name": "@wenathlan/saddle-web",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "private": true,
   "type": "module",
   "description": "saddle web console (the merged e2ugh sandbox surface): static console pages plus the self-hosted zero-dependency node api (web/server.js); static-first, no serverless functions",

@@ -145,7 +145,7 @@ jobs:
               printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
             } > web/android/keystore.properties
             echo "SADDLE_SIGNING=caller-owned" >> "$GITHUB_ENV"
-          elif [ "${{ github.event_name }}" = "release" ] || [ "${{ inputs.allow_test_signing }}" = "true" ]; then
+          elif [ "${{ github.event_name }}" = "release" ] || [ "${{ github.event_name }}" = "workflow_run" ] || [ "${{ inputs.allow_test_signing }}" = "true" ]; then
             keytool -genkeypair -v -keystore "$RUNNER_TEMP/saddle-test.jks" -storepass changeit -keypass changeit -alias saddle-test -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Saddle CI Test,O=Saddle,C=US"
             {
               printf 'storeFile=%s\n' "$RUNNER_TEMP/saddle-test.jks"

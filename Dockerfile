@@ -1263,7 +1263,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 #   docker build --target saddle-runtime -t saddle:<version> .
 # ══════════════════════════════════════════════════════════════════════
 
-FROM node:26.7.0-bookworm-slim AS saddle-build
+FROM node:26.8.1-bookworm-slim AS saddle-build
 
 ARG SADDLE_VERSION
 WORKDIR /app
@@ -1276,7 +1276,7 @@ COPY . .
 RUN npm run build:engine \
     && node --check dist/cli.js
 
-FROM node:26.7.0-bookworm-slim AS saddle-runtime
+FROM node:26.8.1-bookworm-slim AS saddle-runtime
 
 ARG SADDLE_VERSION
 LABEL org.opencontainers.image.title="Saddle" \

@@ -96,7 +96,10 @@ jobs:
             manifest.container.${{ steps.releaseversion.outputs.version }}.json
           if-no-files-found: error
       - name: attach release assets
-        if: github.event_name == 'release' || inputs.release_tag != ''
+        # the automatic workflow_run path attaches the same assets the
+        # release event does (the resolver's tag output carries the tag)
+        if: github.event_name != 'workflow_dispatch' || inputs.release_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.releaseversion.outputs.tag }}
         run: gh release upload "$RELEASE_TAG" "saddle.container.${{ steps.releaseversion.outputs.version }}.tar.gz" "sha256.container.${{ steps.releaseversion.outputs.version }}" "manifest.container.${{ steps.releaseversion.outputs.version }}.json" --clobber

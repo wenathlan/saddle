@@ -196,10 +196,14 @@ jobs:
           path: build/release-assets/android
           if-no-files-found: error
       - name: attach android assets
-        if: github.event_name == 'release' || inputs.release_tag != ''
+        # the automatic workflow_run path attaches the same assets the
+        # release event does (the resolver's tag output carries the tag;
+        # the workflow-level RELEASE_TAG env is empty on workflow_run)
+        if: github.event_name != 'workflow_dispatch' || inputs.release_tag != ''
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.releaseversion.outputs.tag }}
         run: gh release upload "$RELEASE_TAG" build/release-assets/android/* --clobber
 
   ios:
@@ -346,7 +350,8 @@ jobs:
           path: build/release-assets/ios
           if-no-files-found: error
       - name: attach ios assets
-        if: github.event_name == 'release' || inputs.release_tag != ''
+        if: github.event_name != 'workflow_dispatch' || inputs.release_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.releaseversion.outputs.tag }}
         run: gh release upload "$RELEASE_TAG" build/release-assets/ios/* --clobber

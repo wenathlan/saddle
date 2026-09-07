@@ -354,8 +354,12 @@ jobs:
           # /orgs/{owner}/packages/container/{package_name} endpoint with
           # package_name = saddle (no namespace prefix) - the registry stores
           # container packages by their repo-name slug, not the full
-          # owner/repo path.
-          api_out="$(gh api "/orgs/${OWNER}/packages/container/saddle/versions" --jq "[.[] | select(.metadata.container.tags[]? | startswith(\"${version}\"))] | length" 2>/dev/null || true)"
+          # owner/repo path. The match carries the -vhe suffix (the 2.1.3
+          # lesson): the node-engine publish ships the bare ${version} tag
+          # inside this very same container package, so a bare
+          # startswith(${version}) saw the node tag and no-opped the vhe
+          # publication - the vhe family owns the -vhe prefixed tags.
+          api_out="$(gh api "/orgs/${OWNER}/packages/container/saddle/versions" --jq "[.[] | select(.metadata.container.tags[]? | startswith(\"${version}-vhe\"))] | length" 2>/dev/null || true)"
           case "${api_out}" in
             ''|*[!0-9]*) api_out=0 ;;
           esac

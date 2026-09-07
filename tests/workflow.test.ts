@@ -36,17 +36,30 @@ type gateoutcome = {
 /**
  * runs one command as a pipeline gate with a hard timeout; the promise
  * always resolves (never rejects) so gates can report their exit code
- * instead of crashing the runner, mirroring a github actions step.
+ * instead of crashing the runner, mirroring a github actions step. the
+ * optional extraenv carries the public npm registry override: a publish
+ * job that sets up node with the github packages registry-url leaves the
+ * runner npmrc pointing at npm.pkg.github.com, and the npx biome gates
+ * would look for @biomejs/biome there (a 404 with an empty stdout) -
+ * the tool gates always resolve their binaries from the public registry
+ * so the pack:check battery runs identically on every job (the 2.1.2
+ * lesson: the publish github npm lane ran the battery inside the github
+ * registry context and the tool fetch failed before any lint ran).
  */
 function rungate(
   command: string,
   args: readonly string[],
   timeoutms: number,
   cwd: string = reporoot,
+  extraenv: Record<string, string> = {},
 ): Promise<gateoutcome> {
   return new Promise<gateoutcome>((resolve) => {
     try {
-      const child = spawn(command, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+      const child = spawn(command, args, {
+        cwd,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, ...extraenv },
+      });
       let stdout = '';
       let stderr = '';
       let timedout = false;
@@ -176,6 +189,8 @@ test('ci gate lint: biome reports zero lint errors across the repository', async
     'npx',
     ['--yes', '@biomejs/biome@2.5.11', 'lint', '--diagnostic-level=error', '.'],
     180000,
+    reporoot,
+    { npm_config_registry: 'https://registry.npmjs.org' },
   );
   assert.equal(lint.spawnerror, null, 'the biome lint spawn must not fail');
   assert.equal(lint.timedout, false, 'the biome lint gate must finish inside the step timeout');
@@ -198,6 +213,8 @@ test('ci gate lint: the two workflow simulation files pass a full biome check', 
       'tests/simulation.test.ts',
     ],
     180000,
+    reporoot,
+    { npm_config_registry: 'https://registry.npmjs.org' },
   );
   assert.equal(check.spawnerror, null, 'the biome check spawn must not fail');
   assert.equal(check.code, 0, `biome check reported:\n${check.stdout.slice(-2000)}`);

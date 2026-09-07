@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Saddle browser bridge",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "User initiated page snapshots through the Saddle browser contract.",
   "minimum_chrome_version": "110",
   "permissions": [

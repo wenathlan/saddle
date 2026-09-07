@@ -1,5 +1,14 @@
 # saddle release notes
 
+## 2.1.3 — the tool gates resolve from the public registry
+
+### Fixed
+
+| Area | Change |
+| --- | --- |
+| The npx tool gates of the test battery | The biome gates of the workflow battery (lint over the repository plus the full check of the two simulation files) spawn their tool through npx, and a publish job that sets up node with the GitHub Packages registry-url leaves the runner npmrc pointing at npm.pkg.github.com — the npx fetch of @biomejs/biome then fails with a 404 and an empty stdout before any lint runs (the publish github npm lane of 2.1.2 ran the pack:check battery inside the github registry context and both gates failed without a single diagnostic line). The gate runner now carries an optional environment override and the two biome gates resolve their binaries from the public npmjs registry, so the pack:check battery runs identically on every job — the CI lane, the release validation and every publish lane — with nothing skipped. |
+| The node-engine publish concurrency group | The 2.1.2 restoration reused the publish-ghcr- prefix that belongs to the vhe publish workflow (its event-scoped group): the node lane entering the same group cancelled the vhe publication firing of 2.1.2 — the release published event never cascades (the GITHUB_TOKEN suppression), so the workflow_run firing was the only publication path for the vhe images. The node lane now carries the -node suffix (publish-ghcr-node-<event>-<ref>); two workflows, two lanes, never one group. The vhe images of 2.1.2 publish through the manual dispatch and every release from 2.1.3 on cascades cleanly. |
+
 ## 2.1.2 — the interface owns its mount and the e2ugh lanes close
 
 ### Changed

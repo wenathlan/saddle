@@ -3,7 +3,7 @@
   "meta": {
     "name": "gpus.json",
     "title": "saddle - Unified Virtual GPU Database",
-    "version": "2.1.2",
+    "version": "2.1.3",
     "date": "2026-08-22",
     "language": "en",
     "description": "Union of the v5 GPU database (7 virtual identity identities), the S6 registry (RX 8900 XTX + Arc B770 unique), Blackwell architecture specs v5+v6 (B100/GB200/RTX 5070/5070 Ti SKUs), gpu.config TOML SKUs (incl. 5 AMD APU RDNA iGPUs) and the 11-entry vfio profile table. PCI device id for RTX PRO 6000 corrected 2BB5->26B5 per canonical v5.",

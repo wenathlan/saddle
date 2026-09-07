@@ -3,7 +3,7 @@
   "meta": {
     "name": "vm.config.json",
     "title": "e2ugh v6 - VM Profiles and Orchestrator Configuration (canonical schema)",
-    "version": "2.1.2",
+    "version": "2.1.3",
     "date": "2026-08-22",
     "language": "en",
     "description": "22 VM profiles consumed by the VHE orchestrator. Each profile binds a CPU identity (cpu.json), core count (cores.json), board (boards.json), GPU profile (gpu.json) and runtime (qemu.json, docker.json, mesa.json). Accel policy: KVM preferred when /dev/kvm exists, TCG multi-thread fallback on GitHub-hosted runners (see passage.json).",

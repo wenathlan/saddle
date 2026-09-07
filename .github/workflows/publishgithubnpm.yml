@@ -16,21 +16,35 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
-  publish:
+  resolve:
+    name: Resolve release version
     # cache-mirror releases (mesa-cache-*) publish tarball assets, not
     # versioned artifacts: the release-triggered publish jobs skip them
     # gracefully instead of failing the version resolver.
     if: (github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')) && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      # packages: read is required to query the GitHub npm registry for
+      # the pre-deploy existence check (npm view against
+      # npm.pkg.github.com needs an authenticated token). The publish
+      # job below escalates to packages: write.
+      packages: read
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      proceed: ${{ steps.release.outputs.proceed }}
     steps:
       - name: checkout
         uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.event.repository.default_branch }}
+          # full history plus tags: the resolver materializes and verifies
+          # the version tag against the package.json of its commit.
+          fetch-depth: 0
       - name: setup node
         uses: actions/setup-node@v7.0.0
         with:
@@ -39,17 +53,39 @@ jobs:
           package-manager-cache: false
       # the release-version resolver, inlined from the retired composite
       # action (the one-workflow-file standard: every workflow carries its
-      # own steps - the .github/actions folder no longer exists).
+      # own steps - the .github/actions folder no longer exists), carrying
+      # the e2ugh idempotency gates: the tag==HEAD "already shipped" guard,
+      # the published-release check and the GitHub Packages npm existence
+      # check, so a duplicate firing no-ops with a notice instead of
+      # failing the lane.
       - name: resolve release version
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          NODE_AUTH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-          CHECKOUT_TAG: "true"
+          AUTOMATIC: ${{ github.event_name == 'workflow_run' }}
         run: |
           set -euo pipefail
-          tag="${RELEASE_TAG:-}"
-          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+          {
+            echo "version="
+            echo "tag="
+            echo "proceed=false"
+          } >> "$GITHUB_OUTPUT"
+          requested="${RELEASE_TAG:-}"
+          if [ -n "$requested" ]; then
+            # an event names a tag (the release published path): verify
+            # THAT tag against the package.json of its commit.
+            tag="$requested"
+          elif [ "${AUTOMATIC}" = "true" ]; then
+            # the automatic workflow_run path (the e2ugh resolver): the
+            # version comes from the default-branch metadata - the
+            # version-bump commit the completed validation ran on.
+            tag="v$(node -p "require('./package.json').version")"
+          else
+            # manual dispatch: the latest release.
             tag="$(gh release view --json tagName --jq .tagName)"
           fi
           if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
@@ -58,18 +94,73 @@ jobs:
           fi
           version="${tag#v}"
           git fetch --force --tags origin "refs/tags/${tag}:refs/tags/${tag}"
-          if [[ "$CHECKOUT_TAG" == "true" ]]; then
-            git checkout --detach "$tag"
+          if ! git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            if [ "${AUTOMATIC}" = "true" ]; then
+              echo "Tag ${tag} does not exist; the release lane creates it on version bumps. Skipping."
+              exit 0
+            fi
+            echo "Tag ${tag} does not exist; the release lane creates it on version bumps." >&2
+            exit 1
           fi
+          if [ "${AUTOMATIC}" = "true" ]; then
+            # the e2ugh "already shipped" guard: on the automatic path the
+            # resolver runs on the default-branch head, so a tag pointing
+            # elsewhere means the release for it already shipped and this
+            # firing no-ops instead of republishing.
+            if [ "$(git rev-parse "${tag}^{commit}")" != "$(git rev-parse HEAD)" ]; then
+              echo "Tag ${tag} does not point at this source; the release for it already shipped. Skipping."
+              exit 0
+            fi
+          fi
+          git checkout --detach "$tag" 2>/dev/null || {
+            echo "Tag ${tag} does not exist." >&2
+            exit 1
+          }
           package_version=$(node -p "require('./package.json').version")
           if [[ "$package_version" != "$version" ]]; then
             echo "Release tag ${tag} does not match package version ${package_version}" >&2
             exit 1
           fi
+          if ! gh api "repos/${GH_REPO}/releases/tags/${tag}" >/dev/null 2>&1; then
+            echo "No published GitHub release for ${tag}; the release lane skipped this bump. Skipping."
+            exit 0
+          fi
+          # the pre-deploy existence check (the e2ugh idempotency gate): a
+          # version that already exists in the GitHub npm registry skips
+          # the publish with a notice - job success, publish steps skipped.
+          package_name="@${GITHUB_REPOSITORY_OWNER}/saddle"
+          if npm view "${package_name}@${version}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "::notice::${package_name}@${version} is already published to GitHub Packages; the publication is skipped (job success, no publish steps run)."
+            exit 0
+          fi
           {
-            echo "tag=$tag"
-            echo "version=$version"
+            echo "version=${version}"
+            echo "tag=${tag}"
+            echo "proceed=true"
           } >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish @wenathlan/saddle to GitHub Packages
+    needs: resolve
+    if: needs.resolve.outputs.proceed == 'true'
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          # needs.resolve.outputs.tag is v<version> validated against the
+          # package.json of the tagged commit - never raw event data.
+          ref: ${{ needs.resolve.outputs.tag }}
+      - name: setup node
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 26.7.0
+          registry-url: https://npm.pkg.github.com
+          package-manager-cache: false
       # the package validator, inlined from the retired composite action
       # (dependency install plus the pack dry-run).
       - name: install dependencies

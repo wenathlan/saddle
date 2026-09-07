@@ -16,6 +16,9 @@ import { existsSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+/** Restores the extension-side global typing of the merged e2ugh globals.d.ts (dropped in the grand merge). */
+declare const chrome: any;
+
 /* ════════════════════════════════════════════════════════════════════ */
 /* Section 1: browser/fingerprint.ts — fingerprint profiles keep session settings coherent without modifying browser internals. */
 /* ════════════════════════════════════════════════════════════════════ */
@@ -949,7 +952,7 @@ function extensionerror(code, message) { const error = new Error(message); error
    source browser.ts sits at the repository root itself. */
 const modulepath = resolve(dirname(fileURLToPath(import.meta.url)));
 const rootpath = basename(modulepath) === "dist" ? resolve(modulepath, "..") : modulepath;
-const extensionassets = resolve(rootpath, "web", "extension");
+const extensionassets = resolve(rootpath, "web");
 const entries = [
   "manifest.json",
   "worker.js",
@@ -961,9 +964,9 @@ const entries = [
   "popup.css",
   "protocol.js",
   "permissions.js",
-  "icons/icon32.png",
-  "icons/icon64.png",
-  "icons/icon128.png",
+  "icon32.png",
+  "icon64.png",
+  "icon128.png",
 ];
 
 function parsearguments(argumentslist) {
@@ -1001,7 +1004,7 @@ async function extensionsectionsourcetext(entry) {
   return match[1];
 }
 
-/** Resolves a static interface asset of the extension from web/extension. */
+/** Resolves a static interface asset of the extension from the web root. */
 async function resolveasset(entry) {
   return resolve(extensionassets, entry);
 }

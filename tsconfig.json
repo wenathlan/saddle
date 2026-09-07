@@ -22,8 +22,8 @@
   "include": [
     "index.ts",
     "*.ts",
-    "examples/**/*.ts",
+    "docs/example-*.ts",
     "jsdom.d.ts"
   ],
-  "exclude": ["node_modules", "dist", "coverage", "docs", "web", "tests", "android", "ios", "desktop"]
+  "exclude": ["node_modules", "dist", "coverage", "web", "tests", "build"]
 }

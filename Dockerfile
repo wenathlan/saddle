@@ -10,7 +10,10 @@
 #      stages at the end of this file, folded from the former
 #      dockerfile.saddle) — an explicit build target
 #      (`docker build --target saddle-runtime .`), the node 26 storage and
-#      compute service published as ghcr.io/wenathlan/saddle:<version>.
+#      compute service published as ghcr.io/wenathlan/saddle:<version>
+#      across the four-arch family standard (amd64, arm64, ppc64le, s390x
+#      — the trixie slim base line; the stage also builds the web SPA so
+#      the image serves the self-hosted console via `node /app/web/server.js`).
 #
 # saddle v2 (grand merge) - virtual hardware engine, multi-stage, multi-arch image.
 #
@@ -91,7 +94,7 @@
 #     -v vmdata:/data/vmdata -v webdata:/data/web \
 #     -v ./vm.config.json:/engine/vm.config.json:ro \
 #     -e PORT=8080 -e NODE_ENV=production -p 31280:8080 \
-#     ghcr.io/wenathlan/saddle:vhe-2.0.6
+#     ghcr.io/wenathlan/saddle:vhe-2.1.0
 #
 #   vheqemu (the guest runner; build it first with
 #   docker build --target qemu-runtime -t saddle/qemu:11.1.0 . because the
@@ -125,7 +128,7 @@
 #     -e VHE_GPU_PROFILE=b200 -e VHE_GPUS=8 -e VHE_MIG=1 \
 #     -e VHE_SMI_DRIVER=575.57.08 -e VHE_SMI_CUDA=12.9 \
 #     -e VHE_SMI_INTERVAL=30 -e VHE_SKIP_XVFB=1 -e VHE_SKIP_VALIDATE=1 \
-#     ghcr.io/wenathlan/saddle:vhe-2.0.6 /bin/bash -c '
+#     ghcr.io/wenathlan/saddle:vhe-2.1.0 /bin/bash -c '
 #       while true; do
 #         /usr/local/bin/nvidia-smi "$VHE_GPU_PROFILE" "$VHE_GPUS" || true
 #         sleep "$VHE_SMI_INTERVAL"
@@ -142,7 +145,7 @@
 #     -v qemudata:/data/qemudata \
 #     -v ./qemubridge.py:/engine/qemubridge.py:ro \
 #     -e QMP_SOCKET=/run/vhe/vm.qmp -e PYTHONUNBUFFERED=1 \
-#     ghcr.io/wenathlan/saddle:vhe-2.0.6 \
+#     ghcr.io/wenathlan/saddle:vhe-2.1.0 \
 #     python3 /engine/qemubridge.py --socket /run/vhe/vm.qmp status
 #
 #   saddle-node (the node-engine service, the former compose.yml
@@ -156,7 +159,7 @@
 #     --log-driver json-file --log-opt max-size=50m --log-opt max-file=5 \
 #     --tmpfs /tmp:size=2g,mode=1777 \
 #     -e SADDLE_MEMORY_ENGINE=ram -e SBOT_PLATFORM= -e SBOT_CDN_URL= \
-#     ghcr.io/wenathlan/saddle:2.0.6 \
+#     ghcr.io/wenathlan/saddle:2.1.0 \
 #     node dist/cli.js plan
 #
 #   observability (the former prometheus scraper of the full profile)
@@ -636,6 +639,26 @@ ENTRYPOINT ["/usr/bin/tini", "--", "qemu-system-x86_64"]
 # ---------------------------------------------------------------------------
 # stage 5: runtime (final, default target, the vhe/vhegpu docker run recipes)
 # ---------------------------------------------------------------------------
+# saddle-build: the node-engine build stage (defined here, before the
+# vhe runtime, so BOTH container surfaces can consume its output: the
+# vhe runtime copies the built web SPA for its /engine/web console and
+# the saddle-runtime stage copies the engine dist plus the same web
+# tree - one build, two consumers).
+
+FROM node:26.8.1-slim AS saddle-build
+
+ARG SADDLE_VERSION
+WORKDIR /app
+
+ENV NPM_CONFIG_LEGACY_PEER_DEPS=true
+
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts --legacy-peer-deps
+COPY . .
+RUN npm run build:engine \
+    && node --check dist/cli.js \
+    && npm run web:build:pages
+
 FROM ${UBUNTU} AS runtime
 ARG TARGETARCH
 ARG NODE_VERSION
@@ -875,6 +898,10 @@ COPY qemu.config mttg.config passage.config docker.config /engine/
 # same image, so one container serves the engine AND the web surface.
 # run it with: docker run ghcr.io/wenathlan/saddle node /engine/web/server.js
 COPY web /engine/web
+# the built web SPA (vite, from the saddle-build stage): the console
+# server (node /engine/web/server.js) serves web/dist/public - the
+# unified React interface that absorbed the former static pages.
+COPY --from=saddle-build /app/web/dist /engine/web/dist
 
 RUN set -eux; \
     chmod 0755 /usr/local/bin/nvidia-smi /usr/local/bin/aetherforge; \
@@ -1238,7 +1265,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --start-interval=5s 
 # OCI labels for registry introspection.
 LABEL org.opencontainers.image.title="saddle virtual-hardware engine (the grand merge)" \
       org.opencontainers.image.description="100% software virtual hardware: per-profile CPU/memory spoofing via LD_PRELOAD (max/balanced/lite), mesa 26.2.1 llvmpipe/lavapipe/rusticl, QEMU 11.1.0 TCG/MTTCG, virtual nvidia-smi adapter + NVML/CUDA shims, node 26.7.0, python bridge" \
-      org.opencontainers.image.version="2.0.6" \
+      org.opencontainers.image.version="2.1.0" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/wenathlan/saddle" \
       org.opencontainers.image.documentation="https://github.com/wenathlan/saddle/blob/main/README.md" \
@@ -1277,20 +1304,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 #   docker build --target saddle-runtime -t saddle:<version> .
 # ══════════════════════════════════════════════════════════════════════
 
-FROM node:26.8.1-bookworm-slim AS saddle-build
-
-ARG SADDLE_VERSION
-WORKDIR /app
-
-ENV NPM_CONFIG_LEGACY_PEER_DEPS=true
-
-COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts --legacy-peer-deps
-COPY . .
-RUN npm run build:engine \
-    && node --check dist/cli.js
-
-FROM node:26.8.1-bookworm-slim AS saddle-runtime
+FROM node:26.8.1-slim AS saddle-runtime
 
 ARG SADDLE_VERSION
 LABEL org.opencontainers.image.title="Saddle" \
@@ -1337,6 +1351,12 @@ RUN apt-get update \
     && rm -rf node_modules/cpu-features/deps \
     && find node_modules -type f -name Dockerfile -delete
 COPY --from=saddle-build /app/dist ./dist
+# the web service surface (self-hosted console): the built SPA
+# (web/dist/public from the saddle-build vite run) plus the pure-node
+# server stack (server.js, db.js, auth.js, mesh.js, sandbox.js,
+# mime.types, init.sql, schema.prisma) - zero npm dependencies, the
+# node 26 runtime carries everything (node:sqlite, node:crypto).
+COPY --from=saddle-build /app/web ./web
 
 USER node
 

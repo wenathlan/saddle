@@ -137,21 +137,87 @@ jobs:
       - name: build shared web surface
         run: npm run web:build:pages
 
+      - name: scaffold desktop rust shell
+        # the 2.1.0 doctrine (docs/native-wrappers.md): the tauri Rust
+        # envelope (Cargo.toml, main.rs, lib.rs, build.rs - 12 lines of
+        # regenerable boilerplate) is scaffolded on this runner into
+        # build/native/desktop (gitignored, never tracked), and the tracked
+        # tauri.conf.json is copied in with runner-relative paths rewritten
+        # (frontendDist and beforeDevCommand resolve from the scaffold
+        # directory three levels below the repository root; the bundle icon
+        # list stays at icons/ beside the copy, where the icon step writes).
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/native/desktop
+          cd build/native/desktop
+          cat > Cargo.toml <<'CARGO_EOF'
+          [package]
+          name = "saddle-desktop"
+          version = "0.0.0"
+          description = "Saddle desktop browser shell"
+          authors = ["wenathlan"]
+          edition = "2021"
+          license = "GPL-3.0-only"
+          build = "build.rs"
+
+          [lib]
+          name = "saddle_desktop"
+          path = "lib.rs"
+          crate-type = ["staticlib", "cdylib", "rlib"]
+
+          [[bin]]
+          name = "saddle-desktop"
+          path = "main.rs"
+
+          [build-dependencies]
+          tauri-build = { version = "2", features = [] }
+
+          [dependencies]
+          tauri = { version = "2", features = [] }
+          CARGO_EOF
+          cat > main.rs <<'MAIN_EOF'
+          fn main() {
+              saddle_desktop::run()
+          }
+          MAIN_EOF
+          cat > lib.rs <<'LIB_EOF'
+          #[cfg_attr(mobile, tauri::mobile_entry_point)]
+          pub fn run() {
+              tauri::Builder::default()
+                  .run(tauri::generate_context!())
+                  .expect("failed to run Saddle desktop browser")
+          }
+          LIB_EOF
+          cat > build.rs <<'BUILD_EOF'
+          fn main() {
+              tauri_build::build()
+          }
+          BUILD_EOF
+          node -e '
+            const fs = require("node:fs");
+            const config = JSON.parse(fs.readFileSync("../../../tauri.conf.json", "utf8"));
+            config.build.frontendDist = "../../../web/dist/public";
+            config.build.beforeDevCommand = "npm --prefix ../../../ run web:dev";
+            fs.writeFileSync("tauri.conf.json", `${JSON.stringify(config, null, 2)}\n`);
+            console.log("copied the root tauri.conf.json into the scaffold with runner-relative paths");
+          '
+
       - name: synchronize desktop version metadata
+        # the stamp lands on the scaffold copy only: the tauri.conf.json at
+        # the repository root stays untouched (its product version moves
+        # with the release bump, never with a runner build).
         shell: bash
         env:
           SADDLE_VERSION: ${{ steps.releaseversion.outputs.version }}
         run: |
           # shellcheck disable=SC2016  # the single quotes keep the JavaScript
           # template literals intact for node; no shell expansion is intended
-          node -e 'const fs=require("node:fs"); const version=process.env.SADDLE_VERSION; const config=JSON.parse(fs.readFileSync("web/desktop/tauri.conf.json","utf8")); config.version=version; fs.writeFileSync("web/desktop/tauri.conf.json", `${JSON.stringify(config, null, 2)}\n`); const cargo=fs.readFileSync("web/desktop/Cargo.toml","utf8").replace(/^version = ".*"$/m, `version = "${version}"`); fs.writeFileSync("web/desktop/Cargo.toml", cargo);'
-
-      - name: validate flat native surfaces
-        run: npm run native:check:flat
+          node -e 'const fs=require("node:fs"); const version=process.env.SADDLE_VERSION; const config=JSON.parse(fs.readFileSync("build/native/desktop/tauri.conf.json","utf8")); config.version=version; fs.writeFileSync("build/native/desktop/tauri.conf.json", `${JSON.stringify(config, null, 2)}\n`); const cargo=fs.readFileSync("build/native/desktop/Cargo.toml","utf8").replace(/^version = ".*"$/m, `version = "${version}"`); fs.writeFileSync("build/native/desktop/Cargo.toml", cargo);'
 
       - name: generate platform icons
         shell: bash
-        run: npx --yes @tauri-apps/cli@2.11.4 icon web/desktop/icon.svg --output web/desktop/icons
+        run: npx --yes @tauri-apps/cli@2.11.4 icon web/icon.svg --output build/native/desktop/icons
 
       - name: configure desktop signing status
         shell: bash
@@ -203,7 +269,7 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          cd web/desktop
+          cd build/native/desktop
           if [ "${SADDLE_SIGNING}" = "caller-owned" ]; then
             npx --yes @tauri-apps/cli@2.11.4 build --ci --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
           else
@@ -226,7 +292,7 @@ jobs:
           while IFS= read -r -d '' file; do
             "$sign_tool" sign /fd SHA256 /td SHA256 /tr "$WINDOWS_TIMESTAMP_URL" /f "$RUNNER_TEMP/saddle-code-signing.pfx" /p "$WINDOWS_CERTIFICATE_PASSWORD" "$file"
             "$sign_tool" verify /pa /all "$file"
-          done < <(find web/desktop/target/${{ matrix.target }} -type f \( -name '*.exe' -o -name '*.msi' \) -print0)
+          done < <(find build/native/desktop/target/${{ matrix.target }} -type f \( -name '*.exe' -o -name '*.msi' \) -print0)
 
       - name: notarize macOS installers
         if: matrix.platform == 'macos'
@@ -241,7 +307,7 @@ jobs:
             while IFS= read -r -d '' file; do
               xcrun notarytool submit "$file" --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
               xcrun stapler staple "$file"
-            done < <(find web/desktop/target/${{ matrix.target }} -type f -path '*/bundle/dmg/*.dmg' -print0)
+            done < <(find build/native/desktop/target/${{ matrix.target }} -type f -path '*/bundle/dmg/*.dmg' -print0)
             echo "SADDLE_NOTARIZATION=notarized" >> "$GITHUB_ENV"
           else
             echo "SADDLE_NOTARIZATION=not-configured" >> "$GITHUB_ENV"
@@ -252,7 +318,7 @@ jobs:
         run: |
           version="${{ steps.releaseversion.outputs.version }}"
           mkdir -p build/release-assets/desktop
-          target_dir="web/desktop/target/${{ matrix.target }}"
+          target_dir="build/native/desktop/target/${{ matrix.target }}"
           case "${{ matrix.platform }}" in
             linux)
               deb="$(find "$target_dir" -type f -path '*/bundle/deb/*.deb' -print -quit)"

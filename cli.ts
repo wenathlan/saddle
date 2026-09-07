@@ -32,9 +32,15 @@ import { creategrid, defaultplan, dockerrun, multiplex, planlint, plantoml, qemu
 export async function main(args = argv.slice(2)) {
   const command = args[0] ?? "help";
   /* Help stays short and lists only stable local commands. */
-  if (["help", "--help", "-h"].includes(command)) { console.log("saddle <command>\n\ncommands\n  help\n  modes\n  plan [qemu|docker|toml]\n  runexample\n  mcp"); return; }
+  if (["help", "--help", "-h"].includes(command)) { console.log("saddle <command>\n\ncommands\n  help\n  modes\n  plan [qemu|docker|toml]\n  vm [qemu|docker|toml]\n  vmlint\n  gpus\n  runexample\n  mcp"); return; }
   if (command === "modes") { console.log(JSON.stringify(modecatalog(), null, 2)); return; }
   if (command === "plan") { await renderplan(args[1]); return; }
+  /* The vm/vmlint/gpus triad makes the nominal npm aliases (vm:create, */
+  /* vm:validate, gpu:list) real: they map to the live engine surface — */
+  /* the plan renderer, the planlint validator, and the gpus.json catalog. */
+  if (command === "vm") { await renderplan(args[1] ?? "qemu"); return; }
+  if (command === "vmlint") { await rendervmlint(); return; }
+  if (command === "gpus") { await rendergpus(); return; }
   if (command === "runexample") {
     const root = await mkdtemp(join(tmpdir(), "saddlecli"));
     const events = eventbus();
@@ -96,6 +102,47 @@ async function renderplan(format = "qemu") {
     process.stderr.write(
       `planner failed: ${error instanceof Error ? error.message : String(error)}\n`,
     );
+  }
+}
+
+/**
+ * Validates the effective machine plan (defaults overridden by the optional
+ * vm.config.toml fields) through planlint and prints only the advisory
+ * notes — the engine behind the nominal `vm:validate` npm alias: exit code
+ * stays zero because the notes are advisory, never fatal.
+ */
+async function rendervmlint() {
+  let candidate: plan = { ...defaultplan };
+  try {
+    const raw = await readFile("vm.config.toml", "utf8");
+    const vcpus = /vcpus = (\d+)/.exec(raw)?.[1];
+    const mem = /gib = (\d+)/.exec(raw)?.[1];
+    const mttg = /virtual_threads = (\d+)/.exec(raw)?.[1];
+    if (vcpus !== undefined) candidate = { ...candidate, vcpus: Number(vcpus) };
+    if (mem !== undefined) candidate = { ...candidate, memorygib: Number(mem) };
+    if (mttg !== undefined) candidate = { ...candidate, mttgthreads: Number(mttg), mttg: true };
+  } catch {
+    /* catcher: vm.config.toml is optional; defaults stay */
+  }
+  const notes = planlint(candidate);
+  console.log(`vcpus ${candidate.vcpus} memorygib ${candidate.memorygib} — ${notes.length} note(s)`);
+  for (const note of notes) {
+    console.log(`# ${note}`);
+  }
+}
+
+/**
+ * Lists the GPU catalog of the engine (gpus.json — the catalog the
+ * orchestrator resolves GPU requests against) — the engine behind the
+ * nominal `gpu:list` npm alias.
+ */
+async function rendergpus() {
+  const catalog = JSON.parse(await readFile("gpus.json", "utf8")) as { gpus: Array<Record<string, unknown>> };
+  console.log(`${catalog.gpus.length} gpus`);
+  for (const gpu of catalog.gpus) {
+    const name = String(gpu.name ?? gpu.model ?? "unknown");
+    const profiles = Array.isArray(gpu.profiles) ? (gpu.profiles as unknown[]).length : 0;
+    console.log(profiles > 0 ? `${name} (${profiles} mig profiles)` : name);
   }
 }
 

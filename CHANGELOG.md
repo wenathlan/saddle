@@ -1,5 +1,39 @@
 # saddle release notes
 
+## 2.1.0 — the universal web interface: one tsx app, no tracked wrappers
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| The web tree (the doctrine of the single interface) | The four platform folders of the web tree are gone: web/android (51 files), web/ios (36), web/desktop (8) and web/extension (6) never carried project logic - they were template wrappers (gradle, xcode, the tauri boilerplate, the extension shell). The wrappers are now generated on the GitHub runners (mobile.yml runs `npx cap add android/ios` into build/native, desktop.yml scaffolds the tauri envelope by heredoc, buildextension.yml regenerates the icons) and land as release assets only; the capacitor paths of capacitor.config.ts point at build/native. The essential sources stay tracked and flat: web/icon.svg (the single icon source), web/manifest.json, web/popup.html, web/popup.css, the tauri.conf.json at the repository root. |
+| The static console joins the React app | The e2ugh static surface (login.html, register.html, console.html, dashboard.html plus their js siblings, 2.790 lines) is absorbed by the single tsx interface: the page folders web/Login, web/Register, web/Console and web/Dashboard carry every feature of the originals (the spec panel, the boot terminal with history/tab-complete, the api mode, the events timeline, the local-auth fallback, the strength meter, the admin tables, the mesh ping with client probe, the keyfile backup/restore, the local sandbox shelf). The marketing pages move into the same page-folder layout (web/Home, web/Architecture, web/AgentBrowser, web/Compute, web/Integrations, web/Playground, web/Docs, web/NotFound); the shared shell components (PageShell, SiteHeader, SaddleMark, SectionRail, RuntimeDiagram, ErrorBoundary, ThemeContext) sit loose at the web root. web/api.ts consolidates the three duplicated copies of the api-base helpers; web/localauth.ts is the typed module conversion of the window-global original. |
+| The page = folder contract | Every page is a folder holding all of its components (the duck.ai conversion doctrine); the category folders (pages/, components/, hooks/, lib/, contexts/) are retired with them. The unused shadcn template kit (46 of 50 files, zero live importers) is pruned - button, card, tooltip and sonner survive as loose files; the dead template leftovers (const.ts, lib/constants.ts, the wouter patch) go with it. The conversion configs move to the repository root: vite.config.ts (root: web), vitest.config.ts, tauri.conf.json, vercel.json (SPA rewrites) and netlify.toml (SPA redirects; publish web/dist/public). |
+| The self-hosted server | web/server.js serves the built SPA (web/dist/public with the index.html shell as the extensionless fallback) beside the unchanged /api/v1 surface; the caddyfile mirrors the same layout (root web/dist/public, try_files /index.html). |
+| The e2ugh pipeline gates restored (the merge audit) | The merge rework of 2.0.1 carried the code but dropped eleven quality gates of the e2ugh pipeline; this release restores them: the pre-deploy existence checks of the four registry publishes (npmjs, github npm, maven, rubygems - a re-run release is a clean no-op instead of an E409), the graceful skip when NPM_TOKEN is absent, the tag==HEAD "already shipped" guards, the release body extracted from the CHANGELOG section with a hard refusal on an empty body (the 2.0.6 lesson), the source.zip and SHA256SUMS umbrella assets, the dynamic lockstep gate over the ten version envelopes, the OSSF scorecard, the biome security group, the license check, the engine validation job, the codeql cpp lane (the native C/C++ sources - the rust lane retires with the untracked tauri shell), the node 24 LTS typecheck leg and the twice-daily codeql-scoped cache retention. |
+| The container architectures (the family union) | The node-engine image joins the four-arch family standard: linux/amd64, linux/arm64, linux/ppc64le, linux/s390x (the s390x line arrives from the e2ugh lineage; the base moves to the trixie slim line - node:26.8.1-slim - because bookworm-slim stops at three). The vhe family keeps its four-arch, three-profile surface; the Dockerfile carries all seven stages (the five e2ugh stages plus the two saddle stages) and both surfaces ship the built web SPA (the saddle-build stage builds it once; the vhe runtime copies it into /engine/web beside the pure-node console server). |
+| The version envelopes | The lockstep carriers that drifted at 2.0.0 during the 2.0.x bumps are all in lockstep again: the eight .config/.json envelopes, web/server.js, web/sandbox.js, web/manifest.json, passage.config, boards.json and package-lock.json (silent break since the grand merge). |
+| The nominal CLI aliases | gpu:list, vm:create and vm:validate pointed at `node ./index.ts` flags that never existed in either lineage (silent no-ops since the grand merge); they now run the real engine surface: `saddle gpus` (the gpus.json catalog), `saddle vm` (the machine plan renderer) and `saddle vmlint` (the planlint validator). |
+
+### Fixed
+
+| Area | Change |
+| --- | --- |
+| The merge leftovers | The README example path (examples/publicapi.ts -> docs/example-publicapi.ts), the stale tsconfig includes, the chrome ambient declaration of browser.ts (the lost globals.d.ts) and the broken web readme pin are corrected; the readme documents the live siblings again. |
+| The dockerignore | The stale static-page allowlist is replaced by the whole-tree rule (the saddle-build stage needs the React sources); web/node_modules and the build outputs stay out. |
+
+## 2.0.6 — the automatic path attaches its artifacts
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| The release assets of the automatic path | The attach steps of the mobile (android apk/aab, ios), container (tarball, checksum, manifest) and desktop (bundle) lanes ran only on the release event and the manual dispatch - the automatic workflow_run cascade (the dual trigger that fires when the release validation of a version-bump push completes) attached no artifacts because the workflow-level RELEASE_TAG env is empty on that path. The attach steps now run on the cascade too, taking the tag from the release-version resolver output (steps.releaseversion.outputs.tag), so the android and ios binaries, the container tarball and the desktop bundles land on the release assets beside the extension zip without any manual step. |
+| The desktop attach env | The draft of the desktop attach step carried a duplicated env key; the block ships with a single RELEASE_TAG key set. |
+| The vhe registry families | The publish ghcr vhe images of the 2.0.4 and 2.0.5 tag families are published and verified on ghcr.io (the -vhe, -vhe-balanced and -vhe-lite indexes carrying the four-arch surface). |
+| Housekeeping | The historical red runs of the actions tab (the broken bump attempts the 2.0.3-2.0.5 fixes closed) are deleted. |
+| Version metadata | The version carriers of the bump: package.json, web/package.json, the pom revision, saddle.csproj, saddle.gemspec, web/desktop/tauri.conf.json, web/readme.md and the Dockerfile pins. |
+
 ## 2.0.5 — the android wrapper and the desktop artifact layout close
 
 ### Changed

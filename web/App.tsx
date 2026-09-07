@@ -1,17 +1,20 @@
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "@/components/ui/sonner";
-import NotFound from "@/pages/NotFound";
+import { TooltipProvider } from "@/tooltip";
+import { Toaster } from "@/sonner";
+import NotFound from "./NotFound/NotFound";
 import { Route, Router as WouterRouter, Switch } from "wouter";
-import ErrorBoundary from "./components/ErrorBoundary";
-import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
-import Architecture from "./pages/Architecture";
-import AgentBrowser from "./pages/AgentBrowser";
-import Compute from "./pages/Compute";
-import Integrations from "./pages/Integrations";
-import Docs from "./pages/Docs";
-import Playground from "./pages/Playground";
-import Console from "./pages/Console";
+import ErrorBoundary from "./ErrorBoundary";
+import { ThemeProvider } from "./ThemeContext";
+import Home from "./Home/Home";
+import Architecture from "./Architecture/Architecture";
+import AgentBrowser from "./AgentBrowser/AgentBrowser";
+import Compute from "./Compute/Compute";
+import Integrations from "./Integrations/Integrations";
+import Docs from "./Docs/Docs";
+import Playground from "./Playground/Playground";
+import Console from "./Console/Console";
+import Dashboard from "./Dashboard/Dashboard";
+import Login from "./Login/Login";
+import Register from "./Register/Register";
 
 
 function Router() {
@@ -25,6 +28,12 @@ function Router() {
         <Route path={"/integrations"} component={Integrations} />
         <Route path={"/playground"} component={Playground} />
         <Route path={"/console"} component={Console} />
+        <Route path={"/login"} component={Login} />
+        <Route path={"/register"} component={Register} />
+        {/* Session-gated panel: the Dashboard component decides on its own
+            whether a session exists and renders the fatal sign-in panel when
+            it does not, like the absorbed static dashboard. */}
+        <Route path={"/dashboard"} component={Dashboard} />
         <Route path={"/docs"} component={Docs} />
         <Route path={"/404"} component={NotFound} />
         {/* Final fallback route */}

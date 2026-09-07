@@ -14,12 +14,13 @@
 #
 # the /api/* subtree proxies to the node process (auth cookie saddlesession
 # included — the session stays between the browser and this one origin);
-# every other path serves the static web/ directory straight from caddy
-# (html revalidates, assets cache for an hour). no host or port is
-# hardcoded: both come from environment placeholders with the documented
-# defaults. tls is automatic on caddy for public domains (acme + http-01);
-# the explicit tls block below stays commented for the rare case an
-# operator needs a custom certificate chain.
+# every other path serves the built SPA (web/dist/public — run
+# `npm run web:build:pages` first) straight from caddy with the index.html
+# shell as the SPA fallback (html revalidates, assets cache for an hour).
+# no host or port is hardcoded: both come from environment placeholders with
+# the documented defaults. tls is automatic on caddy for public domains
+# (acme + http-01); the explicit tls block below stays commented for the rare
+# case an operator needs a custom certificate chain.
 
 {$SADDLE_SITE_ADDRESS:devthink.pro} {
         encode zstd gzip
@@ -31,16 +32,18 @@
         }
 
         handle {
-                root * web
-                try_files {path} /console.html
+                root * web/dist/public
+                try_files {path} /index.html
                 file_server
 
-                header /console.html Cache-Control "no-cache, must-revalidate"
+                header /index.html Cache-Control "no-cache, must-revalidate"
                 header /*.js Cache-Control "public, max-age=3600, must-revalidate"
+                header /*.css Cache-Control "public, max-age=3600, must-revalidate"
                 header /*.svg Cache-Control "public, max-age=3600, must-revalidate"
+                header /*.webp Cache-Control "public, max-age=3600, must-revalidate"
         }
 
-        # security headers mirroring web/server.js and web/netlify.toml
+        # security headers mirroring web/server.js and the repo-root netlify.toml
         header {
                 X-Content-Type-Options nosniff
                 X-Frame-Options DENY

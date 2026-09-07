@@ -1,6 +1,6 @@
 # Saddle Pages deployment
 
-The site is a static React/Vite application rooted directly in this directory. The repository root owns the package manifest and deployment workflows; this directory owns `index.html`, `main.tsx`, components, pages, public assets and `dist/`. Pages deployments use the root script `npm run web:build:pages` so only `web/dist/public` is published.
+The site is a static React/Vite application rooted directly in this directory. The repository root owns the package manifest, the conversion configs (`vite.config.ts`, `vercel.json`, `netlify.toml`, `tauri.conf.json`, `capacitor.config.ts`) and the deployment workflows; this directory owns `index.html`, `main.tsx`, one folder per route (`Home/` … `NotFound/`), the loose shared files (`PageShell.tsx`, `SiteHeader.tsx`, `SaddleMark.tsx`, `SectionRail.tsx`, `RuntimeDiagram.tsx`, `ErrorBoundary.tsx`, `button.tsx`, `card.tsx`, `tooltip.tsx`, `sonner.tsx`, `utils.ts`, `paths.ts`, `ThemeContext.tsx`), public assets and `dist/`. Pages deployments use the root script `npm run web:build:pages` so only `web/dist/public` is published.
 
 ## GitHub Pages
 

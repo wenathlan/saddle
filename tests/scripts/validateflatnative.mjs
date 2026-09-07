@@ -12,20 +12,51 @@ async function exists(path) {
   }
 }
 
-/** Verifies project-owned native surfaces stay flat while allowing generated Capacitor internals. */
+/**
+ * Verifies the 2.1.0 tree contract: the native wrappers (android, ios,
+ * desktop, extension) are generated on the runners into build/native/*
+ * and never tracked, the interface is one flat tsx tree (page folders +
+ * loose modules, no nested support folders, no legacy window-global
+ * localauth.js), and the static e2ugh console pages stay absorbed in the
+ * tsx pages. the tree never goes back to tracked wrappers.
+ */
 async function validateFlatNative() {
   const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
-  const forbidden = [
-    join(repositoryRoot, "web", "desktop", "src-tauri"),
-    join(repositoryRoot, "web", "android", "app"),
-    join(repositoryRoot, "web", "android", "src"),
-    join(repositoryRoot, "web", "ios", "src"),
-    join(repositoryRoot, "todo.md"),
+  const webRoot = join(repositoryRoot, "web");
+  const forbiddenDirectories = [
+    "android",
+    "ios",
+    "desktop",
+    "extension",
+    "pages",
+    "components",
+    "hooks",
+    "lib",
+    "contexts",
+  ];
+  const forbiddenFiles = [
+    "const.ts",
+    "localauth.js",
+    "login.html",
+    "register.html",
+    "console.html",
+    "dashboard.html",
+    "login.js",
+    "register.js",
+    "console.js",
+    "dashboard.js",
   ];
 
-  for (const path of forbidden) {
+  for (const directory of forbiddenDirectories) {
+    const path = join(webRoot, directory);
     if (await exists(path)) {
-      throw new Error(`Forbidden project-owned native path exists: ${path}`);
+      throw new Error(`Forbidden native wrapper directory exists: ${path}`);
+    }
+  }
+  for (const file of forbiddenFiles) {
+    const path = join(webRoot, file);
+    if (await exists(path)) {
+      throw new Error(`Forbidden flat-interface file exists: ${path}`);
     }
   }
 

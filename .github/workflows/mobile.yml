@@ -101,20 +101,23 @@ jobs:
         run: npm ci
       - name: build shared web surface
         run: npm run web:build:pages
-      - name: synchronize capacitor android surface
-        run: npx cap sync android
-      - name: flatten generated android staging
-        run: npm run capacitor:flatten:android
-      - name: validate flat native surfaces
-        run: npm run native:check:flat
+      - name: generate android wrapper
+        # the 2.1.0 doctrine (docs/native-wrappers.md): the android shell is
+        # toolchain output generated on this runner into build/native/android
+        # (gitignored, never tracked) - `cap add` materializes the
+        # @capacitor/android 8.5.x template aimed at by the capacitor.config.ts
+        # at the repository root, and the sync copies the freshly built
+        # web/dist/public into the generated project's assets.
+        run: npx cap add android && npx cap sync android
       - name: generate Android icons
         shell: bash
         run: |
-          npx --yes @tauri-apps/cli@2.11.4 icon web/desktop/icon.svg --output build/generated-icons
+          npx --yes @tauri-apps/cli@2.11.4 icon web/icon.svg --output build/generated-icons
+          resroot=build/native/android/app/src/main/res
           for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            cp "build/generated-icons/android/mipmap-${density}/ic_launcher.png" "web/android/res/mipmap-${density}/ic_launcher.png"
-            cp "build/generated-icons/android/mipmap-${density}/ic_launcher_foreground.png" "web/android/res/mipmap-${density}/ic_launcher_foreground.png"
-            cp "build/generated-icons/android/mipmap-${density}/ic_launcher_round.png" "web/android/res/mipmap-${density}/ic_launcher_round.png"
+            cp "build/generated-icons/android/mipmap-${density}/ic_launcher.png" "$resroot/mipmap-${density}/ic_launcher.png"
+            cp "build/generated-icons/android/mipmap-${density}/ic_launcher_foreground.png" "$resroot/mipmap-${density}/ic_launcher_foreground.png"
+            cp "build/generated-icons/android/mipmap-${density}/ic_launcher_round.png" "$resroot/mipmap-${density}/ic_launcher_round.png"
           done
       - name: derive android version values
         shell: bash
@@ -124,6 +127,87 @@ jobs:
           version_code=$((major * 1000000 + minor * 1000 + patch))
           echo "SADDLE_VERSION=$version" >> "$GITHUB_ENV"
           echo "SADDLE_VERSION_CODE=$version_code" >> "$GITHUB_ENV"
+      - name: stamp generated android release config
+        # the generated @capacitor/android template carries versionCode 1 /
+        # versionName "1.0", no signing configuration and no shrinking; the
+        # runner stamps the release identity, the keystore.properties loader
+        # (written by the signing step below) and the r8/resource-shrinking
+        # release buildType into the copy under build/native/android - the
+        # same release contract the retired tracked wrapper carried. the
+        # SADDLE_VERSION/SADDLE_VERSION_CODE values come from the
+        # GITHUB_ENV exports of the version step above.
+        shell: bash
+        run: |
+          # shellcheck disable=SC2016  # the single quotes keep the JavaScript
+          # string escapes intact for node; no shell expansion is intended
+          node -e '
+            const fs = require("node:fs");
+            const file = "build/native/android/app/build.gradle";
+            let gradle = fs.readFileSync(file, "utf8");
+            const version = process.env.SADDLE_VERSION;
+            const versioncode = process.env.SADDLE_VERSION_CODE;
+            if (!version || !versioncode) {
+              throw new Error("SADDLE_VERSION and SADDLE_VERSION_CODE must be exported before stamping");
+            }
+            const plainrelease = [
+              "    buildTypes {",
+              "        release {",
+              "            minifyEnabled false",
+              "            proguardFiles getDefaultProguardFile(\x27proguard-android.txt\x27), \x27proguard-rules.pro\x27",
+              "        }",
+              "    }"
+            ].join("\n");
+            if (!gradle.includes("versionCode 1") || !gradle.includes(`versionName "1.0"`) || !gradle.includes(plainrelease)) {
+              throw new Error(`generated android template drifted: the defaultConfig/release blocks were not found in ${file}`);
+            }
+            gradle = gradle.replace("versionCode 1", `versionCode ${versioncode}`);
+            gradle = gradle.replace(`versionName "1.0"`, `versionName "${version}"`);
+            const stampedrelease = [
+              "    signingConfigs {",
+              "        if (keystorePropertiesFile.exists()) {",
+              "            release {",
+              "                keyAlias keystoreProperties[\x27keyAlias\x27]",
+              "                keyPassword keystoreProperties[\x27keyPassword\x27]",
+              "                storeFile file(keystoreProperties[\x27storeFile\x27])",
+              "                storePassword keystoreProperties[\x27storePassword\x27]",
+              "            }",
+              "        }",
+              "    }",
+              "",
+              "    buildTypes {",
+              "        release {",
+              "            minifyEnabled true",
+              "            shrinkResources true",
+              "            proguardFiles getDefaultProguardFile(\x27proguard-android-optimize.txt\x27), \x27proguard-rules.pro\x27",
+              "            if (keystorePropertiesFile.exists()) {",
+              "                signingConfig signingConfigs.release",
+              "            }",
+              "        }",
+              "    }"
+            ].join("\n");
+            gradle = gradle.replace(plainrelease, stampedrelease);
+            const keystoreloader = [
+              "apply plugin: \x27com.android.application\x27",
+              "",
+              "import java.io.FileInputStream",
+              "import java.util.Properties",
+              "",
+              "// saddle runner stamp: the workflow writes keystore.properties at",
+              "// the generated project root before the release build; the stock",
+              "// template carries no signing configuration at all.",
+              "def keystorePropertiesFile = rootProject.file(\x27keystore.properties\x27)",
+              "def keystoreProperties = new Properties()",
+              "if (keystorePropertiesFile.exists()) {",
+              "    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))",
+              "}"
+            ].join("\n");
+            gradle = gradle.replace("apply plugin: \x27com.android.application\x27", keystoreloader);
+            if (!gradle.includes(`versionCode ${versioncode}`) || !gradle.includes(`versionName "${version}"`) || !gradle.includes("signingConfig signingConfigs.release")) {
+              throw new Error("the stamp did not land");
+            }
+            fs.writeFileSync(file, gradle);
+            console.log(`stamped ${file}: versionName ${version}, versionCode ${versioncode}, signing + r8 shrink injected`);
+          '
       - name: configure android signing
         shell: bash
         env:
@@ -143,7 +227,7 @@ jobs:
               printf 'storePassword=%s\n' "$ANDROID_STORE_PASSWORD"
               printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
               printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
-            } > web/android/keystore.properties
+            } > build/native/android/keystore.properties
             echo "SADDLE_SIGNING=caller-owned" >> "$GITHUB_ENV"
           elif [ "${{ github.event_name }}" = "release" ] || [ "${{ github.event_name }}" = "workflow_run" ] || [ "${{ inputs.allow_test_signing }}" = "true" ]; then
             keytool -genkeypair -v -keystore "$RUNNER_TEMP/saddle-test.jks" -storepass changeit -keypass changeit -alias saddle-test -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Saddle CI Test,O=Saddle,C=US"
@@ -152,7 +236,7 @@ jobs:
               printf 'storePassword=changeit\n'
               printf 'keyAlias=saddle-test\n'
               printf 'keyPassword=changeit\n'
-            } > web/android/keystore.properties
+            } > build/native/android/keystore.properties
             echo "SADDLE_SIGNING=ci-test-key" >> "$GITHUB_ENV"
           else
             echo "Manual Android builds require production signing secrets or allow_test_signing=true."
@@ -161,8 +245,8 @@ jobs:
       - name: build optimized android release
         shell: bash
         run: |
-          chmod +x web/android/gradlew
-          cd web/android
+          chmod +x build/native/android/gradlew
+          cd build/native/android
           ./gradlew --no-daemon --stacktrace assembleRelease bundleRelease
       - name: collect android artifacts
         shell: bash
@@ -173,8 +257,8 @@ jobs:
           aab="saddle.aab.${version}.aab"
           checksums="sha256.android.${version}"
           manifest="manifest.android.${version}.json"
-          apk_source="$(find web/android/build/outputs/apk/release -type f \( -name 'android-release*.apk' -o -name 'app-release*.apk' \) -print -quit)"
-          aab_source="$(find web/android/build/outputs/bundle/release -type f \( -name 'android-release*.aab' -o -name 'app-release*.aab' \) -print -quit)"
+          apk_source="$(find build/native/android/app/build/outputs/apk/release -type f \( -name 'android-release*.apk' -o -name 'app-release*.apk' \) -print -quit)"
+          aab_source="$(find build/native/android/app/build/outputs/bundle/release -type f \( -name 'android-release*.aab' -o -name 'app-release*.aab' \) -print -quit)"
           test -n "$apk_source" && test -n "$aab_source"
           cp "$apk_source" "build/release-assets/android/${apk}"
           cp "$aab_source" "build/release-assets/android/${aab}"
@@ -256,29 +340,26 @@ jobs:
         run: npm ci
       - name: build shared web surface
         run: npm run web:build:pages
+      - name: generate ios wrapper
+        # the 2.1.0 doctrine (docs/native-wrappers.md): the ios shell is
+        # toolchain output generated on this runner into build/native/ios
+        # (gitignored, never tracked) - `cap add` materializes the
+        # @capacitor/ios 8.5.x SPM template aimed at by the capacitor.config.ts
+        # at the repository root (web assets must already be built).
+        run: npx cap add ios
       - name: synchronize capacitor ios surface
         run: npx cap sync ios
-      - name: validate flat native surfaces
-        run: npm run native:check:flat
       - name: generate iOS icons
         shell: bash
         run: |
-          npx --yes @tauri-apps/cli@2.11.4 icon web/desktop/icon.svg --output build/generated-icons
-          iconroot=web/ios/App/App/Assets.xcassets/AppIcon.appiconset
-          cp build/generated-icons/ios/AppIcon-20x20@1x.png "$iconroot/AppIcon-20.png"
-          cp build/generated-icons/ios/AppIcon-20x20@2x.png "$iconroot/AppIcon-40.png"
-          cp build/generated-icons/ios/AppIcon-20x20@3x.png "$iconroot/AppIcon-60.png"
-          cp build/generated-icons/ios/AppIcon-29x29@1x.png "$iconroot/AppIcon-29.png"
-          cp build/generated-icons/ios/AppIcon-29x29@2x.png "$iconroot/AppIcon-58.png"
-          cp build/generated-icons/ios/AppIcon-29x29@3x.png "$iconroot/AppIcon-87.png"
-          cp build/generated-icons/ios/AppIcon-40x40@1x.png "$iconroot/AppIcon-40-1.png"
-          cp build/generated-icons/ios/AppIcon-40x40@2x.png "$iconroot/AppIcon-80.png"
-          cp build/generated-icons/ios/AppIcon-60x60@2x.png "$iconroot/AppIcon-120.png"
-          cp build/generated-icons/ios/AppIcon-60x60@3x.png "$iconroot/AppIcon-180.png"
-          cp build/generated-icons/ios/AppIcon-76x76@1x.png "$iconroot/AppIcon-76.png"
-          cp build/generated-icons/ios/AppIcon-76x76@2x.png "$iconroot/AppIcon-152.png"
-          cp build/generated-icons/ios/AppIcon-83.5x83.5@2x.png "$iconroot/AppIcon-83.5.png"
-          cp build/generated-icons/ios/AppIcon-512@2x.png "$iconroot/AppIcon-512.png"
+          npx --yes @tauri-apps/cli@2.11.4 icon web/icon.svg --output build/generated-icons
+          # the generated Capacitor 8 SPM template ships the modern
+          # single-size AppIcon set: Contents.json references exactly the
+          # 1024x1024 universal mark, so that is the one file the runner
+          # replaces (the per-size families of the retired template are
+          # xcode-internal now).
+          iconroot=build/native/ios/App/App/Assets.xcassets/AppIcon.appiconset
+          cp build/generated-icons/ios/AppIcon-512@2x.png "$iconroot/AppIcon-512@2x.png"
       - name: configure Apple signing
         shell: bash
         env:
@@ -320,7 +401,7 @@ jobs:
           echo "SADDLE_VERSION=$version" >> "$GITHUB_ENV"
           echo "SADDLE_VERSION_CODE=$version_code" >> "$GITHUB_ENV"
       - name: archive ios app
-        run: xcodebuild -project web/ios/App/App.xcodeproj -scheme App -configuration Release -archivePath "$RUNNER_TEMP/Saddle.xcarchive" archive MARKETING_VERSION="$SADDLE_VERSION" CURRENT_PROJECT_VERSION="$SADDLE_VERSION_CODE"
+        run: xcodebuild -project build/native/ios/App/App.xcodeproj -scheme App -configuration Release -archivePath "$RUNNER_TEMP/Saddle.xcarchive" archive MARKETING_VERSION="$SADDLE_VERSION" CURRENT_PROJECT_VERSION="$SADDLE_VERSION_CODE"
       - name: export ipa
         run: xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Saddle.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/SaddleExportOptions.plist" -exportPath "$RUNNER_TEMP/SaddleExport"
       - name: collect ios artifacts

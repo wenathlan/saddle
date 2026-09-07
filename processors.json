@@ -3,7 +3,7 @@
   "meta": {
     "name": "processors.json",
     "title": "saddle - Unified Virtual Processor Database",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "date": "2026-08-22",
     "language": "en",
     "description": "Union of the v5 canonical CPU database (6 x86_64 identities), the e2ugh processor catalog (55 SKUs incl. ARM/Apple/Xeon; lineage kept), Zen5/X3D microarchitecture specs and pool minis. Field conflicts resolved V5-first (model_name/max_boost_ghz/tdp_watts canonical); OMNI complementary fields (arch, core_type, topology, memory_support, release_date) merged in place. Versions re-pinned date-first 2026-08-22.",

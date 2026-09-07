@@ -1,25 +1,30 @@
 /**
  * real tests for the saddle web edition (the e2ugh v7 lineage) (worklog tasks v6-SYNC,
- * v7-BACK and v10-SBX): the suite imports web.js (the
+ * v7-BACK, v10-SBX and 9-a-4): the suite imports web.js (the
  * browser-pure engine port) and asserts the bank, the procfs payloads,
  * the mesa summaries and the command dispatcher (including the v10
  * persistent workspace filesystem commands); spawns web/server.js for
  * real http round trips over an explicit host and a random 30000-59999
- * port (health, spec catalogs, sandbox lifecycle with exec, static
- * assets); covers the v7 auth surface (register with the first-user
- * admin bootstrap, login, me, the generic 401, the login rate limit,
- * auth-required sandboxes) and the signed mesh register route; checks
- * the v10 sandbox workspace surface (files endpoints, quota via
- * SADDLE_SANDBOX_QUOTA_BYTES, self-contained persistence across a real
- * server restart on the same sqlite file); and checks the deployment
- * adapters (vercel.json, netlify.toml, caddyfile) stay in sync with the
- * files they publish.
+ * port (health — lockstep with package.json, rule 95 —, spec catalogs,
+ * sandbox lifecycle with exec and the spa shell served from the vite
+ * build web/dist/public: the root, the pagemap routes and every
+ * extensionless client route answer the react index.html while the
+ * engine module sandbox.js stays a build-time import, answering a real
+ * 404 as a served asset); covers the v7 auth surface (register with
+ * the first-user admin bootstrap, login, me, the generic 401, the
+ * login rate limit, auth-required sandboxes) and the signed mesh
+ * register route; checks the v10 sandbox workspace surface (files
+ * endpoints, quota via SADDLE_SANDBOX_QUOTA_BYTES, self-contained
+ * persistence across a real server restart on the same sqlite file);
+ * and checks the deployment adapters (vercel.json, netlify.toml at
+ * the repository root; caddyfile) stay in sync with the files they
+ * publish.
  */
 
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, createHmac, randomInt, randomUUID } from 'node:crypto';
-import { readFileSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -42,8 +47,33 @@ import {
 
 /** repository root resolved from this test file location. */
 const reporoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* the e2ugh static console lives at web since the grand merge */
+/* the single tsx interface lives at web since the grand merge */
 const webroot = join(reporoot, 'web');
+
+/** the release envelope version the api health must report (rule 95: read
+ * package.json, never a literal — the stamp rides in lockstep with the
+ * server, the data documents and the changelog). */
+const envelopeversion = (
+  JSON.parse(readFileSync(join(reporoot, 'package.json'), 'utf8')) as {
+    version: string;
+  }
+).version;
+
+/** builds the vite spa once so the spawned server has web/dist/public to
+ * serve; the build is a real gate (the pages workflow publishes exactly
+ * this output) so a broken interface fails here instead of in prod. */
+function buildspa(): { code: number | null; error: string; stderr: string } {
+  const build = spawnSync('npm', ['run', 'web:build:pages'], {
+    cwd: reporoot,
+    timeout: 300000,
+    encoding: 'utf8',
+  });
+  return {
+    code: build.status,
+    error: build.error?.message ?? '',
+    stderr: `${build.stderr ?? ''}${build.stdout ?? ''}`,
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /* sandbox.js: the browser-pure engine port                            */
@@ -224,7 +254,22 @@ async function execcommand(
   return (await response.json()) as { output: string; exitCode: number };
 }
 
-test('web server: health, specs, sandbox lifecycle, exec and static assets', async () => {
+test('web server: health, specs, sandbox lifecycle, exec and the spa shell', async (t) => {
+  /* the server needs the vite build (web/dist/public) before it can
+   * serve the interface: build it once here — a broken interface build
+   * is a real failure, not a skip. */
+  const build = buildspa();
+  if (build.error !== '') {
+    t.skip(
+      `npm is unavailable in this environment (${build.error}); the spa build gate cannot run locally`,
+    );
+    return;
+  }
+  assert.equal(
+    build.code,
+    0,
+    `the vite build must succeed (web:build:pages writes web/dist/public):\n${build.stderr.slice(-2000)}`,
+  );
   const { child, base, dbpath } = bootserver(randomInt(30000) + 30000);
   try {
     const health = await waitforhealth(base);
@@ -236,7 +281,11 @@ test('web server: health, specs, sandbox lifecycle, exec and static assets', asy
       db: boolean;
     };
     assert.equal(healthbody.ok, true);
-    assert.equal(healthbody.version, '2.0.0', 'the api reports the release envelope version');
+    assert.equal(
+      healthbody.version,
+      envelopeversion,
+      'the api health reports the package.json release version (the lockstep stamp, rule 95)',
+    );
     assert.equal(healthbody.role, 'standalone', 'a bare boot runs the standalone role');
     assert.equal(healthbody.db, true, 'the sqlite layer answers the health probe');
 
@@ -297,13 +346,55 @@ test('web server: health, specs, sandbox lifecycle, exec and static assets', asy
     const after = await fetch(`${base}/api/v1/sandboxes/${sandbox.id}`, { headers: { cookie } });
     assert.equal(after.status, 404, 'a destroyed sandbox answers 404');
 
+    /* the spa contract (2.1.0): the server serves the vite build — the
+     * root, the legacy pagemap routes and every extensionless client
+     * route answer the react shell; the engine module (sandbox.js) is a
+     * build-time import bundled inside the app, so as a served asset it
+     * answers a real 404 while the file itself stays in the tree (the
+     * server imports it for /api/v1 and the tsx pages import it for the
+     * local terminal). */
     const page = await fetch(`${base}/`);
     assert.equal(page.status, 200);
     assert.match(page.headers.get('content-type') ?? '', /text\/html/);
-    assert.ok((await page.text()).includes('web sandbox'), 'the console page is served');
-    const script = await fetch(`${base}/sandbox.js`);
-    assert.equal(script.status, 200);
-    assert.match(script.headers.get('content-type') ?? '', /javascript/);
+    const shell = await page.text();
+    assert.ok(
+      shell.includes('id="root"'),
+      'the served root is the react shell (mount point #root)',
+    );
+    const shelltitle = /<title>([^<]+)<\/title>/.exec(
+      readFileSync(join(webroot, 'index.html'), 'utf8'),
+    )?.[1];
+    assert.ok(
+      shelltitle !== undefined && shell.includes(shelltitle),
+      'the served shell is the built web/index.html (the house title)',
+    );
+    for (const route of ['/login', '/register', '/dashboard', '/deep/client/link']) {
+      const client = await fetch(`${base}${route}`);
+      assert.equal(client.status, 200, `${route} resolves to the spa shell`);
+      assert.match(client.headers.get('content-type') ?? '', /text\/html/);
+      assert.ok(
+        (await client.text()).includes('id="root"'),
+        `${route} serves the react shell (pagemap + extensionless fallback)`,
+      );
+    }
+    const engine = await fetch(`${base}/sandbox.js`);
+    assert.equal(
+      engine.status,
+      404,
+      'the engine module is no longer a served asset — the tsx bundle embeds it',
+    );
+    assert.equal(
+      existsSync(join(webroot, 'sandbox.js')),
+      true,
+      'web/sandbox.js itself stays at the web root — the server api and the tsx terminal share the module',
+    );
+    const missing = await fetch(`${base}/missing.png`);
+    assert.equal(missing.status, 404, 'a missing asset answers a real 404');
+    const bundlesrc = /src="(\/assets\/[^"]+\.js)"/.exec(shell)?.[1];
+    assert.ok(bundlesrc !== undefined, 'the shell references the bundled assets');
+    const bundle = await fetch(`${base}${bundlesrc}`);
+    assert.equal(bundle.status, 200);
+    assert.match(bundle.headers.get('content-type') ?? '', /javascript/);
     const hardened = await fetch(`${base}/api/v1/health`);
     assert.ok(
       (hardened.headers.get('x-frame-options') ?? '') === 'DENY',
@@ -853,12 +944,21 @@ test('web files: the configured quota rejects over-limit writes over http', asyn
 /* deployment adapters stay in sync with the published files           */
 /* ------------------------------------------------------------------ */
 
-test('web adapters: vercel.json parses strictly, camelcase, no functions', () => {
-  const parsed = JSON.parse(readFileSync(join(webroot, 'vercel.json'), 'utf8')) as Record<
+test('web adapters: the root vercel.json parses strictly, camelcase, spa, no functions', () => {
+  /* the vercel adapter moved to the repository root in the 2.1.0
+   * restructure and publishes the vite build (web/dist/public) as a
+   * pure static spa: every route rewrites to the index.html shell and
+   * the anti-serverless policy forbids functions. */
+  const parsed = JSON.parse(readFileSync(join(reporoot, 'vercel.json'), 'utf8')) as Record<
     string,
     unknown
   >;
-  assert.equal(parsed.outputDirectory, 'web');
+  assert.equal(parsed.outputDirectory, 'web/dist/public');
+  const rewrites = (parsed.rewrites as { source: string; destination: string }[] | undefined) ?? [];
+  assert.ok(
+    rewrites.some((rule) => rule.source === '/(.*)' && rule.destination === '/index.html'),
+    'the vercel adapter rewrites every route to the spa shell',
+  );
   assert.ok(!('functions' in parsed), 'the anti-serverless policy forbids functions');
   const offensive: string[] = [];
   const walk = (node: unknown, label: string): void => {
@@ -875,23 +975,37 @@ test('web adapters: vercel.json parses strictly, camelcase, no functions', () =>
   assert.deepEqual(offensive, [], 'vercel.json keys must avoid underscore and dash');
 });
 
-test('web adapters: netlify.toml is valid toml with a static publish', async (t) => {
+test('web adapters: the root netlify.toml is valid toml with a static spa publish', async (t) => {
   const probe = spawnSync('python3', ['-c', 'import sys'], { timeout: 20000 });
   if (probe.error !== undefined || probe.status !== 0) {
     t.skip('python3 is unavailable in this environment; the toml gate cannot run');
     return;
   }
+  /* the netlify adapter moved to the repository root in the 2.1.0
+   * restructure: it builds the same vite output and rewrites every
+   * route to the index.html shell with 200. */
   const parsed = spawnSync(
     'python3',
-    [
-      '-c',
-      'import json, tomllib; print(json.dumps(tomllib.load(open("web/netlify.toml", "rb"))))',
-    ],
+    ['-c', 'import json, tomllib; print(json.dumps(tomllib.load(open("netlify.toml", "rb"))))'],
     { cwd: reporoot, timeout: 20000, encoding: 'utf8' },
   );
   assert.equal(parsed.status, 0, `tomllib reported: ${parsed.stderr}`);
   const document = JSON.parse(parsed.stdout) as Record<string, unknown>;
-  assert.equal((document.build as Record<string, unknown>).publish, 'web');
+  const build = (document.build ?? {}) as Record<string, unknown>;
+  assert.equal(
+    build.command,
+    'npm run web:build:pages',
+    'the netlify build runs the vite pages build',
+  );
+  assert.equal(build.publish, 'web/dist/public');
+  const redirects =
+    (document.redirects as { from: string; to: string; status: number }[] | undefined) ?? [];
+  assert.ok(
+    redirects.some(
+      (rule) => rule.from === '/*' && rule.to === '/index.html' && rule.status === 200,
+    ),
+    'the netlify adapter rewrites every route to the spa shell with 200',
+  );
   assert.ok(!('functions' in document), 'the anti-serverless policy forbids functions');
 });
 
@@ -903,19 +1017,23 @@ test('web adapters: caddyfile proxies the api without hardcoded hosts', () => {
   assert.ok(caddy.includes('{$SADDLE_API_UPSTREAM'), 'the upstream comes from the environment');
 });
 
-test('web docs: the web readme documents every sibling and pins the envelope version', () => {
+test('web docs: the web readme documents the live siblings and pins the envelope version', () => {
   const webreadme = readFileSync(join(webroot, 'readme.md'), 'utf8');
-  for (const sibling of [
-    'index.html',
-    'sandbox.js',
-    'server.js',
-    'vercel.json',
-    'netlify.toml',
-    'caddyfile',
-  ]) {
+  /* the siblings that keep living at the web root. */
+  for (const sibling of ['index.html', 'sandbox.js', 'server.js', 'caddyfile']) {
     assert.ok(webreadme.includes(sibling), `web/readme.md must document ${sibling}`);
   }
-  const envelopeversion = JSON.parse(readFileSync(join(reporoot, 'package.json'), 'utf8')).version;
-  assert.ok(webreadme.includes(envelopeversion), `the web readme pins the envelope version (${envelopeversion})`);
+  /* the deploy adapters moved to the repository root in the 2.1.0
+   * restructure — the readme points at them there. */
+  for (const rootfile of ['vercel.json', 'netlify.toml']) {
+    assert.ok(
+      webreadme.includes(rootfile),
+      `web/readme.md must document the repo-root ${rootfile}`,
+    );
+  }
+  assert.ok(
+    webreadme.includes(envelopeversion),
+    `the web readme pins the envelope version (${envelopeversion})`,
+  );
   assert.ok(webreadme.includes('/api/v1/health'), 'the run instructions cite the health route');
 });

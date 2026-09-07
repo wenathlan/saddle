@@ -16,44 +16,67 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
-  attestations: write
 
 env:
   image: ghcr.io/${{ github.repository_owner }}/saddle
 
 jobs:
-  publish:
-    # the workflow_run gate (the e2ugh dual-trigger pattern): only a
-    # successful completion of release validation on a version-bump push
-    # fires this publish through the cascade; manual releases and
-    # dispatches use their own direct events.
-    if: (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+  resolve:
+    name: Resolve release version
+    # cache-mirror releases (mesa-cache-*) publish tarball assets, not
+    # versioned artifacts: the release-triggered publish jobs skip them
+    # gracefully instead of failing the version resolver.
+    if: (github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')) && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      proceed: ${{ steps.release.outputs.proceed }}
     steps:
       - name: checkout
         uses: actions/checkout@v7.0.1
         with:
-          ref: ${{ github.event.release.tag_name || github.ref_name }}
+          ref: ${{ github.event.repository.default_branch }}
+          # full history plus tags: the resolver materializes and verifies
+          # the version tag against the package.json of its commit.
+          fetch-depth: 0
       - name: setup node
         uses: actions/setup-node@v7.0.0
         with:
           node-version: 26.7.0
       # the release-version resolver, inlined from the retired composite
       # action (the one-workflow-file standard: every workflow carries its
-      # own steps - the .github/actions folder no longer exists).
+      # own steps - the .github/actions folder no longer exists), carrying
+      # the e2ugh idempotency gates: the tag==HEAD "already shipped" guard
+      # and the published-release check, so a duplicate firing no-ops
+      # instead of republishing the image index.
       - name: resolve release version
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-          CHECKOUT_TAG: "true"
+          AUTOMATIC: ${{ github.event_name == 'workflow_run' }}
         run: |
           set -euo pipefail
-          tag="${RELEASE_TAG:-}"
-          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+          {
+            echo "version="
+            echo "tag="
+            echo "proceed=false"
+          } >> "$GITHUB_OUTPUT"
+          requested="${RELEASE_TAG:-}"
+          if [ -n "$requested" ]; then
+            # an event names a tag (the release published path): verify
+            # THAT tag against the package.json of its commit.
+            tag="$requested"
+          elif [ "${AUTOMATIC}" = "true" ]; then
+            # the automatic workflow_run path (the e2ugh resolver): the
+            # version comes from the default-branch metadata - the
+            # version-bump commit the completed validation ran on.
+            tag="v$(node -p "require('./package.json').version")"
+          else
+            # manual dispatch: the latest release.
             tag="$(gh release view --json tagName --jq .tagName)"
           fi
           if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
@@ -62,18 +85,61 @@ jobs:
           fi
           version="${tag#v}"
           git fetch --force --tags origin "refs/tags/${tag}:refs/tags/${tag}"
-          if [[ "$CHECKOUT_TAG" == "true" ]]; then
-            git checkout --detach "$tag"
+          if ! git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            if [ "${AUTOMATIC}" = "true" ]; then
+              echo "Tag ${tag} does not exist; the release lane creates it on version bumps. Skipping."
+              exit 0
+            fi
+            echo "Tag ${tag} does not exist; the release lane creates it on version bumps." >&2
+            exit 1
           fi
+          if [ "${AUTOMATIC}" = "true" ]; then
+            # the e2ugh "already shipped" guard: on the automatic path the
+            # resolver runs on the default-branch head, so a tag pointing
+            # elsewhere means the release for it already shipped and this
+            # firing no-ops instead of republishing.
+            if [ "$(git rev-parse "${tag}^{commit}")" != "$(git rev-parse HEAD)" ]; then
+              echo "Tag ${tag} does not point at this source; the release for it already shipped. Skipping."
+              exit 0
+            fi
+          fi
+          git checkout --detach "$tag" 2>/dev/null || {
+            echo "Tag ${tag} does not exist." >&2
+            exit 1
+          }
           package_version=$(node -p "require('./package.json').version")
           if [[ "$package_version" != "$version" ]]; then
             echo "Release tag ${tag} does not match package version ${package_version}" >&2
             exit 1
           fi
+          if ! gh api "repos/${GH_REPO}/releases/tags/${tag}" >/dev/null 2>&2; then
+            echo "No published GitHub release for ${tag}; the release lane skipped this bump. Skipping."
+            exit 0
+          fi
           {
-            echo "tag=$tag"
-            echo "version=$version"
+            echo "version=${version}"
+            echo "tag=${tag}"
+            echo "proceed=true"
           } >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish the node engine image to GHCR
+    needs: resolve
+    if: needs.resolve.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          # needs.resolve.outputs.tag is v<version> validated against the
+          # package.json of the tagged commit - never raw event data.
+          ref: ${{ needs.resolve.outputs.tag }}
       - name: login ghcr
         uses: docker/login-action@v4
         with:
@@ -81,7 +147,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: setup qemu
+        # multi-arch emulation for the non-native architectures of the
+        # four-arch node-engine index (the e2ugh lineage surface: the
+        # amd64, arm64, ppc64le and s390x family union).
         uses: docker/setup-qemu-action@v4
+        with:
+          platforms: linux/arm64,linux/ppc64le,linux/s390x
       - name: setup buildx
         uses: docker/setup-buildx-action@v4
       - name: resolve image tags
@@ -89,7 +160,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="${{ steps.release.outputs.version }}"
+          version="${{ needs.resolve.outputs.version }}"
           {
             echo "version=${version}"
             echo 'tags<<EOF'
@@ -97,19 +168,22 @@ jobs:
             echo 'EOF'
           } >> "${GITHUB_OUTPUT}"
       - name: build image for security scan
+        # the scan stays single-platform: a loadable linux/amd64 image
+        # (GitHub-hosted runners cannot load a multi-platform image into
+        # the default local image store).
         uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
           load: true
           platforms: linux/amd64
-          tags: saddle:scan-${{ steps.release.outputs.version }}
+          tags: saddle:scan-${{ needs.resolve.outputs.version }}
           build-args: |
-            SADDLE_VERSION=${{ steps.release.outputs.version }}
+            SADDLE_VERSION=${{ needs.resolve.outputs.version }}
       - name: scan container image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: saddle:scan-${{ steps.release.outputs.version }}
+          image-ref: saddle:scan-${{ needs.resolve.outputs.version }}
           scanners: vuln,secret,misconfig
           severity: HIGH,CRITICAL
           ignore-unfixed: true
@@ -121,20 +195,25 @@ jobs:
           file: Dockerfile
           # the node-engine runtime stage is the explicit target: the vhe
           # stages of the one container file are published by the publish
-          # ghcr vhe workflow under the -vhe tag family.
+          # ghcr vhe workflow under the -vhe tag family. The node engine
+          # ships the four-arch family surface (linux/amd64, linux/arm64,
+          # linux/ppc64le, linux/s390x - the s390x leg joins from the
+          # e2ugh lineage union; see docs/containerplatforms-2.1.0.md).
           target: saddle-runtime
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           build-args: |
-            SADDLE_VERSION=${{ steps.release.outputs.version }}
-          platforms: linux/amd64,linux/arm64,linux/ppc64le
+            SADDLE_VERSION=${{ needs.resolve.outputs.version }}
+          platforms: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x
           provenance: mode=max
           sbom: true
       - name: verify published image index and smoke test amd64
         shell: bash
         run: |
           set -euo pipefail
-          image_ref="${image}:${{ steps.release.outputs.version }}"
+          image_ref="${image}:${{ needs.resolve.outputs.version }}"
+          # every published node-engine index must carry the four-arch
+          # registry surface: amd64, arm64, ppc64le and s390x.
           docker buildx imagetools inspect --raw "${image_ref}" | jq -e '
             [
               .manifests[]
@@ -142,9 +221,9 @@ jobs:
               | .platform.architecture
             ]
             | sort
-            | . == ["amd64", "arm64", "ppc64le"]
+            | . == ["amd64", "arm64", "ppc64le", "s390x"]
           '
           docker pull --quiet --platform linux/amd64 "${image_ref}"
           actual_version="$(docker image inspect "${image_ref}" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')"
-          test "${actual_version}" = "${{ steps.release.outputs.version }}"
+          test "${actual_version}" = "${{ needs.resolve.outputs.version }}"
           docker run --rm --platform linux/amd64 "${image_ref}" help

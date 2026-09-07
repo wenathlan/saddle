@@ -1,14 +1,16 @@
 /**
- * workflow simulation tests for the e2ugh repository (worklog task v5-E):
- * the suite mirrors, locally and for real, the gates that the github
- * actions pipelines (.github/workflows/ci.yml and release.yml) run on
- * every push — biome lint, module parsing through type stripping plus the
- * typescript 7.0.2 no-emit build, strict json validation of the ten camel
- * case data documents, the flat structure contract, the node smoke gate,
- * the python bridge gates and the release checksum manifest. every spawn
- * runs with a timeout inside a try/catch catcher and every gate that
- * depends on a tool missing from the environment is skipped with a
- * documented reason instead of failing silently.
+ * workflow simulation tests for the saddle repository (worklog tasks v5-E
+ * and 9-a-4): the suite mirrors, locally and for real, the gates that the
+ * github actions pipelines (.github/workflows/ci.yml and release.yml) run
+ * on every push — biome lint, module parsing through type stripping plus
+ * the typescript 7.0.2 no-emit build, strict json validation of the ten
+ * camel case data documents, the flat structure contract (the 2.1.0 web
+ * restructure: page folders + loose modules, native wrappers generated on
+ * the runners, never tracked), the workflow reference gates, the node
+ * smoke gate, the python bridge gates and the release checksum manifest.
+ * every spawn runs with a timeout inside a try/catch catcher and every
+ * gate that depends on a tool missing from the environment is skipped
+ * with a documented reason instead of failing silently.
  */
 
 import assert from 'node:assert/strict';
@@ -304,17 +306,25 @@ test('ci gate json: the ten data documents parse strictly with zero underscore o
 /* gate 4: flat structure contract                                     */
 /* ------------------------------------------------------------------ */
 
-test('ci gate structure: the grand-merge layout contract', () => {
-  /* the merged repository carries one root surface:
+test('ci gate structure: the 2.1.0 flat layout contract (single tsx interface)', () => {
+  /* the repository carries one root surface:
      - the root: every logic TypeScript file sits flat at the repository
        root (the consolidation contract — no nested logic folders), with
-       only the support folder (docs, tests) and the interface tree (web)
-       beside them; the alternate-forge pipeline folders retired (the
-       GitHub workflow set is the one CI authority, the deploy knowledge
-       lives in web/DEPLOYMENT.md);
-     - the web root: the merged e2ugh console files (server, dispatcher,
-       store, auth, mesh and the static pages) sit beside the React app
-       folders — every console file at the web root, no sandbox subfolder. */
+       only the support folders (docs, tests), the interface tree (web)
+       and the conversion configs beside them; the alternate-forge
+       pipeline folders retired (the GitHub workflow set is the one CI
+       authority, the deploy knowledge lives in web/DEPLOYMENT.md);
+     - the web root (2.1.0 restructure): the interface is ONE React tsx
+       app — every route is a page folder (web/<Page>/<Page>.tsx) with
+       the shared components loose at the web root, the server-side
+       modules (server, dispatcher, store, auth, mesh, localauth.ts,
+       api.ts) and the schema/deploy files sit beside them, and the
+       static e2ugh console pages are fully absorbed into the tsx pages.
+       the native wrappers (android/ios/desktop/extension) are generated
+       on the runners (npx cap add / tauri scaffold) into build/native/*
+       and never tracked — the conversion configs moved to the repo
+       root (capacitor.config.ts, vite.config.ts, vitest.config.ts,
+       tauri.conf.json, vercel.json, netlify.toml). */
   const logicfiles = globroot('*.ts').sort();
   assert.ok(
     logicfiles.length >= 30,
@@ -344,32 +354,112 @@ test('ci gate structure: the grand-merge layout contract', () => {
       `${retired} is retired — the GitHub workflow set is the one CI authority`,
     );
   }
-  /* the console surface: the merged e2ugh console files at the web root. */
+  /* the web interface contract: one tsx app, every module at the web
+   * root (the 2.1.0 restructure — the static console pages and the
+   * four native wrapper folders are gone for good). */
   for (const required of [
-    'server.js',
+    'App.tsx',
+    'main.tsx',
+    'index.html',
+    'index.css',
+    'api.ts',
+    'localauth.ts',
     'sandbox.js',
+    'sandbox.d.ts',
+    'server.js',
     'db.js',
     'auth.js',
     'mesh.js',
-    'localauth.js',
-    'dashboard.js',
-    'console.js',
-    'console.html',
-    'login.html',
-    'register.html',
-    'dashboard.html',
+    'manifest.json',
+    'popup.html',
+    'popup.css',
+    'icon.svg',
+    'readme.md',
+    'init.sql',
+    'schema.prisma',
+    'drizzle.config.ts',
+    'mime.types',
+    'caddyfile',
   ]) {
     assert.ok(
       existsSync(join(reporoot, 'web', required)),
-      `web/${required} — the console file lives at the web root`,
+      `web/${required} — the interface module lives at the web root`,
     );
   }
-  assert.equal(
-    existsSync(join(reporoot, 'web', 'sandbox')),
-    false,
-    'web/sandbox no longer exists — every console file sits at the web root',
-  );
-  /* the dedupe contract scoped to the flat surfaces (root + console). */
+  /* every route is a page folder carrying its own <Page>.tsx. */
+  for (const page of [
+    'Home',
+    'Architecture',
+    'AgentBrowser',
+    'Compute',
+    'Integrations',
+    'Playground',
+    'Docs',
+    'NotFound',
+    'Login',
+    'Register',
+    'Dashboard',
+    'Console',
+  ]) {
+    assert.ok(
+      existsSync(join(reporoot, 'web', page, `${page}.tsx`)),
+      `web/${page}/${page}.tsx — one folder per route (the doctrine of the 2.1.0 interface)`,
+    );
+  }
+  /* the conversion configs of the generated wrappers live at the root. */
+  for (const config of [
+    'capacitor.config.ts',
+    'vite.config.ts',
+    'vitest.config.ts',
+    'tauri.conf.json',
+    'vercel.json',
+    'netlify.toml',
+  ]) {
+    assert.ok(
+      existsSync(join(reporoot, config)),
+      `${config} — the conversion/deploy config lives at the repository root`,
+    );
+  }
+  /* the forbidden tree: the native wrappers are generated on the
+   * runners, never tracked; the flattened app knows no nested support
+   * folders; the static console is absorbed into the tsx interface. */
+  for (const forbidden of [
+    'android',
+    'ios',
+    'desktop',
+    'extension',
+    'pages',
+    'components',
+    'hooks',
+    'lib',
+    'contexts',
+    'sandbox',
+  ]) {
+    assert.equal(
+      existsSync(join(reporoot, 'web', forbidden)),
+      false,
+      `web/${forbidden} must not exist — the wrappers are generated on the runners and the interface is one flat tsx tree`,
+    );
+  }
+  for (const forbidden of [
+    'const.ts',
+    'localauth.js',
+    'login.html',
+    'register.html',
+    'console.html',
+    'dashboard.html',
+    'login.js',
+    'register.js',
+    'console.js',
+    'dashboard.js',
+  ]) {
+    assert.equal(
+      existsSync(join(reporoot, 'web', forbidden)),
+      false,
+      `web/${forbidden} must not exist — the interface is the single tsx app (the static console pages are absorbed)`,
+    );
+  }
+  /* the dedupe contract scoped to the flat surfaces (root + web root). */
   const files = [
     ...logicfiles,
     ...readdirSync(join(reporoot, 'web'))
@@ -391,6 +481,93 @@ test('ci gate structure: the grand-merge layout contract', () => {
     );
     seenhashes.set(hash, file);
   }
+});
+
+/* ------------------------------------------------------------------ */
+/* gate 4b: the workflow reference contract (generated wrappers)       */
+/* ------------------------------------------------------------------ */
+
+test('ci gate workflows: no pipeline references the retired native wrapper paths', () => {
+  /* the 2.1.0 doctrine (docs/native-wrappers.md): the android, ios,
+   * desktop and extension wrappers are toolchain output generated on
+   * the runners into build/native/* — no workflow may reference the
+   * retired tracked folders under web/ ever again. */
+  const workflowdir = join(reporoot, '.github', 'workflows');
+  const workflows = readdirSync(workflowdir)
+    .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
+    .sort();
+  assert.ok(
+    workflows.length >= 20,
+    `the workflow set must stay populated (found ${workflows.length})`,
+  );
+  for (const workflow of workflows) {
+    const text = readFileSync(join(workflowdir, workflow), 'utf8');
+    for (const forbidden of ['web/android', 'web/ios', 'web/desktop', 'web/extension']) {
+      assert.ok(
+        !text.includes(forbidden),
+        `${workflow} must not reference ${forbidden} — the native wrappers are generated on the runners, never tracked`,
+      );
+    }
+  }
+});
+
+test('ci gate workflows: mobile.yml scaffolds both capacitor wrappers on the runner', () => {
+  /* the mobile lane owns no tracked wrapper: it runs `cap add` on the
+   * runner into build/native/{android,ios} (gitignored) and builds the
+   * artifacts from the generated staging, per docs/native-wrappers.md. */
+  const mobile = readFileSync(join(reporoot, '.github', 'workflows', 'mobile.yml'), 'utf8');
+  for (const needle of [
+    'cap add android',
+    'build/native/android',
+    'cap add ios',
+    'build/native/ios',
+  ]) {
+    assert.ok(
+      mobile.includes(needle),
+      `mobile.yml must contain "${needle}" — the wrapper is generated at build time into build/native/*`,
+    );
+  }
+});
+
+test('ci gate workflows: desktop.yml scaffolds the tauri shell on the runner', () => {
+  /* the desktop lane scaffolds the tauri envelope (Cargo.toml,
+   * main.rs, lib.rs, build.rs) on the runner into build/native/desktop
+   * and reads the tracked tauri.conf.json from the repository root. */
+  const desktop = readFileSync(join(reporoot, '.github', 'workflows', 'desktop.yml'), 'utf8');
+  assert.ok(
+    desktop.includes('build/native/desktop'),
+    'desktop.yml must scaffold the tauri shell into build/native/desktop — the wrapper is generated at build time, never tracked',
+  );
+});
+
+test('ci gate workflows: the conversion configs point at the generated wrappers', () => {
+  /* the tracked surface of the native lanes: the conversion configs at
+   * the repository root aim every platform at the gitignored
+   * build/native/* output and at the single vite build the interface
+   * publishes; the root .gitignore keeps that output out of the tree. */
+  const capacitor = readFileSync(join(reporoot, 'capacitor.config.ts'), 'utf8');
+  assert.ok(
+    capacitor.includes('build/native/android'),
+    'capacitor.config.ts points the android platform at build/native/android',
+  );
+  assert.ok(
+    capacitor.includes('build/native/ios'),
+    'capacitor.config.ts points the ios platform at build/native/ios',
+  );
+  assert.ok(
+    capacitor.includes('web/dist/public'),
+    'the capacitor webDir is the vite build output (web/dist/public)',
+  );
+  const tauri = readFileSync(join(reporoot, 'tauri.conf.json'), 'utf8');
+  assert.ok(
+    tauri.includes('web/dist/public'),
+    'tauri.conf.json keeps frontendDist at web/dist/public',
+  );
+  const ignore = readFileSync(join(reporoot, '.gitignore'), 'utf8');
+  assert.ok(
+    /^build\/$/m.test(ignore),
+    'the root .gitignore keeps build/ ignored — the generated wrappers are never committed',
+  );
 });
 
 /* ------------------------------------------------------------------ */
@@ -533,6 +710,11 @@ test('ci gate container: the one Dockerfile carries the merged compose and entry
       `${composefile} is merged into the Dockerfile and must not exist`,
     );
   }
+  assert.equal(
+    existsSync(join(reporoot, 'Dockerfile.full')),
+    false,
+    'Dockerfile.full is retired — the one container file contract (the merged image builds every lane from the single Dockerfile)',
+  );
   assert.equal(
     existsSync(join(reporoot, 'entrypoint.sh')),
     false,

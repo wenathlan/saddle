@@ -3,11 +3,15 @@ name: codeql analysis
 # The CodeQL lane of the security surface: the github/codeql-action scans
 # the languages that really exist in this repository - the workflow files
 # themselves (actions), the TypeScript engine + web surface
-# (javascript-typescript) and the desktop Rust shell (web/desktop, the
-# tauri carrier) - with build-mode none (no compiled language needs a
-# manual build). The other scanners (dependency review, npm audit, cargo
-# audit, osv, trufflehog, trivy, sbom) live in security.yml; this file
-# owns only the CodeQL analysis and its SARIF upload.
+# (javascript-typescript) and the native C/C++ sources of the virtual
+# hardware engine (cpp: virtualhardware.c, gpumonitor.cpp,
+# virtualizationcore.cpp - the build-free extractor, restored from the
+# e2ugh lane) - with build-mode none (no compiled language needs a
+# manual build). The desktop tauri Rust shell is runner-generated since
+# the 2.1.0 restructure (no .rs is tracked), so the rust lane is retired.
+# The other scanners (dependency review, npm audit, osv, trufflehog,
+# trivy, sbom) live in security.yml; this file owns only the CodeQL
+# analysis and its SARIF upload.
 
 on:
   push:
@@ -47,8 +51,9 @@ jobs:
           # the root engine domains + the web React surface
           - language: javascript-typescript
             build-mode: none
-          # the web/desktop tauri shell (Cargo.toml, main.rs, lib.rs)
-          - language: rust
+          # the native C/C++ sources of the virtual hardware engine
+          # (virtualhardware.c, gpumonitor.cpp, virtualizationcore.cpp)
+          - language: cpp
             build-mode: none
     steps:
       - name: checkout

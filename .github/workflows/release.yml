@@ -5,6 +5,16 @@ name: release validation
 # the release-triggered pipeline (container, mobile, desktop, targets,
 # buildextension and every publish workflow) without a manual step. The
 # validation job then runs the full deterministic battery on the tag.
+#
+# The release body gate (the e2ugh Release lane, restored): the body of
+# every release is the CHANGELOG.md section of the version (the block
+# between the "## <version> —" heading and the next "## " heading). A
+# version without a section refuses to ship - "refusing to ship an empty
+# release body" - so a release can never publish without its curated
+# notes (the 2.0.6 lesson: the release shipped with no CHANGELOG section).
+# The same lane attaches the source archive (git archive, zip -9, the
+# family asset name saddle-v<version>-source.zip) and the checksums job
+# rebuilds the SHA256SUMS umbrella over the assets the release carries.
 
 on:
   push:
@@ -37,6 +47,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      released: ${{ steps.versions.outputs.changed }}
     steps:
       - name: checkout
         uses: actions/checkout@v7.0.1
@@ -74,6 +86,88 @@ jobs:
         run: |
           npm ci
           npm run check && npm run formatcheck && npm test && npm run pack:check
+      - name: verify the version envelopes are in lockstep
+        # the envelope lockstep gate (the e2ugh Release lane, restored):
+        # the config envelopes and the web carriers must report the same
+        # version as package.json - read dynamically from the checked out
+        # source, never a hardcoded literal (rule 95). A frozen envelope
+        # aborts the tag before any release exists.
+        if: steps.versions.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          version=$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")
+          envelope_files="docker.config qemu.config mttg.config gpus.json processors.json cores.json virtualhardware.json vm.config.json"
+          for f in ${envelope_files}; do
+            reported=$(node -e "
+              const fs = require('fs');
+              const text = fs.readFileSync('${f}', 'utf8');
+              try {
+                const data = JSON.parse(text);
+                const v = data.version || (data.meta && data.meta.version) || (data.metadata && data.metadata.version);
+                if (v) { process.stdout.write(v); process.exit(0); }
+              } catch { /* plain payload: fall through */ }
+              const m = text.match(/\"version\"\s*:\s*\"([^\"]+)\"/);
+              process.stdout.write(m ? m[1] : '');
+            ")
+            if [ "${reported}" != "${version}" ]; then
+              echo "::error file=${f}::version envelope is '${reported}' but the release is ${version}; keep the metadata in lockstep." >&2
+              exit 1
+            fi
+          done
+          # the web carriers: the api version literal and the sandbox engine stamp.
+          server_version=$(node -e "
+            const text = require('fs').readFileSync('web/server.js', 'utf8');
+            const m = text.match(/const version = '([^']+)'/);
+            process.stdout.write(m ? m[1] : '');
+          ")
+          if [ "${server_version}" != "${version}" ]; then
+            echo "::error file=web/server.js::version envelope is '${server_version}' but the release is ${version}; keep the api version literal in lockstep." >&2
+            exit 1
+          fi
+          sandbox_version=$(node -e "
+            const text = require('fs').readFileSync('web/sandbox.js', 'utf8');
+            const m = text.match(/SADDLE_VERSION: '([^']+)'/);
+            process.stdout.write(m ? m[1] : '');
+          ")
+          if [ "${sandbox_version}" != "${version}" ]; then
+            echo "::error file=web/sandbox.js::version envelope is '${sandbox_version}' but the release is ${version}; keep the sandbox engine stamp in lockstep." >&2
+            exit 1
+          fi
+          echo "envelope lockstep verified at ${version}"
+      - name: extract the release notes from CHANGELOG.md
+        # the release body gate (the e2ugh Release lane): the curated
+        # markdown notes live in CHANGELOG.md - the section '## <version>
+        # — <title>' up to the next '## ' heading. The extracted block
+        # becomes the release body; a version without a section refuses
+        # to ship (an empty release body must never publish).
+        if: steps.versions.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          version="${{ steps.versions.outputs.version }}"
+          awk -v ver="## ${version}" '
+            BEGIN { insection = 0 }
+            /^## / {
+              if (insection) exit
+              if (index($0, ver) == 1) { insection = 1; next }
+            }
+            insection { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "CHANGELOG.md carries no '## ${version}' section; refusing to ship an empty release body." >&2
+            echo "Add a '## ${version} — ...' section to CHANGELOG.md as part of the version bump." >&2
+            exit 1
+          fi
+          {
+            echo "# saddle v${version}"
+            echo
+            cat release-notes.md
+            echo
+            echo '---'
+            echo
+            echo '<!-- the APK, IPA, container, desktop and extension assets are attached by their own release-triggered workflows; the SHA256SUMS umbrella is rebuilt by the checksums job -->'
+          } > release-body.md
+          echo 'Extracted release notes:'
+          head -12 release-notes.md
       - name: tag and release the bumped version
         if: steps.versions.outputs.changed == 'true'
         env:
@@ -83,10 +177,84 @@ jobs:
           set -euo pipefail
           git tag "v${VERSION}"
           git push origin "v${VERSION}"
+          # the source archive of the tagged tree (the e2ugh release
+          # artifacts lane): git archive materializes exactly the tracked
+          # files of the tagged commit at maximum zip -9 compression,
+          # under the family asset name saddle-v<version>-source.zip.
+          git archive --format=zip -9 -o "saddle-v${VERSION}-source.zip" HEAD
+          sha256sum "saddle-v${VERSION}-source.zip"
           gh release create "v${VERSION}" \
-            --title "saddle ${VERSION}" \
-            --generate-notes \
-            --verify-tag
+            --title "v${VERSION}" \
+            --notes-file release-body.md \
+            --verify-tag \
+            "saddle-v${VERSION}-source.zip"
+
+  checksums:
+    # the SHA256SUMS umbrella (the e2ugh release artifacts lane, extended
+    # to the whole asset surface): downloads every asset the release
+    # CURRENTLY carries (the source.zip from this lane plus whatever the
+    # automatic lanes already attached), regenerates SHA256SUMS in the
+    # coreutils wire format and uploads it - the --clobber flag replaces
+    # a previous umbrella, so the job is idempotent and re-runnable
+    # (workflow_dispatch after the mobile/desktop/container lanes attach
+    # their artifacts refreshes the umbrella over the full surface).
+    name: rebuild the release SHA256SUMS umbrella
+    needs: auto-tag
+    if: always() && (needs.auto-tag.result == 'success' || needs.auto-tag.result == 'skipped') && (needs.auto-tag.outputs.released == 'true' || (github.event_name != 'push' && (github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v'))))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: rebuild SHA256SUMS from the current release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          tag="${RELEASE_TAG:-}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            tag="$(gh release view --json tagName --jq .tagName)"
+          fi
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            echo "A release tag such as v1.8.0 is required; received: ${tag:-<empty>}" >&2
+            exit 1
+          fi
+          workdir="$(mktemp -d)"
+          # a release with no assets yet has nothing to checksum (the
+          # push lane always carries the source.zip attached at creation;
+          # a manual release may still be empty - skip cleanly instead of
+          # failing the lane, which would block the publish cascade).
+          asset_count="$(gh api "repos/${GH_REPO}/releases/tags/${tag}" --jq '.assets | length' 2>/dev/null || echo 0)"
+          if [ "${asset_count}" = "0" ]; then
+            echo "Release ${tag} carries no assets yet; nothing to checksum."
+            exit 0
+          fi
+          gh release download "${tag}" --dir "${workdir}" --clobber
+          # the umbrella never covers itself.
+          rm -f "${workdir}/SHA256SUMS"
+          shopt -s nullglob
+          files=("${workdir}"/*)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "Release ${tag} carries no checksummable assets; nothing to do."
+            exit 0
+          fi
+          (
+            cd "${workdir}"
+            # snapshot the asset list BEFORE creating the output file, so
+            # the freshly created SHA256SUMS never lands in its own glob.
+            assets=(*)
+            : > SHA256SUMS
+            for asset in "${assets[@]}"; do
+              sha256sum "${asset}" >> SHA256SUMS
+            done
+          )
+          cp "${workdir}/SHA256SUMS" .
+          count="$(wc -l < SHA256SUMS)"
+          echo "Release ${tag}: ${count} assets checksummed."
+          cat SHA256SUMS
+          gh release upload "${tag}" SHA256SUMS --clobber
 
   validate:
     # cache-mirror releases (mesa-cache-*) publish tarball assets, not
@@ -139,6 +307,52 @@ jobs:
             echo "tag=$tag"
             echo "version=$version"
           } >> "$GITHUB_OUTPUT"
+      - name: verify the version envelopes are in lockstep
+        # the envelope lockstep gate (the e2ugh Release lane, restored):
+        # the release tree keeps the config envelopes and the web carriers
+        # in lockstep with the tag's package.json - read dynamically from
+        # the checked out source, never a hardcoded literal (rule 95).
+        run: |
+          set -euo pipefail
+          version=$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")
+          envelope_files="docker.config qemu.config mttg.config gpus.json processors.json cores.json virtualhardware.json vm.config.json"
+          for f in ${envelope_files}; do
+            reported=$(node -e "
+              const fs = require('fs');
+              const text = fs.readFileSync('${f}', 'utf8');
+              try {
+                const data = JSON.parse(text);
+                const v = data.version || (data.meta && data.meta.version) || (data.metadata && data.metadata.version);
+                if (v) { process.stdout.write(v); process.exit(0); }
+              } catch { /* plain payload: fall through */ }
+              const m = text.match(/\"version\"\s*:\s*\"([^\"]+)\"/);
+              process.stdout.write(m ? m[1] : '');
+            ")
+            if [ "${reported}" != "${version}" ]; then
+              echo "::error file=${f}::version envelope is '${reported}' but the release is ${version}; keep the metadata in lockstep." >&2
+              exit 1
+            fi
+          done
+          # the web carriers: the api version literal and the sandbox engine stamp.
+          server_version=$(node -e "
+            const text = require('fs').readFileSync('web/server.js', 'utf8');
+            const m = text.match(/const version = '([^']+)'/);
+            process.stdout.write(m ? m[1] : '');
+          ")
+          if [ "${server_version}" != "${version}" ]; then
+            echo "::error file=web/server.js::version envelope is '${server_version}' but the release is ${version}; keep the api version literal in lockstep." >&2
+            exit 1
+          fi
+          sandbox_version=$(node -e "
+            const text = require('fs').readFileSync('web/sandbox.js', 'utf8');
+            const m = text.match(/SADDLE_VERSION: '([^']+)'/);
+            process.stdout.write(m ? m[1] : '');
+          ")
+          if [ "${sandbox_version}" != "${version}" ]; then
+            echo "::error file=web/sandbox.js::version envelope is '${sandbox_version}' but the release is ${version}; keep the sandbox engine stamp in lockstep." >&2
+            exit 1
+          fi
+          echo "envelope lockstep verified at ${version}"
       # the package validator, inlined from the retired composite action
       # (full deterministic gates plus the pack dry-run).
       - name: install dependencies

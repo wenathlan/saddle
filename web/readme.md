@@ -5,7 +5,7 @@ virtual container — cpu, ram, gpu, mesa software graphics — entirely in the
 browser, plus one self-hosted node api exposing the exact same sandbox over
 http for automation. no framework, no build step, no serverless functions.
 
-version 2.0.6 — reported by `/api/v1/health` and kept in lockstep with
+version 2.1.0 — reported by `/api/v1/health` and kept in lockstep with
 `package.json` and the `meta.version` envelope of the ten data documents
 (v6-SYNC worklog task).
 
@@ -61,11 +61,11 @@ vm:stopped, vm:deleted).
 | `schema.prisma` / `init.sql` / `drizzle.config.ts` | the three schema mirrors of the db.js migrations (prisma, raw sql, drizzle kit) |
 | `mime.types`  | the extension to content-type table parsed by server.js at boot |
 | `index.html` + `main.tsx` + `App.tsx` | the React app entry (vite build; the Pages-published surface) |
-| `pages/` + `components/` + `hooks/` + `lib/` + `contexts/` | the React app folders that sit beside the console files at the web root |
+| page folders `Home/` … `NotFound/` + loose files (`PageShell`, `SiteHeader`, `SaddleMark`, `SectionRail`, `RuntimeDiagram`, `ErrorBoundary`, `button.tsx`, `card.tsx`, `tooltip.tsx`, `sonner.tsx`, `utils.ts`, `paths.ts`, `ThemeContext.tsx`) | the flattened React app that sits beside the console files at the web root (2.1.0 wave: one folder per route, shared files loose at the root) |
 | `package.json` | deploy manifest only (`@wenathlan/saddle-web`, private, never published): vercel/netlify require it at the deploy root; the published npm package is the central `@wenathlan/saddle` without web |
 | `Dockerfile` (repo root) | container image for ghcr.io/wenathlan/saddle (the main image; web/ ships inside) |
-| `vercel.json` | static hosting config, **no functions** |
-| `netlify.toml`| static hosting config, **no functions** |
+| `vercel.json` (repo root) | static hosting config for the React SPA (`outputDirectory: web/dist/public`, SPA rewrite), **no functions** |
+| `netlify.toml` (repo root) | static hosting config for the React SPA (`publish = "web/dist/public"`, SPA rewrite 200), **no functions** |
 | `caddyfile`   | self-host reverse proxy for the node api (devthink.pro + www) |
 | `readme.md`   | this document |
 
@@ -177,8 +177,8 @@ the role is `admin` (overview cards, mesh node table with ping through
 
 | target | method | what runs |
 |--------|--------|-----------|
-| vercel (clone) | `web/vercel.json`, static output | bytes only: local engine, `?api=` pointing at the main node for auth |
-| netlify (clone) | `web/netlify.toml`, `publish = "."` (file lives inside `web/`), node 26.7.0 | bytes only: same behavior as vercel |
+| vercel (clone) | root `vercel.json`, SPA output from `web/dist/public` | bytes only: local engine, `?api=` pointing at the main node for auth |
+| netlify (clone) | root `netlify.toml`, `publish = "web/dist/public"` (file lives at the repo root), node 26.7.0 | bytes only: same behavior as vercel |
 | self-host (main, devthink.pro) | `docker build .` (the repo-root Dockerfile) -> `ghcr.io/wenathlan/saddle` (the main image; web/ ships inside), caddyfile in front | static pages + full `/api/v1` (auth, admin, mesh) + sqlite on `/data` |
 
 ## why the static + node split
@@ -194,12 +194,13 @@ single dependency.
 
 ## deploy options
 
-- **vercel static** — `web/vercel.json` sets `outputDirectory: web` with
-  cache headers. static edge only: the page runs the local engine in the
+- **vercel static** — the repo-root `vercel.json` sets
+  `outputDirectory: web/dist/public` with an SPA rewrite and cache
+  headers. static edge only: the page runs the local engine in the
   browser; there are no functions.
-- **netlify static** — `web/netlify.toml` sits inside `web/` and sets
-  `publish = "."` on node 26.7.0 with security headers. same rule:
-  static edge only, no functions.
+- **netlify static** — the repo-root `netlify.toml` sets
+  `publish = "web/dist/public"` on node 26.7.0 with an SPA rewrite and
+  security headers. same rule: static edge only, no functions.
 - **self-host (devthink.pro pattern)** — run `node web/server.js` (or the
   `ghcr.io/wenathlan/saddle (the main image; web/ ships inside)` container behind `web/caddyfile`):
   caddy serves the static files on devthink.pro (+ www redirect, gzip,

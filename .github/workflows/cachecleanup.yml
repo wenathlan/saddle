@@ -4,8 +4,12 @@ on:
   workflow_run:
     workflows: ["codeql analysis"]
     types: [completed]
+  # the twice-daily schedule (the e2ugh retention contract, restored):
+  # the two windows sit in the quiet hours between the workday pushes;
+  # every other cleanup pass is the scoped workflow_run firing below.
   schedule:
     - cron: "17 3 * * *"
+    - cron: "17 15 * * *"
   workflow_dispatch:
     inputs:
       apply:
@@ -26,12 +30,20 @@ jobs:
   cleanup:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'cancelled' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       APPLY: ${{ github.event_name != 'workflow_dispatch' || inputs.apply == true }}
       DEFAULT_REF: refs/heads/main
       NONDEFAULT_MAX_AGE_HOURS: "6"
+      # the workflow_run scope (the e2ugh v1.2.14+ contract, restored):
+      # when this workflow is triggered by a codeql analysis completion,
+      # the cleanup loop processes ONLY the codeql-family caches; the
+      # node/java and other families are skipped entirely - they may
+      # still be in-flight reads for the docker legs. The schedule and
+      # workflow_dispatch triggers run the full retention policy.
+      WORKFLOW_RUN_SCOPED: ${{ github.event_name == 'workflow_run' }}
     steps:
       - name: retain bounded repository caches
         shell: bash
@@ -62,6 +74,15 @@ jobs:
             test -n "$cache_id" || continue
             family="$(cachefamily "$key")"
             delete_reason=""
+
+            # the workflow_run scope: only the codeql family is eligible
+            # for cleanup when this workflow was triggered by a codeql
+            # analysis completion; the other families are skipped entirely
+            # so a prompt cleanup never races a still-in-flight lane that
+            # may be reading those blobs.
+            if [ "${WORKFLOW_RUN_SCOPED}" = "true" ] && [ "$family" != "codeql" ]; then
+              continue
+            fi
 
             if [ "$ref" = "$DEFAULT_REF" ]; then
               retained_count="${retained[$family]:-0}"

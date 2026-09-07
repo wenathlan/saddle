@@ -2,10 +2,12 @@
 /**
  * server.js — self-hosted node api for the saddle web console (the merged e2ugh sandbox surface, v7-BACK).
  *
- * pure node:http, zero dependencies, esm. the server serves the static
- * web/ assets (content types parsed from web/mime.types at boot) and
- * exposes the /api/v1 contract: health, spec catalogs read from the
- * repository json files, in-memory sandboxes with the created ->
+ * pure node:http, zero dependencies, esm. the server serves the react
+ * spa build (web/dist/public, produced once by "npm run web:build";
+ * content types parsed from web/mime.types at boot) with the index.html
+ * fallback for client routes, and it exposes the /api/v1 contract:
+ * health, spec catalogs read from the repository json files, in-memory
+ * sandboxes with the created ->
  * running state machine persisted to sqlite, exec through the very
  * same browser-pure dispatcher (web.js) with the persistent
  * per-sandbox workspace filesystem (sandboxfiles table, quota capped,
@@ -16,6 +18,9 @@
  * and the events poll for the dashboard. per the project rules there
  * is no serverless function anywhere: this file is the whole backend
  * and runs on any plain node host (docker, vps, caddy reverse proxy).
+ * the backend sources (server.js, db.js, auth.js, mesh.js, sandbox.js)
+ * stay in web/ itself, one level above the served dist/public root, so
+ * the static resolver can never reach them.
  *
  * contexts (26): httpserver, portselection, noderole, staticfiles,
  * mimetypes, contenttypes, cacheheaders, securityheaders, cors, jsonio,
@@ -33,7 +38,7 @@ import { createServer } from 'node:http';
 import { accessSync, createReadStream, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { sep, extname, join, normalize, resolve, dirname } from 'node:path';
+import { extname, join, normalize, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 import {
@@ -59,9 +64,7 @@ import {
   hashpassword,
   ratelimit,
   ratelimits,
-  requireadmin,
   requireauth,
-  adminusernames,
   bootstraprole,
   seedadmins,
   validatepassword,
@@ -70,17 +73,21 @@ import {
 } from './auth.js';
 import { forwardauth, mainurl, meshsecret, role, startheartbeat, verifymesh } from './mesh.js';
 
-/** repository root (one level above web/) resolved from this module. */
-/* the grand-merge layout: this server lives at web/server.js, the static
- * console pages sit beside it in the same directory, and the repository
- * root (specs catalogs, engine sources) is one level up. */
-const rootdir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+/** the directory holding this module: the web/ root with the backend
+ * sources (db.js, auth.js, mesh.js, sandbox.js), mime.types and the
+ * repository catalogs one level up (the grand-merge layout). */
+const moduledir = dirname(fileURLToPath(import.meta.url));
 
-/** the sandbox directory holding the static assets. */
-const webdir = dirname(fileURLToPath(import.meta.url));
+/** repository root (one level above web/) resolved from this module. */
+const rootdir = resolve(moduledir, '..');
+
+/** the spa directory holding the built static assets: vite writes the
+ * react bundle into web/dist/public ("npm run web:build"), and the
+ * backend sources never live inside it. */
+const webdir = join(moduledir, 'dist', 'public');
 
 /** api version tag reported by /api/v1/health. */
-const version = '2.0.0';
+const version = '2.1.0';
 
 /** sandbox ttl in milliseconds (15 minutes) and sweep interval (60 s). */
 const ttlms = 15 * 60 * 1000;
@@ -178,7 +185,7 @@ function parsemimetypes(filepath) {
 }
 
 /** the real extension -> media type table parsed once at boot. */
-const mimetable = parsemimetypes(join(webdir, 'mime.types'));
+const mimetable = parsemimetypes(join(moduledir, 'mime.types'));
 
 /** the fallback type for extensions absent from the table. */
 const fallbacktype = 'application/octet-stream';
@@ -862,43 +869,35 @@ async function readbody(req) {
 /* ------------------------------------------------------------------ */
 
 /**
- * serves one static file from web/ with traversal protection, streaming,
- * the real mime.types content types and the shared security headers.
+ * serves one static file from the spa build with traversal protection,
+ * streaming, the real mime.types content types, the shared security
+ * headers and the index.html fallback for client routes.
  *
  * @param {string} urlpath the decoded url path.
  * @param {import('node:http').ServerResponse} res the outgoing response.
  * @param {import('node:http').IncomingMessage} req the incoming request.
  * @returns {void}
  */
-/** backend sources never served to the edge: the api modules, the schema
- * files and the database artifacts stay inside the container even when a
- * static host mirrors this folder (defense in depth with the denylist). */
-const staticdenyfiles = new Set([
-  'server.js',
-  'db.js',
-  'auth.js',
-  'mesh.js',
-  'index.js',
-  'init.sql',
-  'schema.prisma',
-  'drizzle.config.ts',
-  'package.json',
-  'package-lock.json',
-  'caddyfile',
-  'netlify.toml',
-]);
-
+/** backend sources are never inside the served root: the api modules
+ * (server.js, db.js, auth.js, mesh.js, sandbox.js), the schema files
+ * (init.sql, schema.prisma, drizzle.config.ts) and the deploy manifests
+ * stay in web/ itself while the static resolver is jailed to
+ * web/dist/public, so the old filename denylist became dead weight and
+ * only the extension denylist below remains as defense in depth (a
+ * stray .db/.sqlite/.log artifact inside a build). */
 function servestatic(urlpath, res, req) {
   const headers = securityheaders(req);
   try {
-    const relative = urlpath === '/' ? 'console.html' : urlpath.replace(/^\/+/, '');
-    // extensionless page routes: /login, /register and /dashboard map to
-    // their html files so the deploy matrix (netlify vercel caddy) can use
-    // clean urls while the file layout stays flat.
+    const relative = urlpath === '/' ? 'index.html' : urlpath.replace(/^\/+/, '');
+    // clean urls: the react router owns every route; the legacy page names
+    // (/login, /register, /dashboard) stay pinned to the spa shell so
+    // bookmarks and the login ?next= flow keep resolving, and every other
+    // extensionless path falls back to index.html below (the spa renders
+    // its own 404 for unknown routes).
     const pagemap = {
-      login: 'login.html',
-      register: 'register.html',
-      dashboard: 'dashboard.html',
+      login: 'index.html',
+      register: 'index.html',
+      dashboard: 'index.html',
     };
     const mapped = pagemap[relative] ?? relative;
     const safepath = normalize(join(webdir, mapped));
@@ -911,8 +910,7 @@ function servestatic(urlpath, res, req) {
       return;
     }
     const extension = extname(safepath).toLowerCase();
-    const basename = safepath.split(sep).pop() ?? '';
-    if (denylist.has(extension) || staticdenyfiles.has(basename)) {
+    if (denylist.has(extension)) {
       res.writeHead(404, {
         'content-type': 'text/plain; charset=utf-8',
         ...headers,
@@ -923,9 +921,20 @@ function servestatic(urlpath, res, req) {
     // existence check before 200: a missing asset answers a real 404
     // instead of a 200 with an error body (the stream error path stays
     // as the race fallback).
+    let fileexists = true;
     try {
       accessSync(safepath);
     } catch {
+      fileexists = false;
+    }
+    if (!fileexists) {
+      // the real spa fallback: any extensionless client route (or the
+      // pagemap entries above) resolves to the shell so deep links and
+      // refreshes survive; the react router then owns the actual 404.
+      if (extension === '' || mapped === 'index.html') {
+        serveshell(res, headers);
+        return;
+      }
       res.writeHead(404, {
         'content-type': 'text/plain; charset=utf-8',
         ...headers,
@@ -954,6 +963,48 @@ function servestatic(urlpath, res, req) {
     res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8', ...headers });
     res.end('internal server error');
   }
+}
+
+/**
+ * serves the spa shell (dist/public/index.html) with the html cache
+ * policy; when the vite build is absent the operator gets the honest
+ * explanation instead of a bare 404 - the /api/v1 surface and this
+ * server keep working either way.
+ *
+ * @param {import('node:http').ServerResponse} res the outgoing response.
+ * @param {Record<string, string>} headers the prepared security headers.
+ * @returns {void}
+ */
+function serveshell(res, headers) {
+  const shellpath = join(webdir, 'index.html');
+  try {
+    accessSync(shellpath);
+  } catch {
+    res.writeHead(503, {
+      'content-type': 'text/plain; charset=utf-8',
+      'cache-control': 'no-store',
+      ...headers,
+    });
+    res.end(
+      'the saddle interface build is missing: run "npm run web:build" once ' +
+        '(vite writes web/dist/public) and reload this page. the /api/v1/* ' +
+        'surface of this node is unaffected and keeps answering.',
+    );
+    return;
+  }
+  const stream = createReadStream(shellpath);
+  stream.on('error', () => {
+    if (!res.headersSent) {
+      res.writeHead(503, { 'content-type': 'text/plain; charset=utf-8', ...headers });
+    }
+    res.end('the interface shell could not be read; run "npm run web:build" and reload.');
+  });
+  res.writeHead(200, {
+    'content-type': contenttypefor('.html'),
+    'cache-control': cachefor('.html'),
+    ...headers,
+  });
+  stream.pipe(res);
 }
 
 /* ------------------------------------------------------------------ */
@@ -2039,7 +2090,7 @@ server.listen(port, host, () => {
       `saddle web sandbox api v${version} (self-hosted node, zero deps, no serverless functions)`,
       `role: ${role}${role === 'clone' && mainurl().length > 0 ? ` -> main ${mainurl()}` : ''}`,
       `listening on ${host}:${port} (random default range 30000-59999; override with --port or PORT)`,
-      `static root: ${webdir} (content types: ${mimetable.size} extensions from web/mime.types)`,
+      `spa root: ${webdir} (react build; extensionless routes fall back to index.html; ${mimetable.size} content types from web/mime.types; build with "npm run web:build")`,
       `db: ${store.dbpath} (node:sqlite, mode 0o600)`,
       'endpoints: GET /api/v1/health | GET /api/v1/sandboxes (shelf) | POST /api/v1/sandboxes/:id/resume |',
       '  POST /api/v1/auth/register | POST /api/v1/auth/login | POST /api/v1/auth/logout |',

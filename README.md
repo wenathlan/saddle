@@ -57,7 +57,7 @@ console.log(context.summary);
 The deterministic examples and tests do not require network access or real credentials:
 
 ```bash
-node --import tsx examples/publicapi.ts
+node --import tsx docs/example-publicapi.ts
 npm test
 ```
 
@@ -232,7 +232,7 @@ npm run web:check
 VITE_BASE_PATH=/saddle npm run web:build:pages
 ```
 
-Small public configuration and visual assets live under `web/public/`. The development collector is TypeScript source at `web/lib/debugcollector.ts`, injected only in development, and uses `/debuglogs`; it is not part of the production build. The obsolete `web/public/__manus__` directory is intentionally absent.
+Small public configuration and visual assets live under `web/public/`. The development collector is TypeScript source at `web/debugcollector.ts`, injected only in development, and uses `/debuglogs`; it is not part of the production build. The obsolete `web/public/__manus__` directory is intentionally absent.
 
 ## Development
 

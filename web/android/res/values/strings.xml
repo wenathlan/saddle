@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Saddle Browser</string>
-    <string name="title_activity_main">Saddle Browser</string>
-    <string name="package_name">com.wenathlan.saddle</string>
-    <string name="custom_url_scheme">com.wenathlan.saddle</string>
-</resources>

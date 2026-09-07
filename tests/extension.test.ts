@@ -10,8 +10,13 @@ import { startworker } from "../browser.js";
 import { extensionpermissions, permissionpolicy, requestpermission } from "../browser.js";
 import { buildextension } from "../browser.js";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+/* repository root resolved from this test file location. */
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 /* the content and pagebridge sections of the merged browser.ts register
    globalThis.saddlecontent and globalThis.saddlepagebridge at module load —
    the former side-effect imports of extension/content.js and
@@ -110,6 +115,14 @@ test("keeps extension permissions minimal and optional escalation caller-owned",
 });
 
 test("builds a versioned unpacked extension artifact without mutating the source manifest", async () => {
+  /* the 2.1.0 flat contract: the extension source surface lives at the web
+     root (web/manifest.json, web/popup.html, web/popup.css, web/iconNN.png)
+     and the retired web/extension folder must stay gone — the build reads
+     the flat entries and writes the generated worker scripts beside them. */
+  assert.equal(existsSync(join(repoRoot, "web", "manifest.json")), true, "web/manifest.json is the tracked extension manifest");
+  assert.equal(existsSync(join(repoRoot, "web", "popup.html")), true, "web/popup.html is the tracked popup page");
+  assert.equal(existsSync(join(repoRoot, "web", "icon128.png")), true, "web/icon128.png is the tracked seed icon");
+  assert.equal(existsSync(join(repoRoot, "web", "extension")), false, "web/extension must not exist — the extension surface is flat at the web root");
   const output = await mkdtemp(join(tmpdir(), "saddle-extension-"));
   try {
     const result = await buildextension({ output, version: "1.8.1" });
@@ -119,6 +132,10 @@ test("builds a versioned unpacked extension artifact without mutating the source
     assert.equal(manifest.permissions.includes("storage"), true);
     assert.equal(manifest.host_permissions, undefined);
     assert.match(await readFile(join(output, "pagebridge.js"), "utf8"), /saddle\.pagefacts\.v1/);
+    assert.equal(existsSync(join(output, "popup.html")), true, "the artifact carries the popup page");
+    assert.equal(existsSync(join(output, "icon32.png")), true, "the artifact carries the flat seed icons");
+    assert.equal(existsSync(join(output, "icon64.png")), true);
+    assert.equal(existsSync(join(output, "icon128.png")), true);
   } finally {
     await rm(output, { force: true, recursive: true });
   }

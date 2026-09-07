@@ -59,3 +59,20 @@ jobs:
         run: npm ci
       - name: run checks
         run: npm run check && npm run formatcheck && npm test
+  node-lts-typecheck:
+    # The Node 24.x LTS leg of the typecheck matrix (restored from the
+    # e2ugh lane): the engine typecheck must hold on the active LTS line,
+    # not only on the current 26.x release the runners default to.
+    name: node 24 lts typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7.0.1
+      - name: setup node
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+      - name: install
+        run: npm ci
+      - name: typecheck
+        run: npm run check

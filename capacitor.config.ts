@@ -6,8 +6,10 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * @capacitor/cli 8.5.1: loadConfig searches process.cwd() and every path
  * below - webDir, android.path, ios.path - resolves relative to that cwd).
  * The shared web build (web/dist/public, produced by vite) is the single
- * application source; the project-owned native shells stay at web/android and
- * web/ios (the packaging wrappers, never a second interface).
+ * application source; the native shells are GENERATED ON THE RUNNERS
+ * (npx cap add android / npx cap add ios) into build/native/{android,ios},
+ * a gitignored toolchain output that is never committed (see
+ * docs/native-wrappers.md for the doctrine).
  */
 const config: CapacitorConfig = {
   appId: "com.wenathlan.saddle",
@@ -15,11 +17,11 @@ const config: CapacitorConfig = {
   webDir: "web/dist/public",
   loggingBehavior: "none",
   android: {
-    path: "web/android",
+    path: "build/native/android",
     webContentsDebuggingEnabled: false,
   },
   ios: {
-    path: "web/ios",
+    path: "build/native/ios",
     preferredContentMode: "mobile",
     webContentsDebuggingEnabled: false,
   },

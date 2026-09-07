@@ -3,8 +3,8 @@
 #   vhe stages: the native sources at the root (virtualhardware.c,
 #     gpumonitor.cpp, virtualizationcore.cpp — the former libs/), qemubridge.py,
 #     the flat .ts engine sources with their manifests and hardware catalogs,
-#     and the console surface at the web root (the merged e2ugh console
-#     files: server, dispatcher, store, auth, mesh, static pages);
+#     and the web tree (the unified console surface: pure-node server stack
+#     plus the React SPA sources; the built dist comes from saddle-build);
 #   saddle stages: package.json + lockfile, the full root source tree and
 #     tests/scripts/buildengine.mjs (the build gate).
 # The entrypoint bootstrap stays embedded in the Dockerfile heredoc (the one
@@ -78,32 +78,10 @@ dist
 *.nupkg
 *.snupkg
 
-# the React interface tree stays out of both images; the console surface the
-# vhe runtime carries at /engine/web lives at the web root (the merged e2ugh
-# console: server + dispatcher + store + auth + mesh + static pages), so the
-# web root allows exactly the console files and excludes the React app tree
-# (App.tsx, pages, components, android, ios, desktop, extension shells).
-web/*
-!web/server.js
-!web/sandbox.js
-!web/db.js
-!web/auth.js
-!web/mesh.js
-!web/localauth.js
-!web/dashboard.js
-!web/console.js
-!web/console.html
-!web/login.html
-!web/login.js
-!web/register.html
-!web/register.js
-!web/dashboard.html
-!web/init.sql
-!web/schema.prisma
-!web/drizzle.config.ts
-!web/caddyfile
-!web/netlify.toml
-!web/vercel.json
-!web/mime.types
-!web/readme.md
-!web/package.json
+# the whole web tree enters the context: the saddle-build stage builds
+# the SPA (vite config at the repository root, React sources at the web
+# root) and both runtime surfaces carry the web tree (the vhe runtime at
+# /engine/web with the built dist, the saddle runtime at /app/web). only
+# local state and build outputs stay out (web/node_modules; web/dist is
+# never committed - the docker build produces it inside saddle-build).
+web/node_modules

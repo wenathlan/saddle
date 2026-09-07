@@ -85,13 +85,15 @@ jobs:
         run: npm run pack:check
 
       - name: generate extension icons
+        # the 2.1.0 restructure: the extension assets live flat at the web
+        # root (web/manifest.json + web/iconNN.png - the browser.ts
+        # extensionassets entries), regenerated from the single icon source.
         shell: bash
         run: |
-          npx --yes @tauri-apps/cli@2.11.4 icon web/desktop/icon.svg --output build/generated-icons
-          mkdir -p web/extension/icons
-          cp build/generated-icons/32x32.png web/extension/icons/icon32.png
-          cp build/generated-icons/64x64.png web/extension/icons/icon64.png
-          cp build/generated-icons/128x128.png web/extension/icons/icon128.png
+          npx --yes @tauri-apps/cli@2.11.4 icon web/icon.svg --output build/generated-icons
+          cp build/generated-icons/32x32.png web/icon32.png
+          cp build/generated-icons/64x64.png web/icon64.png
+          cp build/generated-icons/128x128.png web/icon128.png
 
       - name: build extension
         run: npm run build:engine && node dist/browser.js --version "${{ steps.releaseversion.outputs.version }}" --output build/extension

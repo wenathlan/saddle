@@ -1,5 +1,27 @@
 # saddle release notes
 
+## 2.1.2 — the interface owns its mount and the e2ugh lanes close
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| The one-entry doctrine (the duck.ai conversion rule) | web/main.tsx is retired: the App module owns its bootstrap now (the createRoot self-mount and the index.css import live inside App.tsx, guarded by the root element), and web/index.html loads /App.tsx directly. The workflow test battery enforces the retirement (the gate fails if the wrapper comes back without carrying the mount). |
+| The biome full check (the e2ugh CI lane) | `biome check .` — lint plus format verification plus import organization — is wired into the CI battery beside the structural formatcheck (the format.ts gate stays as the first half of the lane); the ci.yml job runs `npm run format:check` and the engine sources pass it (the index.ts barrel reorganized alphabetically, the quote style normalized, the biome.json and tsconfig.json formatting normalized). |
+| The native syntax gate (the e2ugh CI lane) | The `gcc/g++ -fsyntax-only` job returns: the three C/C++ shims at the repository root (virtualhardware.c, gpumonitor.cpp, virtualizationcore.cpp) are syntax-checked with gcc-14/g++-14 on every push — the C++23 header resolution loop and the -DVHE_NO_MODULES classic include path carried from the e2ugh lane. |
+| The pre-deploy existence check of the node-engine publish | The publishghcr resolver queries the GHCR container package versions list before publishing (the e2ugh idempotency pattern): a duplicate workflow_run firing that escapes cancellation no-ops instead of re-pushing the four-arch manifest list; the resolve job carries packages: read. |
+| The event-scoped concurrency groups | The publishghcr and security lanes join the gateway standard: `group: <lane>-${{ github.event_name }}-${{ github.ref }}` — the workflow_run publication run never lands in the same lane as the push validation run, so the release cascade never cancels in-flight validation legs; the ci.yml lane carries the ref-scoped group. |
+| The cleanup-after-workflow contract (the e2ugh security lane) | The security pipeline ends with the cleanup job (`if: always() && push`, needs container-scan, engine-validation and sbom): the gha caches the run created are deleted when the pipeline finishes so nothing lingers (the registry buildcache stays — the durable layer chain). |
+| The release lockstep gate | web/package.json joins the envelope battery of the release lane: the web deploy manifest is verified against the release version on both the battery and the tag jobs (a frozen web carrier aborts the tag). |
+| The package metadata | The docker scripts of package.json rejoin the lockstep (docker:build / docker:run / docker:health pin saddle:2.1.2 — the 2.1.0 leftovers); engines.npm aligns with the toolchain floor (>=12.0.2, the packageManager pin); the engine keywords join the catalog (virtual machine, virtual cpu, virtual gpu, llvmpipe, lavapipe, rusticl, qemu, firecracker, mesa, ghcr). |
+| The root config merge | .npmrc takes the e2ugh shape (english, audit=true, loglevel=warn — the legacy force/ignore-scripts/no-optional keys that contradicted the optionalDependencies surface are gone); .gitignore carries the native build artifacts, the VM image dumps and the python virtual environments of the e2ugh ignore surface. |
+
+### Fixed
+
+| Area | Change |
+| --- | --- |
+| The web readme | The web/readme.md file table drops the retired static console pages and the main.tsx wrapper: the interface inventory documents the page-folder layout, the loose shell modules, the backend adapters and the App.tsx self-mount entry. |
+
 ## 2.1.1 — the first firing closes: native build stage, clean security config
 
 ### Fixed

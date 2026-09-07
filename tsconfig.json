@@ -19,11 +19,6 @@
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "types": ["node"]
   },
-  "include": [
-    "index.ts",
-    "*.ts",
-    "docs/example-*.ts",
-    "jsdom.d.ts"
-  ],
+  "include": ["index.ts", "*.ts", "docs/example-*.ts", "jsdom.d.ts"],
   "exclude": ["node_modules", "dist", "coverage", "web", "tests", "build"]
 }

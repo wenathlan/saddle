@@ -17,6 +17,20 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # Group by (event_name, ref) - the gateway standard restored at
+  # 2.1.2: the ref-only group landed the workflow_run publication run
+  # (fired ~90s after the release push, by the release completion) in
+  # the SAME lane as the push validation run started by the
+  # version-bump commit, and with cancel-in-progress it killed the
+  # in-flight validation legs on every release push, leaving a
+  # cancelled (red X) run in the board. The event-scoped group lets
+  # the release published and workflow_run firings race the push
+  # lanes without ever cancelling them (the vhe publish lane and the
+  # e2ugh idempotency resolver tolerate the duplicate firing).
+  group: publish-ghcr-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   image: ghcr.io/${{ github.repository_owner }}/saddle
 
@@ -29,6 +43,13 @@ jobs:
     if: (github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')) && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      # packages: read is required to query the GHCR container package
+      # versions list (the pre-deploy existence check restored from the
+      # e2ugh publish lane at 2.1.2). The publish job below escalates to
+      # packages: write.
+      packages: read
     outputs:
       version: ${{ steps.release.outputs.version }}
       tag: ${{ steps.release.outputs.tag }}
@@ -114,6 +135,30 @@ jobs:
           fi
           if ! gh api "repos/${GH_REPO}/releases/tags/${tag}" >/dev/null 2>&2; then
             echo "No published GitHub release for ${tag}; the release lane skipped this bump. Skipping."
+            exit 0
+          fi
+          # Pre-deploy existence check (the e2ugh publish lane restored
+          # at 2.1.2): even with the event-scoped concurrency group, a
+          # duplicate workflow_run firing that escapes cancellation
+          # would attempt to re-push the same four-arch manifest list.
+          # The GHCR registry tolerates re-pushes (it overwrites), but a
+          # duplicate publish wastes runner minutes and risks racing the
+          # in-flight build. Query the container package versions list;
+          # if the version is already published, exit 0 (proceed=false)
+          # so the duplicate firing no-ops cleanly. Robustness: gh api
+          # writes error JSON to STDOUT (not stderr), so `2>/dev/null`
+          # alone cannot suppress it - the `|| true` keeps the subshell
+          # alive and the case statement validates the captured string
+          # is a pure non-negative integer; anything else (error JSON,
+          # empty) is treated as "not published yet" so a transient API
+          # failure never silently skips a publish.
+          owner="${GITHUB_REPOSITORY_OWNER:-${GITHUB_REPOSITORY%%/*}}"
+          api_out="$(gh api "/orgs/${owner}/packages/container/saddle/versions" --jq "[.[] | select(.metadata.container.tags[]? | startswith(\"${version}\"))] | length" 2>/dev/null || true)"
+          case "${api_out}" in
+            ''|*[!0-9]*) api_out=0 ;;
+          esac
+          if [ "${api_out}" != "0" ]; then
+            echo "GHCR container ${owner}/saddle:${version} is already published; the duplicate firing will no-op."
             exit 0
           fi
           {

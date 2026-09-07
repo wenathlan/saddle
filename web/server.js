@@ -87,7 +87,7 @@ const rootdir = resolve(moduledir, '..');
 const webdir = join(moduledir, 'dist', 'public');
 
 /** api version tag reported by /api/v1/health. */
-const version = '2.1.1';
+const version = '2.1.2';
 
 /** sandbox ttl in milliseconds (15 minutes) and sweep interval (60 s). */
 const ttlms = 15 * 60 * 1000;

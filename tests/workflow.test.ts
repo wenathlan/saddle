@@ -356,10 +356,10 @@ test('ci gate structure: the 2.1.0 flat layout contract (single tsx interface)',
   }
   /* the web interface contract: one tsx app, every module at the web
    * root (the 2.1.0 restructure — the static console pages and the
-   * four native wrapper folders are gone for good). */
+   * four native wrapper folders are gone for good). The 2.1.2 rule
+   * retires the main.tsx wrapper too: the app owns its mount. */
   for (const required of [
     'App.tsx',
-    'main.tsx',
     'index.html',
     'index.css',
     'api.ts',
@@ -386,6 +386,23 @@ test('ci gate structure: the 2.1.0 flat layout contract (single tsx interface)',
       `web/${required} — the interface module lives at the web root`,
     );
   }
+  /* the retired main.tsx wrapper: the app module owns the mount. */
+  assert.equal(
+    existsSync(join(reporoot, 'web', 'main.tsx')),
+    false,
+    'web/main.tsx is retired — App.tsx carries the createRoot bootstrap (the one-entry doctrine)',
+  );
+  const appsource = readFileSync(join(reporoot, 'web', 'App.tsx'), 'utf8');
+  assert.match(
+    appsource,
+    /createRoot\(/,
+    'App.tsx must carry the createRoot self-mount left behind by the retired main.tsx',
+  );
+  assert.match(
+    appsource,
+    /import "\.\/index\.css"/,
+    'App.tsx must import the index.css stylesheet left behind by the retired main.tsx',
+  );
   /* every route is a page folder carrying its own <Page>.tsx. */
   for (const page of [
     'Home',

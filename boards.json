@@ -88,7 +88,7 @@
       }
     },
     "name": "boards.json",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "title": "saddle - Virtual Motherboard Database (retail boards + platform reference sockets)",
     "sources": [
       "pool:boards.json [S6, 20 retail boards]",

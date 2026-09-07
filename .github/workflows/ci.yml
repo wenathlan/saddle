@@ -6,8 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: the pipeline only needs to read the repository.
 permissions:
   contents: read
+
+concurrency:
+  # Superseded runs on the same ref are cancelled to save runner
+  # minutes (the e2ugh CI lane restored at 2.1.2).
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
@@ -29,7 +36,68 @@ jobs:
         run: npm run check
       - name: Format check
         run: npm run formatcheck
+      - name: Biome full check
+        # the e2ugh CI lane ran `biome check .` — lint plus format
+        # plus import organization; the 2.1.2 bump wires the real
+        # command into the battery (the format.ts gate stays as the
+        # first, structural half of the lane).
+        run: npm run format:check
       - name: Test
         run: npm test
       - name: Package smoke check
         run: npm run pack:check
+
+  native:
+    name: Native sources syntax check (g++/gcc -fsyntax-only)
+    # the e2ugh native gate restored: the three C/C++ shims live at
+    # the repository root in the merged layout.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Install g++ 14 (the engine needs the C++23 print header)
+        run: |
+          set -euo pipefail
+          # ubuntu-24.04 runners default to g++ 13 whose libstdc++ lacks
+          # the C++23 <print> header the gpumonitor shim imports; g++ 14
+          # ships it. pin the explicit compiler instead of probing the
+          # default toolchain.
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-14 gcc-14 >/dev/null
+          g++-14 --version | head -1
+
+      - name: Resolve the C++ standard of the runner toolchain
+        id: std
+        run: |
+          set -euo pipefail
+          # The engine targets C++26; the gate prefers the g++ spelling
+          # c++2c and falls back through the alias and c++23 for older
+          # runner images.
+          std=c++23
+          for candidate in c++2c c++26 c++23; do
+            if printf 'int main(){return 0;}\n' | g++-14 -std="$candidate" -x c++ -fsyntax-only - >/dev/null 2>&1; then
+              std="$candidate"
+              break
+            fi
+          done
+          echo "std=${std}" >> "$GITHUB_OUTPUT"
+          echo "Syntax checks will run with -std=${std}"
+
+      - name: Syntax-check the C and C++ sources
+        env:
+          CXX_STD: ${{ steps.std.outputs.std }}
+        run: |
+          set -euo pipefail
+          # Direct compiler invocation, mirroring the Dockerfile: no
+          # cmake, no build system. gpumonitor.cpp compiles as a
+          # multi-mode translation unit; -DVHE_NO_MODULES selects the
+          # classic include path for toolchains without the std module.
+          # The merged layout carries the shims at the repository root.
+          gcc-14 -std=c11 -Wall -fsyntax-only virtualhardware.c
+          echo 'virtualhardware.c: gcc-14 -std=c11 -fsyntax-only ok'
+          g++-14 -std="${CXX_STD}" -Wall -DVHE_NO_MODULES -fsyntax-only gpumonitor.cpp
+          echo "gpumonitor.cpp: g++-14 -std=${CXX_STD} -fsyntax-only ok"
+          g++-14 -std="${CXX_STD}" -Wall -fsyntax-only virtualizationcore.cpp
+          echo "virtualizationcore.cpp: g++-14 -std=${CXX_STD} -fsyntax-only ok"

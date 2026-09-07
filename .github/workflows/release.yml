@@ -114,7 +114,16 @@ jobs:
               exit 1
             fi
           done
-          # the web carriers: the api version literal and the sandbox engine stamp.
+          # the web carriers: the web deploy manifest, the api version
+          # literal and the sandbox engine stamp.
+          web_pkg_version=$(node -e "
+            const data = JSON.parse(require('fs').readFileSync('web/package.json', 'utf8'));
+            process.stdout.write(data.version || '');
+          ")
+          if [ "${web_pkg_version}" != "${version}" ]; then
+            echo "::error file=web/package.json::version envelope is '${web_pkg_version}' but the release is ${version}; keep the web deploy manifest in lockstep." >&2
+            exit 1
+          fi
           server_version=$(node -e "
             const text = require('fs').readFileSync('web/server.js', 'utf8');
             const m = text.match(/const version = '([^']+)'/);
@@ -333,7 +342,16 @@ jobs:
               exit 1
             fi
           done
-          # the web carriers: the api version literal and the sandbox engine stamp.
+          # the web carriers: the web deploy manifest, the api version
+          # literal and the sandbox engine stamp.
+          web_pkg_version=$(node -e "
+            const data = JSON.parse(require('fs').readFileSync('web/package.json', 'utf8'));
+            process.stdout.write(data.version || '');
+          ")
+          if [ "${web_pkg_version}" != "${version}" ]; then
+            echo "::error file=web/package.json::version envelope is '${web_pkg_version}' but the release is ${version}; keep the web deploy manifest in lockstep." >&2
+            exit 1
+          fi
           server_version=$(node -e "
             const text = require('fs').readFileSync('web/server.js', 'utf8');
             const m = text.match(/const version = '([^']+)'/);

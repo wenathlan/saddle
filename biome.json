@@ -108,9 +108,7 @@
   "root": true,
   "overrides": [
     {
-      "includes": [
-        "web/**"
-      ],
+      "includes": ["web/**"],
       "linter": {
         "rules": {
           "recommended": true,

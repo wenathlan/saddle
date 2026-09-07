@@ -5,21 +5,23 @@ virtual container — cpu, ram, gpu, mesa software graphics — entirely in the
 browser, plus one self-hosted node api exposing the exact same sandbox over
 http for automation. no framework, no build step, no serverless functions.
 
-version 2.1.1 — reported by `/api/v1/health` and kept in lockstep with
+version 2.1.2 — reported by `/api/v1/health` and kept in lockstep with
 `package.json` and the `meta.version` envelope of the ten data documents
 (v6-SYNC worklog task).
 
 ## run it
 
 ```bash
-# the whole thing: static console + self-hosted api (zero dependencies)
+# the whole thing: built spa + self-hosted api (zero dependencies)
 node web/server.js
 # it prints the endpoint once, e.g. listening on 0.0.0.0:48213
 # override with --port 8080 or PORT=8080 / SADDLE_HOST
+# (first run: `npm run web:build` produces web/dist/public; the server
+# answers a honest 503 until the build exists)
 
-# the static console alone also opens from any static host:
-# the browser port (sandbox.js) runs 100% client-side; the api badge stays
-# in "engine: local" mode when /api/v1 is absent.
+# the browser console also runs 100% client-side on any static host:
+# the browser port (sandbox.js) needs no api; the api badge stays in
+# "engine: local" mode when /api/v1 is absent.
 ```
 
 inside the console: pick the cpu model (epyc 9965 192c, ryzen 9950x3d,
@@ -46,22 +48,20 @@ vm:stopped, vm:deleted).
 
 | file          | role |
 |---------------|------|
-| `console.html` | vanilla spa: spec panel, boot sequence, terminal, bus event timeline |
-| `login.html`  | sign in page: username + password, `?next=` redirect, generic errors |
-| `register.html` | account creation: 3-32 `[a-z0-9.-]` username, password strength meter, no e-mail by policy |
-| `dashboard.html` | user dashboard (my sandboxes, bus events, account) + admin dashboard (overview, mesh nodes, users, audit) |
-| `console.js`  | console page controller: terminal driver, spec form, api-backed sandbox mode |
-| `login.js` / `register.js` / `dashboard.js` | page controllers of the three account pages (api base resolution, static-edge fallbacks) |
-| `sandbox.js`  | browser-pure port of the engine generators (zero imports, runs in node too) |
-| `localauth.js` | static-edge account fallback: when no api answers (github pages / netlify / vercel clones), login/register/dashboard switch to browser-local accounts (pbkdf2-sha256 via webcrypto, never synced). persistence: accounts are mirrored to IndexedDB and repaired in both directions on load (a partial storage clear never loses them), the CODEOWNERS admins (iakadion, inathlan, aasblor and nasblor, shared bootstrap password `cdw782FG7pjxQVw`, kept in lockstep with the server seed in `auth.js`) are re-seeded whenever missing, and the dashboard ships explicit backup/restore keyfile buttons for a full wipe; only the CODEOWNERS accounts are admins |
-| `server.js`   | self-hosted node:http api: static serving + `/api/v1` |
+| `App.tsx` | the single React entry (the 2.1.2 one-entry doctrine: the app owns its bootstrap — the createRoot self-mount and the index.css import live inside; index.html loads /App.tsx directly, no main.tsx wrapper) |
+| `index.html` | the vite spa shell (`<div id="root">` + the /App.tsx module script) |
+| page folders `Home/` `Architecture/` `AgentBrowser/` `Compute/` `Integrations/` `Playground/` `Console/` `Dashboard/` `Login/` `Register/` `Docs/` `NotFound/` | one folder per route carrying its own `<Page>.tsx` and components (the duck.ai conversion doctrine): the Console folder carries the absorbed e2ugh console surface (spec panel, boot terminal with history and tab-complete, events timeline, snapshot controls, api badge), the Login/Register/Dashboard folders carry the absorbed account pages (safenext redirect, strength meter, admin tables, mesh ping with client probe, keyfile backup/restore, local sandbox shelf) |
+| loose shell files (`PageShell.tsx`, `SiteHeader.tsx`, `SaddleMark.tsx`, `SectionRail.tsx`, `RuntimeDiagram.tsx`, `ErrorBoundary.tsx`, `ThemeContext.tsx`, `button.tsx`, `card.tsx`, `tooltip.tsx`, `sonner.tsx`, `utils.ts`, `paths.ts`) | the shared interface modules at the web root |
+| `api.ts` | the consolidated api-base helpers (the three duplicated copies of the absorbed pages joined into one module) |
+| `localauth.ts` | static-edge account fallback (the typed module conversion of the window-global original): when no api answers (github pages / netlify / vercel clones), login/register/dashboard switch to browser-local accounts (pbkdf2-sha256 via webcrypto, never synced). persistence: accounts are mirrored to IndexedDB and repaired in both directions on load (a partial storage clear never loses them), the CODEOWNERS admins (iakadion, inathlan, aasblor and nasblor, shared bootstrap password `cdw782FG7pjxQVw`, kept in lockstep with the server seed in `auth.js`) are re-seeded whenever missing, and the dashboard ships explicit backup/restore keyfile buttons for a full wipe; only the CODEOWNERS accounts are admins |
+| `sandbox.js` + `sandbox.d.ts` | browser-pure port of the engine generators (zero imports, runs in node too) with the typed surface declaration |
+| `server.js`   | self-hosted node:http api: built spa serving (web/dist/public) + `/api/v1` |
 | `db.js`       | node:sqlite data layer: users, sessions, nodes, sandboxes, sandboxfiles, events, audit |
 | `auth.js`     | security layer: scrypt hashing, saddlesession cookies, rate limiter, request guards, CODEOWNERS admin seed |
 | `mesh.js`     | signed node-to-node mesh: hmac requests, aes-gcm payloads, clone heartbeat |
 | `schema.prisma` / `init.sql` / `drizzle.config.ts` | the three schema mirrors of the db.js migrations (prisma, raw sql, drizzle kit) |
 | `mime.types`  | the extension to content-type table parsed by server.js at boot |
-| `index.html` + `main.tsx` + `App.tsx` | the React app entry (vite build; the Pages-published surface) |
-| page folders `Home/` … `NotFound/` + loose files (`PageShell`, `SiteHeader`, `SaddleMark`, `SectionRail`, `RuntimeDiagram`, `ErrorBoundary`, `button.tsx`, `card.tsx`, `tooltip.tsx`, `sonner.tsx`, `utils.ts`, `paths.ts`, `ThemeContext.tsx`) | the flattened React app that sits beside the console files at the web root (2.1.1 wave: one folder per route, shared files loose at the root) |
+| `manifest.json` / `popup.html` / `popup.css` / `icon.svg` / `icon32.png` / `icon64.png` / `icon128.png` | the browser-extension surface regenerated by buildextension.yml on the runners |
 | `package.json` | deploy manifest only (`@wenathlan/saddle-web`, private, never published): vercel/netlify require it at the deploy root; the published npm package is the central `@wenathlan/saddle` without web |
 | `Dockerfile` (repo root) | container image for ghcr.io/wenathlan/saddle (the main image; web/ ships inside) |
 | `vercel.json` (repo root) | static hosting config for the React SPA (`outputDirectory: web/dist/public`, SPA rewrite), **no functions** |
@@ -117,13 +117,13 @@ the web tier ships as one directory that deploys in three shapes:
   the page at the main node with `?api=https://devthink.pro` (persisted in
   `localStorage` as `saddle_api`; cross-origin requests switch to
   `credentials: "include"` so the `saddlesession` cookie flows).
-- **standalone**: `console.html` opened from any static host or disk — the
-  terminal runs 100% client-side, no account, no api.
+- **standalone**: the built spa opened from any static host or disk (the
+  /console route) — the terminal runs 100% client-side, no account, no api.
 
-auth flow (identical on main and clones): `login.html`/`register.html`
-post to `/api/v1/auth/{login,register}`; the backend validates, hashes
-with scrypt, creates the session server-side and answers with the
-httponly `saddlesession` cookie; `dashboard.html` calls
+auth flow (identical on main and clones): the `/login` and `/register`
+routes post to `/api/v1/auth/{login,register}`; the backend validates,
+hashes with scrypt, creates the session server-side and answers with the
+httponly `saddlesession` cookie; the `/dashboard` route calls
 `/api/v1/auth/me`, renders the user view, and unlocks the admin view when
 the role is `admin` (overview cards, mesh node table with ping through
 `/api/v1/mesh/*`, users, global sandboxes, audit log). logout posts

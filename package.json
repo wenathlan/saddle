@@ -1,6 +1,6 @@
 {
   "name": "@wenathlan/saddle",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "binary computing engine that turns distributed storage into a publishable working set carrying the merged virtual-hardware engine (the saddle + e2ugh grand merge)",
   "type": "module",
   "private": false,
@@ -32,13 +32,23 @@
   "keywords": [
     "distributed computing",
     "virtual memory",
+    "virtual machine",
+    "virtual cpu",
+    "virtual gpu",
     "runner",
     "storage",
-    "automation"
+    "automation",
+    "llvmpipe",
+    "lavapipe",
+    "rusticl",
+    "qemu",
+    "firecracker",
+    "mesa",
+    "ghcr"
   ],
   "engines": {
     "node": ">=26.7.0",
-    "npm": ">=10.9.2"
+    "npm": ">=12.0.2"
   },
   "peerDependencies": {
     "playwright": "^1.62.1"
@@ -196,9 +206,9 @@
     "vm:create": "node --import tsx ./cli.ts vm",
     "vm:validate": "node --import tsx ./cli.ts vmlint",
     "gpu:list": "node --import tsx ./cli.ts gpus",
-    "docker:build": "docker build -f Dockerfile -t saddle:2.1.0 .",
-    "docker:run": "docker run --rm --memory-swap=-1 --shm-size=2g saddle:2.1.0",
-    "docker:health": "docker run --rm saddle:2.1.0 qemu-system-x86_64 --version && curl -fsS http://localhost:8080/health || true",
+    "docker:build": "docker build -f Dockerfile -t saddle:2.1.2 .",
+    "docker:run": "docker run --rm --memory-swap=-1 --shm-size=2g saddle:2.1.2",
+    "docker:health": "docker run --rm saddle:2.1.2 qemu-system-x86_64 --version && curl -fsS http://localhost:8080/health || true",
     "firecracker:boot": "firecracker --api-sock /tmp/fc-saddle.sock --config-file vmconfig.json 2>/dev/null || echo 'firecracker 1.16.1 warm-pool boot 125ms target'",
     "py:bridge": "python3 qemubridge.py",
     "py:test": "python3 -m pytest -q || python3 qemubridge.py",

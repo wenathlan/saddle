@@ -20,3 +20,25 @@ __pycache__/
 *.db
 *.sqlite
 *.sqlite3
+
+# native build artifacts (the engine compiles the C/C++ shims directly
+# at the repository root, no cmake - the e2ugh ignore surface restored)
+*.o
+*.a
+*.so
+*.so.*
+compile_commands.json
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# virtual machine images and firmware dumps
+*.qcow2
+*.img
+*.fd
+*.rom
+
+# python bridge virtual environments
+*$py.class
+.venv/
+venv/

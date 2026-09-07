@@ -1,5 +1,7 @@
+import { createRoot } from "react-dom/client";
 import { TooltipProvider } from "@/tooltip";
 import { Toaster } from "@/sonner";
+import "./index.css";
 import NotFound from "./NotFound/NotFound";
 import { Route, Router as WouterRouter, Switch } from "wouter";
 import ErrorBoundary from "./ErrorBoundary";
@@ -59,6 +61,14 @@ function App() {
       </ThemeProvider>
     </ErrorBoundary>
   );
+}
+
+/* The self-mount: the app owns its bootstrap — the retired main.tsx
+ * wrapper is gone, so this module is the single entry the html loads
+ * (the doctrine of the 2.1.0 universal interface: one tsx app, the
+ * router and the mount live together). */
+if (typeof document !== "undefined" && document.getElementById("root")) {
+  createRoot(document.getElementById("root")!).render(<App />);
 }
 
 export default App;

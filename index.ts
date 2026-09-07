@@ -1460,19 +1460,18 @@ export type { migprofileid } from './virtualmemory.js';
 /** Re-exports the memory tier catalog and virtual memory manager. */
 export * from './virtualmemory.js';
 
-
 /* ── Section 2: the saddle domain routing barrel ── */
 
-export * from "./foundation.js";
-export * from "./isolation.js";
-export * from "./virtual.js";
-export * from "./execution.js";
-export * from "./browser.js";
-export * from "./acquisition.js";
-export * from "./communication.js";
-export * from "./integration.js";
-export * from "./automation.js";
-export * from "./intelligence.js";
-export * from "./distribution.js";
-export * from "./modes.js";
-export * from "./operations.js";
+export * from './acquisition.js';
+export * from './automation.js';
+export * from './browser.js';
+export * from './communication.js';
+export * from './distribution.js';
+export * from './execution.js';
+export * from './foundation.js';
+export * from './integration.js';
+export * from './intelligence.js';
+export * from './isolation.js';
+export * from './modes.js';
+export * from './operations.js';
+export * from './virtual.js';

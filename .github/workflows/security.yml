@@ -58,9 +58,13 @@ on:
   workflow_dispatch:
 
 permissions:
+  # the least-privilege workflow scope (the e2ugh token-permissions
+  # lane, restored at 2.1.3): the sarif writers carry their own
+  # job-level security-events: write (osv, scorecard, container-scan,
+  # filesystem-scan) and the cache sweeper carries actions: write -
+  # nothing else escalates.
   actions: read
   contents: read
-  security-events: write
 
 concurrency:
   # the e2ugh security lane restored at 2.1.2: superseded runs on the
@@ -146,6 +150,10 @@ jobs:
   filesystem-scan:
     name: filesystem vulnerability scan
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      # the trivy sarif upload escalates only this job.
+      security-events: write
     steps:
       - name: checkout
         uses: actions/checkout@v7.0.1

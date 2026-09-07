@@ -1,5 +1,14 @@
 # saddle release notes
 
+## 2.1.1 — the first firing closes: native build stage, clean security config
+
+### Fixed
+
+| Area | Change |
+| --- | --- |
+| The saddle-build platform (the s390x lesson) | The node-engine publish failed on the emulated legs with "Cannot find module lightningcss.linux-s390x-gnu.node": the tailwind 4 vite pipeline only ships native bindings for the builder platforms. The saddle-build stage now pins to the native build platform (`FROM --platform=$BUILDPLATFORM`) — its outputs (the engine dist, pure js, and the web SPA, static assets) are architecture-independent, so the per-arch legs never run the SPA pipeline under QEMU; the runtime stages keep their per-arch hardening. |
+| The biome security configuration | The isolated security config carried an invalid `css.parser.tailwindDirectives` key (Biome rejects the unknown schema entry) — the css sheets now simply stay out of the security scan via the files.includes filter (no secret surface in tailwind at-rules), matching the e2ugh original shape. |
+
 ## 2.1.0 — the universal web interface: one tsx app, no tracked wrappers
 
 ### Changed

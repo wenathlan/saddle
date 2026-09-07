@@ -1,6 +1,6 @@
 {
   "name": "@wenathlan/saddle",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "binary computing engine that turns distributed storage into a publishable working set carrying the merged virtual-hardware engine (the saddle + e2ugh grand merge)",
   "type": "module",
   "private": false,

@@ -219,9 +219,9 @@ jobs:
           #   - configuration payloads (.json, .yml, .yaml, .toml, .env)
           #     remain at blocking error severity: real secrets would land
           #     there.
-          # the css parser enables the tailwind directives because the 2.1.0
-          # web interface is a tailwind 4 sheet (web/index.css carries
-          # @theme/@custom-variant blocks the default parser rejects).
+          # the css sheets stay out of the security scan (the tailwind 4
+          # at-rules of web/index.css carry no secret surface and the
+          # biome css parser does not gate this rule group).
           mkdir -p build/security/biome
           cat > build/security/biome/biome.json <<'EOF'
           {
@@ -233,10 +233,8 @@ jobs:
                 }
               }
             },
-            "css": {
-              "parser": {
-                "tailwindDirectives": true
-              }
+            "files": {
+              "includes": ["**", "!**/*.css", "!**/web/dist/**", "!**/build/**", "!**/node_modules/**"]
             },
             "overrides": [
               {

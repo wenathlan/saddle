@@ -5,7 +5,7 @@ virtual container — cpu, ram, gpu, mesa software graphics — entirely in the
 browser, plus one self-hosted node api exposing the exact same sandbox over
 http for automation. no framework, no build step, no serverless functions.
 
-version 2.1.0 — reported by `/api/v1/health` and kept in lockstep with
+version 2.1.1 — reported by `/api/v1/health` and kept in lockstep with
 `package.json` and the `meta.version` envelope of the ten data documents
 (v6-SYNC worklog task).
 
@@ -61,7 +61,7 @@ vm:stopped, vm:deleted).
 | `schema.prisma` / `init.sql` / `drizzle.config.ts` | the three schema mirrors of the db.js migrations (prisma, raw sql, drizzle kit) |
 | `mime.types`  | the extension to content-type table parsed by server.js at boot |
 | `index.html` + `main.tsx` + `App.tsx` | the React app entry (vite build; the Pages-published surface) |
-| page folders `Home/` … `NotFound/` + loose files (`PageShell`, `SiteHeader`, `SaddleMark`, `SectionRail`, `RuntimeDiagram`, `ErrorBoundary`, `button.tsx`, `card.tsx`, `tooltip.tsx`, `sonner.tsx`, `utils.ts`, `paths.ts`, `ThemeContext.tsx`) | the flattened React app that sits beside the console files at the web root (2.1.0 wave: one folder per route, shared files loose at the root) |
+| page folders `Home/` … `NotFound/` + loose files (`PageShell`, `SiteHeader`, `SaddleMark`, `SectionRail`, `RuntimeDiagram`, `ErrorBoundary`, `button.tsx`, `card.tsx`, `tooltip.tsx`, `sonner.tsx`, `utils.ts`, `paths.ts`, `ThemeContext.tsx`) | the flattened React app that sits beside the console files at the web root (2.1.1 wave: one folder per route, shared files loose at the root) |
 | `package.json` | deploy manifest only (`@wenathlan/saddle-web`, private, never published): vercel/netlify require it at the deploy root; the published npm package is the central `@wenathlan/saddle` without web |
 | `Dockerfile` (repo root) | container image for ghcr.io/wenathlan/saddle (the main image; web/ ships inside) |
 | `vercel.json` (repo root) | static hosting config for the React SPA (`outputDirectory: web/dist/public`, SPA rewrite), **no functions** |

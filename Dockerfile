@@ -94,7 +94,7 @@
 #     -v vmdata:/data/vmdata -v webdata:/data/web \
 #     -v ./vm.config.json:/engine/vm.config.json:ro \
 #     -e PORT=8080 -e NODE_ENV=production -p 31280:8080 \
-#     ghcr.io/wenathlan/saddle:vhe-2.1.0
+#     ghcr.io/wenathlan/saddle:vhe-2.1.1
 #
 #   vheqemu (the guest runner; build it first with
 #   docker build --target qemu-runtime -t saddle/qemu:11.1.0 . because the
@@ -128,7 +128,7 @@
 #     -e VHE_GPU_PROFILE=b200 -e VHE_GPUS=8 -e VHE_MIG=1 \
 #     -e VHE_SMI_DRIVER=575.57.08 -e VHE_SMI_CUDA=12.9 \
 #     -e VHE_SMI_INTERVAL=30 -e VHE_SKIP_XVFB=1 -e VHE_SKIP_VALIDATE=1 \
-#     ghcr.io/wenathlan/saddle:vhe-2.1.0 /bin/bash -c '
+#     ghcr.io/wenathlan/saddle:vhe-2.1.1 /bin/bash -c '
 #       while true; do
 #         /usr/local/bin/nvidia-smi "$VHE_GPU_PROFILE" "$VHE_GPUS" || true
 #         sleep "$VHE_SMI_INTERVAL"
@@ -145,7 +145,7 @@
 #     -v qemudata:/data/qemudata \
 #     -v ./qemubridge.py:/engine/qemubridge.py:ro \
 #     -e QMP_SOCKET=/run/vhe/vm.qmp -e PYTHONUNBUFFERED=1 \
-#     ghcr.io/wenathlan/saddle:vhe-2.1.0 \
+#     ghcr.io/wenathlan/saddle:vhe-2.1.1 \
 #     python3 /engine/qemubridge.py --socket /run/vhe/vm.qmp status
 #
 #   saddle-node (the node-engine service, the former compose.yml
@@ -159,7 +159,7 @@
 #     --log-driver json-file --log-opt max-size=50m --log-opt max-file=5 \
 #     --tmpfs /tmp:size=2g,mode=1777 \
 #     -e SADDLE_MEMORY_ENGINE=ram -e SBOT_PLATFORM= -e SBOT_CDN_URL= \
-#     ghcr.io/wenathlan/saddle:2.1.0 \
+#     ghcr.io/wenathlan/saddle:2.1.1 \
 #     node dist/cli.js plan
 #
 #   observability (the former prometheus scraper of the full profile)
@@ -643,9 +643,15 @@ ENTRYPOINT ["/usr/bin/tini", "--", "qemu-system-x86_64"]
 # vhe runtime, so BOTH container surfaces can consume its output: the
 # vhe runtime copies the built web SPA for its /engine/web console and
 # the saddle-runtime stage copies the engine dist plus the same web
-# tree - one build, two consumers).
+# tree - one build, two consumers). The stage runs native (never under
+# QEMU): its outputs are platform-independent static/js payloads.
 
-FROM node:26.8.1-slim AS saddle-build
+# the build stage pins to the native build platform ($BUILDPLATFORM): its
+# outputs (the engine dist, pure js, and the web SPA, static assets) are
+# architecture-independent, while the tailwind/lightningcss pipeline only
+# ships native bindings for the builder platforms - the per-arch legs never
+# run it under QEMU.
+FROM --platform=$BUILDPLATFORM node:26.8.1-slim AS saddle-build
 
 ARG SADDLE_VERSION
 WORKDIR /app
@@ -1265,7 +1271,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --start-interval=5s 
 # OCI labels for registry introspection.
 LABEL org.opencontainers.image.title="saddle virtual-hardware engine (the grand merge)" \
       org.opencontainers.image.description="100% software virtual hardware: per-profile CPU/memory spoofing via LD_PRELOAD (max/balanced/lite), mesa 26.2.1 llvmpipe/lavapipe/rusticl, QEMU 11.1.0 TCG/MTTCG, virtual nvidia-smi adapter + NVML/CUDA shims, node 26.7.0, python bridge" \
-      org.opencontainers.image.version="2.1.0" \
+      org.opencontainers.image.version="2.1.1" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/wenathlan/saddle" \
       org.opencontainers.image.documentation="https://github.com/wenathlan/saddle/blob/main/README.md" \

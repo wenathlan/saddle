@@ -28,7 +28,11 @@ concurrency:
   # the release published and workflow_run firings race the push
   # lanes without ever cancelling them (the vhe publish lane and the
   # e2ugh idempotency resolver tolerate the duplicate firing).
-  group: publish-ghcr-${{ github.event_name }}-${{ github.ref }}
+  # The node-engine lane carries the -node suffix: the vhe publish
+  # workflow owns the publish-ghcr- prefix (its event-scoped group),
+  # and a shared prefix made this lane cancel the vhe publication
+  # firing of 2.1.2 - two workflows, two lanes, never one group.
+  group: publish-ghcr-node-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:

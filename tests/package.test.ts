@@ -38,7 +38,7 @@ test("declares runtime metadata and an optional browser provider peer", async ()
   assert.equal(packagejson.private, false);
   assert.equal(packagejson.engines.node, ">=26.7.0");
   assert.equal(packagejson.packageManager, "npm@12.0.2");
-  assert.equal(packagejson.peerDependencies.playwright, "^1.62.1");
+  assert.equal(packagejson.peerDependencies.playwright, "^1.63.0");
   assert.equal(packagejson.peerDependenciesMeta.playwright.optional, true);
   assert.equal(packagejson.exports["./browser-playwright"], "./dist/browser.js");
 });

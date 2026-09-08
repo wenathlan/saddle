@@ -29,7 +29,7 @@
 # arch builds the heavy mesa/node layers, the other two profiles reuse them.
 #
 # Toolchain (version-tagged, same convention as DevThink / Saddle):
-# docker/build-push-action@v7.3.0, docker/setup-qemu-action@v4.2.0,
+# docker/build-push-action@v7.3.0, docker/setup-qemu-action@v4.3.0,
 # docker/setup-buildx-action@v4.3.0, docker/login-action@v4.6.0,
 # aquasecurity/trivy-action@v0.36.0, actions/checkout@v7.0.1
 # No SHA pinning - the version tag is the contract.
@@ -173,7 +173,7 @@ jobs:
           echo "mesa ${tarball}: ${sha} (resolved at build time)"
 
       - name: Set up QEMU (arm64, ppc64le and s390x user-mode emulation)
-        uses: docker/setup-qemu-action@v4.2.0
+        uses: docker/setup-qemu-action@v4.3.0
         with:
           platforms: linux/arm64,linux/ppc64le,linux/s390x
 
@@ -431,7 +431,7 @@ jobs:
           ref: ${{ needs.resolve.outputs.tag }}
 
       - name: Set up QEMU (multi-arch emulation)
-        uses: docker/setup-qemu-action@v4.2.0
+        uses: docker/setup-qemu-action@v4.3.0
         with:
           platforms: linux/arm64,linux/ppc64le,linux/s390x
 
@@ -539,7 +539,7 @@ jobs:
           ref: ${{ needs.resolve.outputs.tag }}
 
       - name: Set up QEMU (multi-arch emulation)
-        uses: docker/setup-qemu-action@v4.2.0
+        uses: docker/setup-qemu-action@v4.3.0
         with:
           platforms: linux/arm64,linux/ppc64le,linux/s390x
 

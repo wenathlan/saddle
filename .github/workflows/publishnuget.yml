@@ -69,7 +69,7 @@ jobs:
             echo "version=$version"
           } >> "$GITHUB_OUTPUT"
       - name: setup dotnet
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: latest
       - name: add github source

@@ -190,7 +190,7 @@ jobs:
           # package.json of the tagged commit - never raw event data.
           ref: ${{ needs.resolve.outputs.tag }}
       - name: login ghcr
-        uses: docker/login-action@v4
+        uses: docker/login-action@v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -199,11 +199,11 @@ jobs:
         # multi-arch emulation for the non-native architectures of the
         # four-arch node-engine index (the e2ugh lineage surface: the
         # amd64, arm64, ppc64le and s390x family union).
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@v4.3.0
         with:
           platforms: linux/arm64,linux/ppc64le,linux/s390x
       - name: setup buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@v4.3.0
       - name: resolve image tags
         id: metadata
         shell: bash
@@ -220,7 +220,7 @@ jobs:
         # the scan stays single-platform: a loadable linux/amd64 image
         # (GitHub-hosted runners cannot load a multi-platform image into
         # the default local image store).
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.3.0
         with:
           context: .
           file: Dockerfile
@@ -238,7 +238,7 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
       - name: build and push image with attestations
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.3.0
         with:
           context: .
           file: Dockerfile

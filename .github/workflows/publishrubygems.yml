@@ -169,7 +169,7 @@ jobs:
           # package.json of the tagged commit - never raw event data.
           ref: ${{ needs.resolve.outputs.tag }}
       - name: setup ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@v1.321.0
         with:
           ruby-version: ruby
       - name: configure github credentials

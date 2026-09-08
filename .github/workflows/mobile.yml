@@ -93,7 +93,7 @@ jobs:
           distribution: temurin
           java-version: "21"
       - name: setup android
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v3.2.2
       - name: install android sdk packages
         shell: bash
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"

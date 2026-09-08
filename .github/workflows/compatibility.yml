@@ -28,12 +28,12 @@ jobs:
         run: npm ci && npm run build:engine
       - name: setup bun
         if: matrix.runtime == 'bun'
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@v2.2.0
         with:
           bun-version: latest
       - name: setup deno
         if: matrix.runtime == 'deno'
-        uses: denoland/setup-deno@v2
+        uses: denoland/setup-deno@v2.0.5
         with:
           deno-version: latest
       - name: run root probe on node

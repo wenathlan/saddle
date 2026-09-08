@@ -1,5 +1,21 @@
 # saddle release notes
 
+## 2.1.6 — the dependency ladder folds only the numbers
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| The maven compiler fold (the open pull) | The dependabot pull for org.apache.maven.plugins:maven-compiler-plugin 3.13.0 -> 3.16.0 lands on main as a direct squash commit (the dependency-update doctrine: a version bump commits to main, the pull closes and the branch is deleted — only main remains); the pom.xml build section carries the new number and every ci lane of the pull ran green before the fold. |
+| The workflow action pins | Every action tag in the workflow family rises to its latest release, all number-only: docker/setup-qemu-action v4.2.0 -> v4.3.0 (the four pinned uses plus the loose ones now pinned), docker/login-action v4 -> v4.6.0, docker/setup-buildx-action v4 -> v4.3.0, docker/build-push-action v7 -> v7.3.0, actions/setup-dotnet v6 -> v6.0.0, actions/dependency-review-action v4 -> v5.0.0 (the node24 runtime), oven-sh/setup-bun v2 -> v2.2.0, denoland/setup-deno v2 -> v2.0.5, android-actions/setup-android v3 -> v3.2.2 and ruby/setup-ruby v1 -> v1.321.0 — the family stops carrying floating major tags, every pin is an exact release. |
+| The npm dependency numbers | The semver-compatible ladder rolls in lockstep across the root package.json and the mirrored web/package.json (the same set, the same numbers): @capacitor/android 8.5.1, @capacitor/core 8.5.1, @capacitor/ios 8.5.1, @hookform/resolvers 5.9.1, @types/google.maps 3.66.2, @types/node 26.5.0, @types/react-dom 19.2.7, autoprefixer 10.5.5, axios 1.20.0, esbuild 0.28.2, input-otp 1.5.0, playwright 1.63.0 (the optional peer), postcss 8.5.28, react-hook-form 7.87.0, react-resizable-panels 4.12.4, tsx 4.23.13, vite-plugin-manus-runtime 0.0.59, vitest 4.1.11, wouter 3.11.0 and zod 4.5.4 — the package-lock refreshes to the same resolution. |
+| The esbuild peer alignment | The root esbuild pin rises 0.25 -> 0.28.2 to meet the vite 8.2.2 peer contract (peerOptional ^0.27 || ^0.28): the fresh resolution now dedupes with the tsx-nested copy instead of straddling two lines, and the install resolves without overrides. |
+
+### Fixed
+
+| Area | Change |
+| --- | --- |
+| The metadata gate | The package battery expectation for the optional browser peer follows the number (playwright ^1.63.0) — the runtime-metadata assertion stays in lockstep with the declaration. |
 ## 2.1.5 — the mobile lane resolves the capacitor config from the web root
 
 ### Fixed

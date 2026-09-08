@@ -106,8 +106,10 @@ jobs:
         # toolchain output generated on this runner into build/native/android
         # (gitignored, never tracked) - `cap add` materializes the
         # @capacitor/android 8.5.x template aimed at by the capacitor.config.ts
-        # at the repository root, and the sync copies the freshly built
-        # web/dist/public into the generated project's assets.
+        # at the web root (the cli resolves it from its working directory),
+        # and the sync copies the freshly built dist/public into the
+        # generated project's assets.
+        working-directory: web
         run: npx cap add android && npx cap sync android
       - name: generate Android icons
         shell: bash
@@ -345,9 +347,12 @@ jobs:
         # toolchain output generated on this runner into build/native/ios
         # (gitignored, never tracked) - `cap add` materializes the
         # @capacitor/ios 8.5.x SPM template aimed at by the capacitor.config.ts
-        # at the repository root (web assets must already be built).
+        # at the web root (the cli resolves it from its working
+        # directory; web assets must already be built).
+        working-directory: web
         run: npx cap add ios
       - name: synchronize capacitor ios surface
+        working-directory: web
         run: npx cap sync ios
       - name: generate iOS icons
         shell: bash

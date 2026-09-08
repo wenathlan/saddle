@@ -1,5 +1,12 @@
 # saddle release notes
 
+## 2.1.5 — the mobile lane resolves the capacitor config from the web root
+
+### Fixed
+
+| Area | Change |
+| --- | --- |
+| The mobile lane working directory (the 2.1.4 red) | The first firing of the 2.1.4 mobile lane ran `npx cap add android` from the repository root while the conversion config had moved to web/ — the Capacitor CLI resolves capacitor.config.ts from its working directory, so the add found no config (the json fallback carries an empty object) and stopped at "Missing appId for new platform". The three capacitor steps (android add+sync, ios add, ios sync) now run with `working-directory: web`, exactly where the 2.1.4 home put the config: the cli loads web/capacitor.config.ts, the webDir resolves to the freshly built dist/public, and the generated wrappers land in ../build/native/{android,ios} at the repository root (the icons and gradle steps keep the root working directory — only the capacitor steps moved). The desktop lane is untouched: tauri.conf.json still lives at the repository root by design. |
 ## 2.1.4 — the web root speaks typescript and owns its platform configs
 
 ### Changed

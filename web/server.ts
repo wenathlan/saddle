@@ -188,7 +188,7 @@ const webdir = join(moduledir, 'dist', 'public');
  * greps this exact literal out of the source with a regular expression,
  * so the declaration below stays a plain single-quoted string with no
  * type annotation in typescript. */
-const version = '2.1.4';
+const version = '2.1.5';
 
 /** sandbox ttl in milliseconds (15 minutes) and sweep interval (60 s). */
 const ttlms = 15 * 60 * 1000;

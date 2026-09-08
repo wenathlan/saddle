@@ -1370,7 +1370,7 @@ export function bootSequence(
     `${stamp(onlinetime + 0.0837)} rusticl: opencl ${mesastack.opencl} on llvmpipe, features fp64 (fp16 default since 25.2)`,
     `${stamp(onlinetime + 0.091)} virtualgpu: identity ${gpuspec.name} [${gpuspec.pcivendor}:${gpuspec.pcidevice}] ${gpuspec.memtype} ${gpuspec.vrammib / 1024} GB`,
     `${stamp(onlinetime + 0.0922)} nvml shim: FAKE_MODEL="${gpuspec.name}" FAKE_VRAM=${gpuspec.smireportedmib} (fake-nvidia-smi adapter ready)`,
-    `${stamp(onlinetime + 0.1045)} saddle: virtual hardware engine v2.1.4, sandbox created -> running`,
+    `${stamp(onlinetime + 0.1045)} saddle: virtual hardware engine v2.1.5, sandbox created -> running`,
     `${stamp(onlinetime + 0.1047)} saddle: persistent workspace: ${humanbytes(quota)} quota, data stays with the sandbox id`,
     `${stamp(onlinetime + 0.1046)} Freeing unused kernel image memory`,
   ];
@@ -1488,7 +1488,7 @@ function neofetch(state: SandboxState): string {
   const info = [
     `root@${state.hostname}`,
     '-----------------',
-    'OS: saddle linux (virtual hardware engine v2.1.4)',
+    'OS: saddle linux (virtual hardware engine v2.1.5)',
     'Host: firecracker microvm (125 ms boot)',
     `Kernel: ${state.kernel}`,
     `Uptime: ${uptimeText}`,
@@ -1525,7 +1525,7 @@ function envText(state: SandboxState): string {
     ...mesaenv(state.vcpus),
     FAKE_MODEL: state.gpuspec.name,
     FAKE_VRAM: String(mig !== null ? mig.slicegb * 1024 : state.gpuspec.smireportedmib),
-    SADDLE_VERSION: '2.1.4',
+    SADDLE_VERSION: '2.1.5',
     SADDLE_SANDBOX: state.id,
     SADDLE_STATE: 'running',
     SADDLE_CPU: state.model,

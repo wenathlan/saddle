@@ -1,6 +1,6 @@
 {
   "name": "@wenathlan/saddle-web",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "private": true,
   "type": "module",
   "description": "saddle web console (the merged e2ugh sandbox surface): the universal tsx interface plus the self-hosted zero-dependency node api (web/server.ts) and the platform deploy adapters (vercel.json, netlify.toml) at the deploy root; static-first, no serverless functions",

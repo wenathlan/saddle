@@ -40,7 +40,7 @@ jobs:
         # actionlint validates GitHub Actions workflow syntax, expression
         # contexts, action inputs and reusable workflow call graphs; the
         # reviewdog wrapper reports findings inline on the pull request.
-        uses: reviewdog/action-actionlint@v1.73.2
+        uses: reviewdog/action-actionlint@v1.73.4
         with:
           reporter: github-pr-check
           fail_level: error

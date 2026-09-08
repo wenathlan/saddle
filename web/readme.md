@@ -5,7 +5,7 @@ virtual container — cpu, ram, gpu, mesa software graphics — entirely in the
 browser, plus one self-hosted node api exposing the exact same sandbox over
 http for automation. no framework, no build step, no serverless functions.
 
-version 2.1.3 — reported by `/api/v1/health` and kept in lockstep with
+version 2.1.4 — reported by `/api/v1/health` and kept in lockstep with
 `package.json` and the `meta.version` envelope of the ten data documents
 (v6-SYNC worklog task).
 
@@ -13,14 +13,14 @@ version 2.1.3 — reported by `/api/v1/health` and kept in lockstep with
 
 ```bash
 # the whole thing: built spa + self-hosted api (zero dependencies)
-node web/server.js
+node web/server.ts
 # it prints the endpoint once, e.g. listening on 0.0.0.0:48213
 # override with --port 8080 or PORT=8080 / SADDLE_HOST
 # (first run: `npm run web:build` produces web/dist/public; the server
 # answers a honest 503 until the build exists)
 
 # the browser console also runs 100% client-side on any static host:
-# the browser port (sandbox.js) needs no api; the api badge stays in
+# the browser port (sandbox.ts) needs no api; the api badge stays in
 # "engine: local" mode when /api/v1 is absent.
 ```
 
@@ -53,25 +53,25 @@ vm:stopped, vm:deleted).
 | page folders `Home/` `Architecture/` `AgentBrowser/` `Compute/` `Integrations/` `Playground/` `Console/` `Dashboard/` `Login/` `Register/` `Docs/` `NotFound/` | one folder per route carrying its own `<Page>.tsx` and components (the duck.ai conversion doctrine): the Console folder carries the absorbed e2ugh console surface (spec panel, boot terminal with history and tab-complete, events timeline, snapshot controls, api badge), the Login/Register/Dashboard folders carry the absorbed account pages (safenext redirect, strength meter, admin tables, mesh ping with client probe, keyfile backup/restore, local sandbox shelf) |
 | loose shell files (`PageShell.tsx`, `SiteHeader.tsx`, `SaddleMark.tsx`, `SectionRail.tsx`, `RuntimeDiagram.tsx`, `ErrorBoundary.tsx`, `ThemeContext.tsx`, `button.tsx`, `card.tsx`, `tooltip.tsx`, `sonner.tsx`, `utils.ts`, `paths.ts`) | the shared interface modules at the web root |
 | `api.ts` | the consolidated api-base helpers (the three duplicated copies of the absorbed pages joined into one module) |
-| `localauth.ts` | static-edge account fallback (the typed module conversion of the window-global original): when no api answers (github pages / netlify / vercel clones), login/register/dashboard switch to browser-local accounts (pbkdf2-sha256 via webcrypto, never synced). persistence: accounts are mirrored to IndexedDB and repaired in both directions on load (a partial storage clear never loses them), the CODEOWNERS admins (iakadion, inathlan, aasblor and nasblor, shared bootstrap password `cdw782FG7pjxQVw`, kept in lockstep with the server seed in `auth.js`) are re-seeded whenever missing, and the dashboard ships explicit backup/restore keyfile buttons for a full wipe; only the CODEOWNERS accounts are admins |
-| `sandbox.js` + `sandbox.d.ts` | browser-pure port of the engine generators (zero imports, runs in node too) with the typed surface declaration |
-| `server.js`   | self-hosted node:http api: built spa serving (web/dist/public) + `/api/v1` |
-| `db.js`       | node:sqlite data layer: users, sessions, nodes, sandboxes, sandboxfiles, events, audit |
-| `auth.js`     | security layer: scrypt hashing, saddlesession cookies, rate limiter, request guards, CODEOWNERS admin seed |
-| `mesh.js`     | signed node-to-node mesh: hmac requests, aes-gcm payloads, clone heartbeat |
-| `schema.prisma` / `init.sql` / `drizzle.config.ts` | the three schema mirrors of the db.js migrations (prisma, raw sql, drizzle kit) |
-| `mime.types`  | the extension to content-type table parsed by server.js at boot |
+| `localauth.ts` | static-edge account fallback (the typed module conversion of the window-global original): when no api answers (github pages / netlify / vercel clones), login/register/dashboard switch to browser-local accounts (pbkdf2-sha256 via webcrypto, never synced). persistence: accounts are mirrored to IndexedDB and repaired in both directions on load (a partial storage clear never loses them), the CODEOWNERS admins (iakadion, inathlan, aasblor and nasblor, shared bootstrap password `cdw782FG7pjxQVw`, kept in lockstep with the server seed in `auth.ts`) are re-seeded whenever missing, and the dashboard ships explicit backup/restore keyfile buttons for a full wipe; only the CODEOWNERS accounts are admins |
+| `sandbox.ts` | browser-pure port of the engine generators (zero imports, runs in node too), the typed surface absorbed in the module itself (the 2.1.4 typescript conversion) |
+| `server.ts`   | self-hosted node:http api: built spa serving (web/dist/public) + `/api/v1` |
+| `db.ts`       | node:sqlite data layer: users, sessions, nodes, sandboxes, sandboxfiles, events, audit |
+| `auth.ts`     | security layer: scrypt hashing, saddlesession cookies, rate limiter, request guards, CODEOWNERS admin seed |
+| `mesh.ts`     | signed node-to-node mesh: hmac requests, aes-gcm payloads, clone heartbeat |
+| `schema.prisma` / `init.sql` / `drizzle.config.ts` | the three schema mirrors of the db.ts migrations (prisma, raw sql, drizzle kit) |
+| `mime.types`  | the extension to content-type table parsed by server.ts at boot |
 | `manifest.json` / `popup.html` / `popup.css` / `icon.svg` / `icon32.png` / `icon64.png` / `icon128.png` | the browser-extension surface regenerated by buildextension.yml on the runners |
-| `package.json` | deploy manifest only (`@wenathlan/saddle-web`, private, never published): vercel/netlify require it at the deploy root; the published npm package is the central `@wenathlan/saddle` without web |
+| `package.json` | the web manifest (`@wenathlan/saddle-web`, private, never published): the deploy root owns its package and its dependency set mirrors the repository-root package.json one-to-one (the same set, kept in lockstep) so the vite build runs standalone; the published npm package is the central `@wenathlan/saddle` without web |
 | `Dockerfile` (repo root) | container image for ghcr.io/wenathlan/saddle (the main image; web/ ships inside) |
-| `vercel.json` (repo root) | static hosting config for the React SPA (`outputDirectory: web/dist/public`, SPA rewrite), **no functions** |
-| `netlify.toml` (repo root) | static hosting config for the React SPA (`publish = "web/dist/public"`, SPA rewrite 200), **no functions** |
+| `vercel.json` | static hosting config for the React SPA at the web root (the deploy root, `outputDirectory: dist/public`, SPA rewrite), **no functions** |
+| `netlify.toml` | static hosting config for the React SPA at the web root (`publish = "dist/public"`, the build command runs from the repository root, SPA rewrite 200), **no functions** |
 | `caddyfile`   | self-host reverse proxy for the node api (devthink.pro + www) |
 | `readme.md`   | this document |
 
 ## architecture
 
-- **browser sandbox = engine port, pure.** `sandbox.js` rewrites the
+- **browser sandbox = engine port, pure.** `sandbox.ts` rewrites the
   engine generators for the web platform: `cpudata` (the
   `best_virtual_processors` bank plus the showcase additions), `gpudata`
   (the verified `gpu_bank`), `cpuinfo`/`lscpu` (byte-realistic procfs with
@@ -82,8 +82,8 @@ vm:stopped, vm:deleted).
   (lavapipe vulkan 1.4), `glxinfoSummary` (llvmpipe gl 4.6), `mesaenv`
   (`lp_native_vector_width=512` and friends), `bootSequence` (firecracker
   125 ms dmesg) and `dispatch` (the command parser).
-- **self-hosted api = same contracts.** `server.js` imports that very same
-  `sandbox.js` module (it is plain esm, no dom, no node builtin) so the
+- **self-hosted api = same contracts.** `server.ts` imports that very same
+  `sandbox.ts` module (it is plain esm, no dom, no node builtin) so the
   browser terminal and the http api can never drift apart.
 
 ### api surface (`/api/v1`)
@@ -141,7 +141,7 @@ the role is `admin` (overview cards, mesh node table with ping through
                            |  reverse_proxy /api/* -> 127.0.0.1:39721
                            v
               [ ghcr.io/wenathlan/saddle (the main image; web/ ships inside) ]
-                node 26 slim - server.js
+                node 26 slim - server.ts
                 /api/v1/auth - /api/v1/admin - /api/v1/sandboxes
                 mesh: HMAC-signed gossip + AES-GCM payloads
                 sqlite /data/saddle.db (0600)
@@ -165,7 +165,7 @@ the role is `admin` (overview cards, mesh node table with ping through
   with one generic message (no user enumeration).
 - **headers**: `x-content-type-options: nosniff`, `x-frame-options: deny`,
   `referrer-policy: strict-origin-when-cross-origin` and a restrictive
-  `permissions-policy` — identical on server.js, caddy and netlify.
+  `permissions-policy` — identical on server.ts, caddy and netlify.
 - **mesh**: node-to-node traffic is hmac-signed (replay-windowed
   timestamps) with aes-gcm encrypted payloads; mesh keys live only in the
   main-node environment, never in the browser.
@@ -177,8 +177,8 @@ the role is `admin` (overview cards, mesh node table with ping through
 
 | target | method | what runs |
 |--------|--------|-----------|
-| vercel (clone) | root `vercel.json`, SPA output from `web/dist/public` | bytes only: local engine, `?api=` pointing at the main node for auth |
-| netlify (clone) | root `netlify.toml`, `publish = "web/dist/public"` (file lives at the repo root), node 26.7.0 | bytes only: same behavior as vercel |
+| vercel (clone) | `web/vercel.json` (the deploy root), SPA output from `dist/public` | bytes only: local engine, `?api=` pointing at the main node for auth |
+| netlify (clone) | `web/netlify.toml`, `publish = "dist/public"` (the file lives at the web root), node 26.7.0 | bytes only: same behavior as vercel |
 | self-host (main, devthink.pro) | `docker build .` (the repo-root Dockerfile) -> `ghcr.io/wenathlan/saddle` (the main image; web/ ships inside), caddyfile in front | static pages + full `/api/v1` (auth, admin, mesh) + sqlite on `/data` |
 
 ## why the static + node split
@@ -186,7 +186,7 @@ the role is `admin` (overview cards, mesh node table with ping through
 static hosts cannot run docker or sqlite and the project forbids
 serverless functions, so the split is the only shape that satisfies every
 rule at once: the sandbox compute is the visitor's own browser (the
-`sandbox.js` engine port runs client-side on every clone), and the
+`sandbox.ts` engine port runs client-side on every clone), and the
 authoritative api is one plain node container an operator runs anywhere —
 devthink.pro today, any other node tomorrow, joined to the mesh. the same
 directory serves both worlds without a build step, a framework or a
@@ -194,14 +194,14 @@ single dependency.
 
 ## deploy options
 
-- **vercel static** — the repo-root `vercel.json` sets
+- **vercel static** — the web-root `vercel.json` (the deploy root) sets
   `outputDirectory: web/dist/public` with an SPA rewrite and cache
   headers. static edge only: the page runs the local engine in the
   browser; there are no functions.
-- **netlify static** — the repo-root `netlify.toml` sets
+- **netlify static** — the web-root `netlify.toml` (the deploy root) sets
   `publish = "web/dist/public"` on node 26.7.0 with an SPA rewrite and
   security headers. same rule: static edge only, no functions.
-- **self-host (devthink.pro pattern)** — run `node web/server.js` (or the
+- **self-host (devthink.pro pattern)** — run `node web/server.ts` (or the
   `ghcr.io/wenathlan/saddle (the main image; web/ ships inside)` container behind `web/caddyfile`):
   caddy serves the static files on devthink.pro (+ www redirect, gzip,
   security headers, auto tls) and reverse-proxies `/api/*` to the node

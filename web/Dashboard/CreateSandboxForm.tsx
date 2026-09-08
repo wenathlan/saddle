@@ -1,8 +1,8 @@
 // Signal & Ledger: o formulário de criação absorvido do dashboard.js —
-// catálogos do engine (sandbox.js) com fallback estático, spec postada na
+// catálogos do engine (sandbox.ts) com fallback estático, spec postada na
 // api ou materializada no engine local (modo estático).
 import { useState } from "react";
-import { createSandboxState, cpudata, gpudata } from "../sandbox.js";
+import { createSandboxState, cpudata, gpudata } from "../sandbox.ts";
 import { apiresult, errormessage, fallbackcpus, fallbackgpus, readlocalsandboxes, writelocalsandboxes } from "./lib";
 
 type CreateSandboxFormProps = {

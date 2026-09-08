@@ -50,7 +50,7 @@ const idbstore = "accounts";
 const adminlist = ["iakadion", "inathlan", "aasblor", "nasblor"];
 
 /** bootstrap credentials for the seeded admins: the CODEOWNERS shared
- * password, kept in lockstep with the self-hosted node (web/auth.js
+ * password, kept in lockstep with the self-hosted node (web/auth.ts
  * adminseedpassword) and the database seed. only the CODEOWNERS
  * accounts (iakadion, inathlan, aasblor, nasblor) carry the admin
  * role anywhere. */

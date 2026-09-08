@@ -30,7 +30,7 @@ domain modules land beside the saddle domains:
 | `scheduler.ts`, `compute.ts`, `performance.ts` | job queues, batch compute and benchmark planning |
 | `media.ts`, `render.ts`, `quantum.ts`, `tiers.ts` | media pipeline, GPU registry, quantum simulation, tier policy |
 | `security.ts`, `alternatives.ts` | hardening gates and the alternative-stack catalog |
-| `web/` | the static console and the zero-dependency self-hosted API (`node web/server.js`) |
+| `web/` | the static console and the zero-dependency self-hosted API (`node web/server.ts`) |
 | `specs/*` package exports | processors, gpus, cores, boards and the qemu/mttg/passage/docker envelopes |
 
 The full pre-merge documentation of the engine lives in

@@ -17,7 +17,7 @@ async function exists(path) {
  * desktop, extension) are generated on the runners into build/native/*
  * and never tracked, the interface is one flat tsx tree (page folders +
  * loose modules, no nested support folders, no legacy window-global
- * localauth.js), and the static e2ugh console pages stay absorbed in the
+ * localauth.ts), and the static e2ugh console pages stay absorbed in the
  * tsx pages. the tree never goes back to tracked wrappers.
  */
 async function validateFlatNative() {

@@ -1,5 +1,23 @@
 # saddle release notes
 
+## 2.1.4 — the web root speaks typescript and owns its platform configs
+
+### Changed
+
+| Area | Change |
+| --- | --- |
+| The typescript conversion (the zero-js web root) | Every javascript file at the web root becomes typescript: the browser-pure engine port (sandbox.js -> sandbox.ts, the typed surface of the retired sandbox.d.ts absorbed into the module itself), the self-hosted api stack (server.js -> server.ts, db.js -> db.ts, auth.js -> auth.ts, mesh.js -> mesh.ts) and every import in the tsx tree now carries the explicit .ts extension. The syntax stays erasable (type aliases, interfaces and annotations only — no enum, no namespace, no parameter properties) so the node 26 runtime loads the sources through native type stripping: `node web/server.ts` boots the self-hosted api exactly as `node web/server.js` did, with zero added dependencies and the version envelope, the routes, the sqlite migrations, the scrypt auth seeds and the signed mesh contract byte-preserved. |
+| The platform configs come home to the web root | vercel.json, netlify.toml, capacitor.config.ts and vite.config.ts move from the repository root into web/ (the deploy root owns them, per the platform-adapter rule): vercel publishes `dist/public` relative to the web root, netlify builds the same vite output from the repository root (`cd .. && npm run web:build:pages`) and publishes `dist/public`, the capacitor config resolves from its working directory (the mobile workflow runs `cap add`/`cap sync` with working-directory: web) aiming webDir at dist/public and the generated wrappers at ../build/native/{android,ios}, and the vite config recomputes the repository root from its new home (the @saddle/isolation alias and the debug-collector log dir unchanged). vitest.config.ts (the root battery) and tauri.conf.json (the release-version envelope) stay at the repository root. |
+| The netlify.toml corruption | The malformed header blocks of the netlify adapter ([eaders] with a lost bracket and the eaders.values continuation lines, the same ansi-eating corruption family fixed before in the workflow files) are restored to real [[headers]] blocks — the toml now parses cleanly through tomllib and the security headers section actually applies. |
+| The web manifest (the mirrored dependency set) | web/package.json stops being a bare deploy manifest: its dependency set mirrors the repository-root package.json one-to-one (all 75 packages — every package at the root lives at the web root and every package at the web root lives at the root, the same set kept in lockstep by the bump battery), and the scripts carry the standalone lanes (dev, build, check, serve) beside the self-hosted start. The package stays private and is never published — the published package remains the central @wenathlan/saddle. |
+| The dependency ladder (the dependabot folds) | The seven dependabot pulls land on main as direct squash commits (the dependency-update doctrine: a version bump commits to main, closes the pull and the branch is deleted — the ladder only cuts a product version for features): @types/react-dom 19.2.7, autoprefixer 10.5.5, @capacitor/core 8.5.1, react-resizable-panels 4.12.3, postcss 8.5.28 (the lock-resolved lanes), reviewdog/action-actionlint 1.73.4 and trufflesecurity/trufflehog 3.97.4 (the action-tag lanes). |
+
+### Fixed
+
+| Area | Change |
+| --- | --- |
+| The structural gates | The workflow battery layout gate and the conversion-config gate follow the 2.1.4 home: the platform/deploy configs are asserted at the web root (capacitor.config.ts, vite.config.ts, vercel.json, netlify.toml) while vitest.config.ts and tauri.conf.json stay asserted at the repository root, and the capacitor assertions read the web-root file (webDir dist/public, ../build/native/{android,ios}). The web battery adapter tests read the vercel/netlify files from the web root with the new output directories, the netlify command and the parsed-toml gate. |
+| The release lockstep readers | The release validation reads the version envelopes from the typescript carriers: web/server.ts (the api version literal) and web/sandbox.ts (the engine stamp) replace the retired .js paths on both the battery and the tag jobs. |
 ## 2.1.3 — the tool gates resolve from the public registry
 
 ### Fixed

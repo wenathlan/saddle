@@ -1,5 +1,5 @@
 /**
- * db.js — node:sqlite data layer for the saddle web node (v7-BACK).
+ * db.ts — node:sqlite data layer for the saddle web node (v7-BACK).
  *
  * the whole persistence surface of a node (main or clone) lives in this
  * module: one sqlite database opened through the native node:sqlite
@@ -8,8 +8,8 @@
  * table. the file is created with mode 0o600 right after open because it
  * carries password hashes and session token hashes.
  *
- * contexts (11): dbopen, filemode, executeschema, users, sessions, nodes,
- * sandboxes, sandboxfiles, events, audit, counts.
+ * contexts (12): dbopen, filemode, rowtypes, executeschema, users,
+ * sessions, nodes, sandboxes, sandboxfiles, events, audit, counts.
  *
  * rules: lowercase identifiers, english jsdoc in third person, no emoji,
  * try/catch on every fallible path with the standardized {code,message}
@@ -19,8 +19,189 @@
 import { chmodSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
+import type { StatementSync } from 'node:sqlite';
 import { resolve } from 'node:path';
 import process from 'node:process';
+
+/* ------------------------------------------------------------------ */
+/* context: rowtypes — the typed sqlite projections                    */
+/* ------------------------------------------------------------------ */
+
+/** one users row: the password hash and salt never leave the server. */
+export type UserRow = {
+  id: string;
+  username: string;
+  passwordhash: string;
+  salt: string;
+  role: string;
+  createdat: string;
+  lastlogin: string | null;
+};
+
+/** one sessions row (only the sha256 token hash is persisted). */
+export type SessionRow = {
+  tokenhash: string;
+  userid: string;
+  createdat: string;
+  expiresat: string;
+  ip: string | null;
+  useragent: string | null;
+};
+
+/** one mesh registry nodes row. */
+export type NodeRow = {
+  id: string;
+  url: string;
+  rolename: string | null;
+  region: string | null;
+  lastheartbeat: string | null;
+  status: string | null;
+  registeredat: string;
+  meta: string | null;
+};
+
+/** one sandboxes lifecycle row: the identity columns are always written
+ * non-null by createsandboxrecord; the usage counters and the optional
+ * per-sandbox quota stay nullable until their first stamp. */
+export type SandboxRow = {
+  id: string;
+  userid: string | null;
+  model: string;
+  vcpus: number;
+  ramgb: number;
+  gpu: string;
+  state: string;
+  createdat: string;
+  expiresat: string | null;
+  files: number | null;
+  bytes: number | null;
+  quotabytes: number | null;
+};
+
+/** one sandboxfiles row projection (contents stay out of listfiles). */
+export type SandboxFileRow = {
+  path: string;
+  size: number;
+  updatedat: string;
+};
+
+/** one stored workspace file document (content decoded from the blob cell). */
+export type SandboxFileDoc = {
+  path: string;
+  content: string;
+  size: number;
+  updatedat: string;
+};
+
+/** the workspace usage counters of one sandbox. */
+export type WorkspaceUsage = {
+  files: number;
+  bytes: number;
+};
+
+/** one events row: the payload stays the raw json text cell until the
+ * events poll parses it into the view document. */
+export type EventRow = {
+  id: number;
+  topic: string | null;
+  payload: string | null;
+  nodeid: string | null;
+  createdat: string;
+};
+
+/** one audit row (register, login, logout, sandbox lifecycle, mesh
+ * registration). */
+export type AuditRow = {
+  id: number;
+  userid: string | null;
+  action: string | null;
+  detail: string | null;
+  ip: string | null;
+  createdat: string;
+};
+
+/** the standardized database error: the machine readable code plus the
+ * non-enumerable internal and publicmessage properties set by dberror. */
+export type DbError = Error & {
+  code: string;
+  internal?: string;
+  publicMessage?: string;
+};
+
+/** users row attributes accepted by createuser; the id and createdat are
+ * optional so the mesh forward path can pin the main node's values. */
+export type UserFields = {
+  id?: string;
+  username: string;
+  passwordhash: string;
+  salt: string;
+  role?: string;
+  createdat?: string;
+};
+
+/** the stored user projection returned by createuser. */
+export type UserProjection = {
+  id: string;
+  username: string;
+  role: string;
+  createdat: string;
+};
+
+/** sessions row attributes accepted by createsession. */
+export type SessionFields = {
+  tokenhash: string;
+  userid: string;
+  expiresat: string;
+  ip?: string;
+  useragent?: string;
+  createdat?: string;
+};
+
+/** node announcement accepted by registernode. */
+export type NodeAnnouncement = {
+  url: string;
+  rolename?: string;
+  region?: string;
+  meta?: string;
+};
+
+/** sandbox projection accepted by createsandboxrecord. */
+export type SandboxRecordFields = {
+  id: string;
+  userid?: string;
+  model?: string;
+  vcpus?: number;
+  ramgb?: number;
+  gpu?: string;
+  state: string;
+  createdat?: string;
+  expiresat?: string;
+  quotabytes?: number | null;
+};
+
+/** event envelope accepted by addevent. */
+export type EventFields = {
+  topic: string;
+  payload?: unknown;
+  nodeid?: string;
+  createdat?: string;
+};
+
+/** audit envelope accepted by addaudit. */
+export type AuditFields = {
+  userid?: string | null;
+  action: string;
+  detail?: string;
+  ip?: string;
+  createdat?: string;
+};
+
+/** write receipt returned by writefile. */
+export type WriteReceipt = {
+  path: string;
+  size: number;
+  updatedat: string;
+};
 
 /* ------------------------------------------------------------------ */
 /* context: dbopen and filemode                                        */
@@ -32,9 +213,9 @@ import process from 'node:process';
  * working directory. the special value ":memory:" keeps the database in
  * ram (used by tests and throwaway boots).
  *
- * @returns {string} the database path handed to databasesync.
+ * @returns the database path handed to databasesync.
  */
-function resolvedbpath() {
+function resolvedbpath(): string {
   try {
     const fromenv = process.env.SADDLE_DB ?? '';
     if (fromenv.length > 0) {
@@ -52,11 +233,11 @@ export const dbpath = resolvedbpath();
 /**
  * builds the standardized database error thrown by every wrapper below.
  *
- * @param {string} code machine readable code prefixed with db-.
- * @param {string} message human readable explanation.
- * @returns {Error & {code: string}} the decorated error.
+ * @param code machine readable code prefixed with db-.
+ * @param message human readable explanation.
+ * @returns the decorated error.
  */
-function dberror(code, message) {
+function dberror(code: string, message: string): DbError {
   // log internal technical details server-side only; the thrown error only
   // exposes the machine-readable code so no underlying driver stack trace or
   // sqlite error string can propagate to client responses (CodeQL
@@ -69,7 +250,7 @@ function dberror(code, message) {
   // public messages are static, hardcoded strings keyed by code; they are
   // safe to surface in user-facing sandbox command output because they do
   // not depend on the underlying driver or stack trace.
-  const publicmessages = {
+  const publicmessages: Record<string, string> = {
     'quota-exceeded': 'quota exceeded',
     'invalid-quota': 'invalid quota',
     'db-createuser-failed': 'database error',
@@ -102,10 +283,10 @@ function dberror(code, message) {
  * opens the database, applies the pragma profile and tightens the file
  * mode to 0o600 (skipped for the in-memory database).
  *
- * @param {string} path the resolved database path.
- * @returns {import('node:sqlite').DatabaseSync} the opened database.
+ * @param path the resolved database path.
+ * @returns the opened database.
  */
-function opendatabase(path) {
+function opendatabase(path: string): DatabaseSync {
   const database = new DatabaseSync(path);
   database.exec('pragma busy_timeout = 2000;');
   if (path !== ':memory:') {
@@ -123,9 +304,9 @@ function opendatabase(path) {
  * saddle_sandbox_quota_bytes environment variable wins (any positive
  * integer), otherwise the 16 mib default documented in the readme.
  *
- * @returns {number} the quota in bytes.
+ * @returns the quota in bytes.
  */
-export function sandboxquota() {
+export function sandboxquota(): number {
   try {
     const parsed = Number.parseInt(
       String(process.env.SADDLE_SANDBOX_QUOTA_BYTES ?? ''),
@@ -227,10 +408,10 @@ create table if not exists audit (
  * "duplicate column name" failure of a second boot is swallowed so the
  * migration is idempotent on any node age.
  *
- * @param {import('node:sqlite').DatabaseSync} target the database handle.
- * @returns {void}
+ * @param target the database handle.
+ * @returns void.
  */
-function migrateusagecolumns(target) {
+function migrateusagecolumns(target: DatabaseSync): void {
   for (const column of ['files', 'bytes', 'quotabytes']) {
     try {
       target.exec(`alter table sandboxes add column ${column} integer;`);
@@ -248,16 +429,16 @@ function migrateusagecolumns(target) {
 let database = opendatabase(dbpath);
 
 /** memoized prepared statements keyed by their sql text. */
-const statements = new Map();
+const statements = new Map<string, StatementSync>();
 
 /**
  * returns the prepared statement for one sql text, preparing it once and
  * reusing it for the whole process lifetime.
  *
- * @param {string} sql the sql text.
- * @returns {import('node:sqlite').StatementSync} the prepared statement.
+ * @param sql the sql text.
+ * @returns the prepared statement.
  */
-function stmt(sql) {
+function stmt(sql: string): StatementSync {
   try {
     let prepared = statements.get(sql);
     if (prepared === undefined) {
@@ -282,13 +463,10 @@ function stmt(sql) {
  * one (the mesh forward path caches the main node's user rows with
  * their original ids so clone sessions resolve).
  *
- * @param {{id?: string, username: string, passwordhash: string,
- *   salt: string, role?: string, createdat?: string}} fields the user
- *   attributes.
- * @returns {{id: string, username: string, role: string,
- *   createdat: string}} the stored user projection.
+ * @param fields the user attributes.
+ * @returns the stored user projection.
  */
-export function createuser(fields) {
+export function createuser(fields: UserFields): UserProjection {
   try {
     const id = fields.id ?? randomUUID();
     const createdat = fields.createdat ?? new Date().toISOString();
@@ -311,13 +489,13 @@ export function createuser(fields) {
 /**
  * finds one user by username.
  *
- * @param {string} username the exact username.
- * @returns {object | null} the full row or null when absent.
+ * @param username the exact username.
+ * @returns the full row or null when absent.
  */
-export function finduserbyname(username) {
+export function finduserbyname(username: string): UserRow | null {
   try {
     return (
-      stmt('select * from users where username = ?').get(username) ?? null
+      (stmt('select * from users where username = ?').get(username) as UserRow | undefined) ?? null
     );
   } catch (error) {
     throw dberror('db-finduser-failed', error instanceof Error ? error.message : String(error));
@@ -327,12 +505,12 @@ export function finduserbyname(username) {
 /**
  * finds one user by id.
  *
- * @param {string} id the user id.
- * @returns {object | null} the full row or null when absent.
+ * @param id the user id.
+ * @returns the full row or null when absent.
  */
-export function finduserbyid(id) {
+export function finduserbyid(id: string): UserRow | null {
   try {
-    return stmt('select * from users where id = ?').get(id) ?? null;
+    return (stmt('select * from users where id = ?').get(id) as UserRow | undefined) ?? null;
   } catch (error) {
     throw dberror('db-finduser-failed', error instanceof Error ? error.message : String(error));
   }
@@ -342,11 +520,11 @@ export function finduserbyid(id) {
  * lists every user ordered by creation time; the route layer projects
  * out the password hash and salt columns.
  *
- * @returns {object[]} the full user rows.
+ * @returns the full user rows.
  */
-export function listusers() {
+export function listusers(): UserRow[] {
   try {
-    return stmt('select * from users order by createdat asc').all();
+    return stmt('select * from users order by createdat asc').all() as UserRow[];
   } catch (error) {
     throw dberror('db-listusers-failed', error instanceof Error ? error.message : String(error));
   }
@@ -355,11 +533,11 @@ export function listusers() {
 /**
  * stamps the last login column with the given timestamp.
  *
- * @param {string} id the user id.
- * @param {string} isotime the iso timestamp.
- * @returns {void}
+ * @param id the user id.
+ * @param isotime the iso timestamp.
+ * @returns void.
  */
-export function updatelastlogin(id, isotime) {
+export function updatelastlogin(id: string, isotime: string): void {
   try {
     stmt('update users set lastlogin = ? where id = ?').run(isotime, id);
   } catch (error) {
@@ -375,12 +553,10 @@ export function updatelastlogin(id, isotime) {
  * persists one session; only the sha256 token hash is stored, never the
  * bearer token itself.
  *
- * @param {{tokenhash: string, userid: string, expiresat: string,
- *   ip?: string, useragent?: string, createdat?: string}} fields the
- *   session attributes.
- * @returns {void}
+ * @param fields the session attributes.
+ * @returns void.
  */
-export function createsession(fields) {
+export function createsession(fields: SessionFields): void {
   try {
     stmt(
       'insert into sessions (tokenhash, userid, createdat, expiresat, ip, useragent) values (?, ?, ?, ?, ?, ?)',
@@ -399,14 +575,17 @@ export function createsession(fields) {
 
 /**
  * finds one session row by token hash; expiry is enforced by the caller
- * (auth.js) so clones can forward remote sessions verbatim.
+ * (auth.ts) so clones can forward remote sessions verbatim.
  *
- * @param {string} tokenhash the sha256 hex of the bearer token.
- * @returns {object | null} the session row or null.
+ * @param tokenhash the sha256 hex of the bearer token.
+ * @returns the session row or null.
  */
-export function findsession(tokenhash) {
+export function findsession(tokenhash: string): SessionRow | null {
   try {
-    return stmt('select * from sessions where tokenhash = ?').get(tokenhash) ?? null;
+    return (
+      (stmt('select * from sessions where tokenhash = ?').get(tokenhash) as SessionRow | undefined) ??
+      null
+    );
   } catch (error) {
     throw dberror('db-findsession-failed', error instanceof Error ? error.message : String(error));
   }
@@ -415,10 +594,10 @@ export function findsession(tokenhash) {
 /**
  * deletes one session by token hash.
  *
- * @param {string} tokenhash the sha256 hex of the bearer token.
- * @returns {boolean} true when a row was removed.
+ * @param tokenhash the sha256 hex of the bearer token.
+ * @returns true when a row was removed.
  */
-export function deletesession(tokenhash) {
+export function deletesession(tokenhash: string): boolean {
   try {
     const result = stmt('delete from sessions where tokenhash = ?').run(tokenhash);
     return Number(result.changes) > 0;
@@ -431,9 +610,9 @@ export function deletesession(tokenhash) {
  * removes every expired session (iso strings compare lexicographically).
  * the main node schedules this sweep at boot.
  *
- * @returns {number} the count of removed rows.
+ * @returns the count of removed rows.
  */
-export function cleansessions() {
+export function cleansessions(): number {
   try {
     const now = new Date().toISOString();
     const result = stmt('delete from sessions where expiresat < ?').run(now);
@@ -452,15 +631,19 @@ export function cleansessions() {
  * for the same url is refreshed (new heartbeat, online status) instead
  * of duplicated, so clones can re-register after a restart.
  *
- * @param {{url: string, rolename?: string, region?: string,
- *   meta?: string}} fields the node announcement.
- * @returns {{id: string, url: string, status: string}} the registry row.
+ * @param fields the node announcement.
+ * @returns the registry row.
  */
-export function registernode(fields) {
+export function registernode(fields: NodeAnnouncement): {
+  id: string;
+  url: string;
+  status: string;
+} {
   try {
     const now = new Date().toISOString();
     const existing =
-      stmt('select id from nodes where url = ?').get(fields.url) ?? null;
+      (stmt('select id from nodes where url = ?').get(fields.url) as { id: string } | undefined) ??
+      null;
     if (existing !== null) {
       stmt(
         'update nodes set rolename = ?, region = ?, lastheartbeat = ?, status = ?, meta = ? where id = ?',
@@ -496,11 +679,11 @@ export function registernode(fields) {
 /**
  * stamps one node heartbeat.
  *
- * @param {string} id the node id.
- * @param {string} isotime the heartbeat timestamp.
- * @returns {boolean} true when the node id exists.
+ * @param id the node id.
+ * @param isotime the heartbeat timestamp.
+ * @returns true when the node id exists.
  */
-export function heartbeatnode(id, isotime) {
+export function heartbeatnode(id: string, isotime: string): boolean {
   try {
     const result = stmt(
       'update nodes set lastheartbeat = ?, status = ? where id = ?',
@@ -514,11 +697,11 @@ export function heartbeatnode(id, isotime) {
 /**
  * lists every registered node ordered by registration time.
  *
- * @returns {object[]} the node rows.
+ * @returns the node rows.
  */
-export function listnodes() {
+export function listnodes(): NodeRow[] {
   try {
-    return stmt('select * from nodes order by registeredat asc').all();
+    return stmt('select * from nodes order by registeredat asc').all() as NodeRow[];
   } catch (error) {
     throw dberror('db-listnodes-failed', error instanceof Error ? error.message : String(error));
   }
@@ -531,12 +714,10 @@ export function listnodes() {
 /**
  * persists one sandbox lifecycle row mirroring the in-memory record.
  *
- * @param {{id: string, userid?: string, model?: string, vcpus?: number,
- *   ramgb?: number, gpu?: string, state: string, createdat?: string,
- *   expiresat?: string}} fields the sandbox projection.
- * @returns {void}
+ * @param fields the sandbox projection.
+ * @returns void.
  */
-export function createsandboxrecord(fields) {
+export function createsandboxrecord(fields: SandboxRecordFields): void {
   try {
     stmt(
       'insert into sandboxes (id, userid, model, vcpus, ramgb, gpu, state, createdat, expiresat, quotabytes) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -563,11 +744,11 @@ export function createsandboxrecord(fields) {
 /**
  * updates the state column of one sandbox row (running, destroyed, ...).
  *
- * @param {string} id the sandbox id.
- * @param {string} state the new state.
- * @returns {void}
+ * @param id the sandbox id.
+ * @param state the new state.
+ * @returns void.
  */
-export function updatesandboxstate(id, state) {
+export function updatesandboxstate(id: string, state: string): void {
   try {
     stmt('update sandboxes set state = ? where id = ?').run(state, id);
   } catch (error) {
@@ -581,12 +762,12 @@ export function updatesandboxstate(id, state) {
 /**
  * lists every sandbox row, newest first.
  *
- * @param {number} limit the row cap.
- * @returns {object[]} the sandbox rows.
+ * @param limit the row cap.
+ * @returns the sandbox rows.
  */
-export function listsandboxes(limit = 200) {
+export function listsandboxes(limit: number = 200): SandboxRow[] {
   try {
-    return stmt('select * from sandboxes order by createdat desc limit ?').all(limit);
+    return stmt('select * from sandboxes order by createdat desc limit ?').all(limit) as SandboxRow[];
   } catch (error) {
     throw dberror(
       'db-listsandboxes-failed',
@@ -598,15 +779,15 @@ export function listsandboxes(limit = 200) {
 /**
  * lists the sandbox rows owned by one user, newest first.
  *
- * @param {string} userid the owner id.
- * @param {number} limit the row cap.
- * @returns {object[]} the sandbox rows.
+ * @param userid the owner id.
+ * @param limit the row cap.
+ * @returns the sandbox rows.
  */
-export function listsandboxesbyuser(userid, limit = 200) {
+export function listsandboxesbyuser(userid: string, limit: number = 200): SandboxRow[] {
   try {
     return stmt(
       'select * from sandboxes where userid = ? order by createdat desc limit ?',
-    ).all(userid, limit);
+    ).all(userid, limit) as SandboxRow[];
   } catch (error) {
     throw dberror(
       'db-listsandboxes-failed',
@@ -620,12 +801,12 @@ export function listsandboxesbyuser(userid, limit = 200) {
  * through this lookup even when the in-memory record is gone (expired
  * sandbox or restarted process).
  *
- * @param {string} id the sandbox id.
- * @returns {object | null} the sandbox row or null.
+ * @param id the sandbox id.
+ * @returns the sandbox row or null.
  */
-export function findsandboxbyid(id) {
+export function findsandboxbyid(id: string): SandboxRow | null {
   try {
-    return stmt('select * from sandboxes where id = ?').get(id) ?? null;
+    return (stmt('select * from sandboxes where id = ?').get(id) as SandboxRow | undefined) ?? null;
   } catch (error) {
     throw dberror(
       'db-findsandbox-failed',
@@ -637,12 +818,12 @@ export function findsandboxbyid(id) {
 /**
  * stamps the workspace usage counters of one sandbox row.
  *
- * @param {string} id the sandbox id.
- * @param {number} files the file count.
- * @param {number} bytes the total content bytes.
- * @returns {void}
+ * @param id the sandbox id.
+ * @param files the file count.
+ * @param bytes the total content bytes.
+ * @returns void.
  */
-export function updatesandboxusage(id, files, bytes) {
+export function updatesandboxusage(id: string, files: number, bytes: number): void {
   try {
     stmt('update sandboxes set files = ?, bytes = ? where id = ?').run(
       Number(files) || 0,
@@ -665,10 +846,10 @@ export function updatesandboxusage(id, files, bytes) {
  * decodes one stored content cell (node:sqlite may hand back a
  * uint8array for blob columns) into a utf8 string.
  *
- * @param {unknown} value the stored cell.
- * @returns {string} the decoded text.
+ * @param value the stored cell.
+ * @returns the decoded text.
  */
-function decodecontent(value) {
+function decodecontent(value: unknown): string {
   if (value instanceof Uint8Array) {
     return Buffer.from(value).toString('utf8');
   }
@@ -684,12 +865,19 @@ function decodecontent(value) {
  * throws the standardized "quota exceeded" error without touching the
  * stored rows.
  *
- * @param {string} sandboxid the sandbox id.
- * @param {string} path the normalized absolute path.
- * @param {string} content the file text.
- * @returns {{path: string, size: number, updatedat: string}} the write receipt.
+ * @param sandboxid the sandbox id.
+ * @param path the normalized absolute path.
+ * @param content the file text (null and undefined write as empty).
+ * @param customquota the optional per-sandbox quota in bytes, always
+ *   capped by the node maximum.
+ * @returns the write receipt.
  */
-export function writefile(sandboxid, path, content, customquota) {
+export function writefile(
+  sandboxid: string,
+  path: string,
+  content: string | null | undefined,
+  customquota?: number,
+): WriteReceipt {
   try {
     const text = content === null || content === undefined ? '' : String(content);
     const size = Buffer.byteLength(text, 'utf8');
@@ -716,7 +904,7 @@ export function writefile(sandboxid, path, content, customquota) {
     ).run(sandboxid, path, text, size, updatedat);
     return { path, size, updatedat };
   } catch (error) {
-    if (error instanceof Error && error.code === 'quota-exceeded') {
+    if (error instanceof Error && (error as DbError).code === 'quota-exceeded') {
       throw error;
     }
     throw dberror(
@@ -729,12 +917,11 @@ export function writefile(sandboxid, path, content, customquota) {
 /**
  * reads one workspace file.
  *
- * @param {string} sandboxid the sandbox id.
- * @param {string} path the normalized absolute path.
- * @returns {{path: string, content: string, size: number, updatedat: string} | null}
- *   the file document or null when absent.
+ * @param sandboxid the sandbox id.
+ * @param path the normalized absolute path.
+ * @returns the file document or null when absent.
  */
-export function readfile(sandboxid, path) {
+export function readfile(sandboxid: string, path: string): SandboxFileDoc | null {
   try {
     const row = stmt(
       'select path, content, size, updatedat from sandboxfiles where sandboxid = ? and path = ?',
@@ -761,10 +948,10 @@ export function readfile(sandboxid, path) {
  * lists every workspace file of one sandbox ordered by path; contents
  * stay out of the projection.
  *
- * @param {string} sandboxid the sandbox id.
- * @returns {{path: string, size: number, updatedat: string}[]} the file rows.
+ * @param sandboxid the sandbox id.
+ * @returns the file rows.
  */
-export function listfiles(sandboxid) {
+export function listfiles(sandboxid: string): SandboxFileRow[] {
   try {
     return stmt(
       'select path, size, updatedat from sandboxfiles where sandboxid = ? order by path asc',
@@ -786,11 +973,11 @@ export function listfiles(sandboxid) {
 /**
  * deletes one workspace file.
  *
- * @param {string} sandboxid the sandbox id.
- * @param {string} path the normalized absolute path.
- * @returns {boolean} true when a row was removed.
+ * @param sandboxid the sandbox id.
+ * @param path the normalized absolute path.
+ * @returns true when a row was removed.
  */
-export function deletefile(sandboxid, path) {
+export function deletefile(sandboxid: string, path: string): boolean {
   try {
     const result = stmt(
       'delete from sandboxfiles where sandboxid = ? and path = ?',
@@ -809,10 +996,10 @@ export function deletefile(sandboxid, path) {
  * delete endpoint calls this so a destroyed sandbox leaves nothing
  * behind.
  *
- * @param {string} sandboxid the sandbox id.
- * @returns {number} the count of removed rows.
+ * @param sandboxid the sandbox id.
+ * @returns the count of removed rows.
  */
-export function deletesandboxfiles(sandboxid) {
+export function deletesandboxfiles(sandboxid: string): number {
   try {
     const result = stmt('delete from sandboxfiles where sandboxid = ?').run(sandboxid);
     return Number(result.changes);
@@ -827,10 +1014,10 @@ export function deletesandboxfiles(sandboxid) {
 /**
  * sums the workspace usage of one sandbox.
  *
- * @param {string} sandboxid the sandbox id.
- * @returns {{files: number, bytes: number}} the usage counters.
+ * @param sandboxid the sandbox id.
+ * @returns the usage counters.
  */
-export function sandboxusage(sandboxid) {
+export function sandboxusage(sandboxid: string): WorkspaceUsage {
   try {
     const row = stmt(
       'select count(*) as files, coalesce(sum(size), 0) as bytes from sandboxfiles where sandboxid = ?',
@@ -851,13 +1038,12 @@ export function sandboxusage(sandboxid) {
 /**
  * appends one event row; the payload is stored as a json string.
  *
- * @param {{topic: string, payload?: unknown, nodeid?: string,
- *   createdat?: string}} fields the event envelope.
- * @returns {number} the inserted event id.
+ * @param fields the event envelope.
+ * @returns the inserted event id.
  */
-export function addevent(fields) {
+export function addevent(fields: EventFields): number {
   try {
-    let payload = null;
+    let payload: string | null = null;
     if (fields.payload !== undefined) {
       payload = typeof fields.payload === 'string' ? fields.payload : JSON.stringify(fields.payload);
     }
@@ -874,13 +1060,13 @@ export function addevent(fields) {
  * lists the events with id greater than the cursor, oldest first, so
  * the dashboard can poll /api/v1/events?since=<lastid>.
  *
- * @param {number} since the exclusive id cursor.
- * @param {number} limit the row cap.
- * @returns {object[]} the event rows.
+ * @param since the exclusive id cursor.
+ * @param limit the row cap.
+ * @returns the event rows.
  */
-export function listevents(since = 0, limit = 100) {
+export function listevents(since: number = 0, limit: number = 100): EventRow[] {
   try {
-    return stmt('select * from events where id > ? order by id asc limit ?').all(since, limit);
+    return stmt('select * from events where id > ? order by id asc limit ?').all(since, limit) as EventRow[];
   } catch (error) {
     throw dberror('db-listevents-failed', error instanceof Error ? error.message : String(error));
   }
@@ -894,11 +1080,10 @@ export function listevents(since = 0, limit = 100) {
  * appends one audit row (register, login, logout, sandbox lifecycle,
  * mesh registration).
  *
- * @param {{userid?: string, action: string, detail?: string,
- *   ip?: string, createdat?: string}} fields the audit envelope.
- * @returns {number} the inserted audit id.
+ * @param fields the audit envelope.
+ * @returns the inserted audit id.
  */
-export function addaudit(fields) {
+export function addaudit(fields: AuditFields): number {
   try {
     const result = stmt(
       'insert into audit (userid, action, detail, ip, createdat) values (?, ?, ?, ?, ?)',
@@ -918,12 +1103,12 @@ export function addaudit(fields) {
 /**
  * lists the audit trail, newest first.
  *
- * @param {number} limit the row cap.
- * @returns {object[]} the audit rows.
+ * @param limit the row cap.
+ * @returns the audit rows.
  */
-export function listaudit(limit = 200) {
+export function listaudit(limit: number = 200): AuditRow[] {
   try {
-    return stmt('select * from audit order by id desc limit ?').all(limit);
+    return stmt('select * from audit order by id desc limit ?').all(limit) as AuditRow[];
   } catch (error) {
     throw dberror('db-listaudit-failed', error instanceof Error ? error.message : String(error));
   }
@@ -936,10 +1121,10 @@ export function listaudit(limit = 200) {
 /**
  * counts one table with a bound fallback of zero on any failure.
  *
- * @param {string} table one of users, sessions, nodes, sandboxes, events.
- * @returns {number} the row count.
+ * @param table one of users, sessions, nodes, sandboxes, events.
+ * @returns the row count.
  */
-function count(table) {
+function count(table: string): number {
   const allowed = new Set(['users', 'sessions', 'nodes', 'sandboxes', 'events', 'audit']);
   if (!allowed.has(table)) {
     throw dberror('db-count-failed', `refusing to count unknown table "${table}"`);
@@ -951,10 +1136,16 @@ function count(table) {
 /**
  * the overview counts consumed by get /api/v1/admin/overview.
  *
- * @returns {{users: number, sessions: number, nodes: number,
- *   sandboxes: number, events: number, audit: number}} the counts.
+ * @returns the counts.
  */
-export function counts() {
+export function counts(): {
+  users: number;
+  sessions: number;
+  nodes: number;
+  sandboxes: number;
+  events: number;
+  audit: number;
+} {
   try {
     return {
       users: count('users'),
@@ -973,9 +1164,9 @@ export function counts() {
  * runs the cheapest possible query so /api/v1/health can report whether
  * the database connection answers.
  *
- * @returns {boolean} true when the round trip succeeds.
+ * @returns true when the round trip succeeds.
  */
-export function healthcheck() {
+export function healthcheck(): boolean {
   try {
     return stmt('select 1 as ok').get()?.ok === 1;
   } catch {
@@ -991,11 +1182,11 @@ export function healthcheck() {
  * applies the embedded schema migrations; exported for tools and tests
  * that want to reset or verify the schema explicitly.
  *
- * @param {import('node:sqlite').DatabaseSync} [target] an optional
- *   database handle (defaults to the module connection).
- * @returns {void}
+ * @param target an optional database handle (defaults to the module
+ *   connection).
+ * @returns void.
  */
-export function executeschema(target = database) {
+export function executeschema(target: DatabaseSync = database): void {
   try {
     target.exec(schema);
     migrateusagecolumns(target);

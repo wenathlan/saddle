@@ -1,9 +1,9 @@
 -- init.sql — saddle v7 schema (worklog task v7-BACK).
 --
--- the pure sql mirror of the embedded migrations in web/db.js: the same
+-- the pure sql mirror of the embedded migrations in web/db.ts: the same
 -- six tables and the same indexes, for operators that prefer the
 -- sqlite3 cli or tools that import raw sql (drizzle, goose, flyway).
--- node users get this schema automatically: web/db.js executes it at
+-- node users get this schema automatically: web/db.ts executes it at
 -- boot through node:sqlite.
 
 create table if not exists users (

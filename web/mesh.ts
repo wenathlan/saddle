@@ -1,5 +1,5 @@
 /**
- * mesh.js — signed node-to-node communication for the saddle web mesh
+ * mesh.ts — signed node-to-node communication for the saddle web mesh
  * (v7-BACK).
  *
  * the mesh connects clone nodes to the main authority: requests are
@@ -11,8 +11,8 @@
  * fetch client towards SADDLE_MAIN_URL and the 60-second heartbeat
  * loop clones run against the main registry.
  *
- * contexts (8): noderole, requestsigning, antireplay, payloadcrypto,
- * meshmessages, mainclient, heartbeat, sessionforwarding.
+ * contexts (9): types, noderole, requestsigning, antireplay,
+ * payloadcrypto, meshmessages, mainclient, heartbeat, sessionforwarding.
  *
  * rules: lowercase identifiers, english jsdoc in third person, no emoji,
  * try/catch on every fallible path, node:* modules plus the global
@@ -28,7 +28,53 @@ import {
   randomBytes,
   timingSafeEqual,
 } from 'node:crypto';
+import type { IncomingMessage } from 'node:http';
 import process from 'node:process';
+
+/* ------------------------------------------------------------------ */
+/* context: types — the mesh surface contracts                         */
+/* ------------------------------------------------------------------ */
+
+/** the node role resolved from saddle_role. */
+export type NodeRole = 'main' | 'clone' | 'standalone';
+
+/** the mesh verification outcome: the ok arm or the rejection payload
+ * consumed by writeerror. */
+export type MeshVerdict =
+  | { ok: true }
+  | { ok: false; status: number; code: string; message: string };
+
+/** the mesh wire envelope {type, from, data, ts}; when the mesh key is
+ * configured the data field is replaced by {enc: '<hex>'}. */
+export type MeshEnvelope = {
+  type: string;
+  from: string;
+  data: unknown;
+  ts: string;
+};
+
+/** the opened mesh message produced by openmeshmessage. */
+export type MeshMessage = {
+  type: string;
+  from: string;
+  data: unknown;
+  ts: string;
+};
+
+/** the main node response relayed by the signed client: status, the
+ * parsed json body (null when not json) and the set-cookie relay. */
+export type MainResponse = {
+  status: number;
+  body: unknown;
+  setcookie: string[];
+};
+
+/** the announcing node description of the clone heartbeat loop. */
+export type HeartbeatSelf = {
+  url: string;
+  region?: string;
+  rolename?: string;
+};
 
 /* ------------------------------------------------------------------ */
 /* context: noderole                                                   */
@@ -37,12 +83,12 @@ import process from 'node:process';
 /**
  * resolves the node role once at import time: saddle_role accepts the
  * values main, clone and standalone; anything else (including unset)
- * falls back to standalone so a bare `node web/server.js` boot behaves
+ * falls back to standalone so a bare `node web/server.ts` boot behaves
  * as a self-contained authority.
  *
- * @returns {'main' | 'clone' | 'standalone'} the resolved role.
+ * @returns the resolved role.
  */
-function resolverole() {
+function resolverole(): NodeRole {
   const value = String(process.env.SADDLE_ROLE ?? 'standalone').toLowerCase();
   if (value === 'main' || value === 'clone' || value === 'standalone') {
     return value;
@@ -51,14 +97,14 @@ function resolverole() {
 }
 
 /** the node role: main, clone or standalone. */
-export const role = resolverole();
+export const role: NodeRole = resolverole();
 
 /**
  * reads the shared mesh secret from the environment.
  *
- * @returns {string} the secret or an empty string when unconfigured.
+ * @returns the secret or an empty string when unconfigured.
  */
-export function meshsecret() {
+export function meshsecret(): string {
   return String(process.env.SADDLE_MESH_SECRET ?? '');
 }
 
@@ -66,9 +112,9 @@ export function meshsecret() {
  * reads the main node base url (no trailing slash) from the
  * environment; never a hardcoded address.
  *
- * @returns {string} the trimmed base url or an empty string.
+ * @returns the trimmed base url or an empty string.
  */
-export function mainurl() {
+export function mainurl(): string {
   return String(process.env.SADDLE_MAIN_URL ?? '').replace(/\/+$/, '');
 }
 
@@ -85,10 +131,10 @@ const noncelimit = 1024;
 /**
  * computes the sha256 hex digest of one request body.
  *
- * @param {string} body the exact raw body string ('' for GET).
- * @returns {string} the hex body hash.
+ * @param body the exact raw body string ('' for GET).
+ * @returns the hex body hash.
  */
-export function bodyhash(body) {
+export function bodyhash(body: string): string {
   return createHash('sha256').update(String(body)).digest('hex');
 }
 
@@ -96,15 +142,21 @@ export function bodyhash(body) {
  * signs one mesh request: HMAC-SHA256 hex over the string
  * `${timestamp}.${method}.${path}.${bodyhash}`.
  *
- * @param {string} method the upper-case http method.
- * @param {string} path the full request path (e.g. /api/v1/mesh/register).
- * @param {string} body the exact raw body string ('' for GET).
- * @param {string} secret the shared mesh secret.
- * @param {string} [timestamp] the millisecond timestamp string
+ * @param method the upper-case http method.
+ * @param path the full request path (e.g. /api/v1/mesh/register).
+ * @param body the exact raw body string ('' for GET).
+ * @param secret the shared mesh secret.
+ * @param timestamp the millisecond timestamp string
  *   (defaults to now).
- * @returns {string} the hex signature.
+ * @returns the hex signature.
  */
-export function sign(method, path, body, secret, timestamp = String(Date.now())) {
+export function sign(
+  method: string,
+  path: string,
+  body: string,
+  secret: string,
+  timestamp: string = String(Date.now()),
+): string {
   return createHmac('sha256', String(secret))
     .update(`${timestamp}.${String(method).toUpperCase()}.${path}.${bodyhash(body)}`)
     .digest('hex');
@@ -115,16 +167,16 @@ export function sign(method, path, body, secret, timestamp = String(Date.now()))
 /* ------------------------------------------------------------------ */
 
 /** seen signature nonces with insertion order for LRU eviction. */
-const nonces = new Map();
+const nonces = new Map<string, number>();
 
 /**
  * records one signature in the nonce cache, evicting the oldest entry
  * past the 1024-entry ceiling.
  *
- * @param {string} signature the verified signature hex.
- * @returns {void}
+ * @param signature the verified signature hex.
+ * @returns void.
  */
-function recordnonce(signature) {
+function recordnonce(signature: string): void {
   if (nonces.has(signature)) {
     return;
   }
@@ -144,13 +196,12 @@ function recordnonce(signature) {
  * match the recomputed HMAC over the raw body, and the signature must
  * not have been seen before (replay protection).
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @param {string} rawbody the exact raw request body ('' for GET).
- * @param {string} secret the shared mesh secret.
- * @returns {{ok: true} | {ok: false, status: number, code: string,
- *   message: string}} the verification outcome.
+ * @param req the incoming request.
+ * @param rawbody the exact raw request body ('' for GET).
+ * @param secret the shared mesh secret.
+ * @returns the verification outcome.
  */
-export function verifymesh(req, rawbody, secret) {
+export function verifymesh(req: IncomingMessage, rawbody: string, secret: string): MeshVerdict {
   try {
     const timestamp = req.headers?.['x-saddle-timestamp'];
     const signature = req.headers?.['x-saddle-signature'];
@@ -220,9 +271,9 @@ const taglen = 16;
  * resolves the optional SADDLE_MESH_KEY (32 bytes hex) used for payload
  * encryption between nodes.
  *
- * @returns {Buffer | null} the key or null when unset/invalid.
+ * @returns the key or null when unset/invalid.
  */
-function meshkey() {
+function meshkey(): Buffer | null {
   try {
     const raw = String(process.env.SADDLE_MESH_KEY ?? '');
     if (raw.length === 0) {
@@ -239,11 +290,11 @@ function meshkey() {
  * encrypts one utf-8 payload with AES-256-GCM; the output is hex
  * `iv(12) || ciphertext || tag(16)`.
  *
- * @param {string} plaintext the payload to encrypt.
- * @returns {string | null} the hex envelope or null when the key is
+ * @param plaintext the payload to encrypt.
+ * @returns the hex envelope or null when the key is
  *   not configured.
  */
-export function encrypt(plaintext) {
+export function encrypt(plaintext: string): string | null {
   try {
     const key = meshkey();
     if (key === null) {
@@ -265,10 +316,10 @@ export function encrypt(plaintext) {
 /**
  * decrypts one AES-256-GCM hex envelope produced by encrypt.
  *
- * @param {string} envelope the hex iv || ciphertext || tag payload.
- * @returns {string | null} the utf-8 plaintext or null on any failure.
+ * @param envelope the hex iv || ciphertext || tag payload.
+ * @returns the utf-8 plaintext or null on any failure.
  */
-export function decrypt(envelope) {
+export function decrypt(envelope: string): string | null {
   try {
     const key = meshkey();
     if (key === null) {
@@ -298,13 +349,13 @@ export function decrypt(envelope) {
  * mesh key is configured the data field is replaced by the GCM
  * envelope {enc: '<hex>'}.
  *
- * @param {string} type the message type (e.g. 'heartbeat').
- * @param {string} from the sender node id or url.
- * @param {unknown} data the message payload.
- * @returns {object} the wire envelope.
+ * @param type the message type (e.g. 'heartbeat').
+ * @param from the sender node id or url.
+ * @param data the message payload.
+ * @returns the wire envelope.
  */
-export function meshmessage(type, from, data) {
-  const envelope = { type, from, data, ts: new Date().toISOString() };
+export function meshmessage(type: string, from: string, data: unknown): MeshEnvelope {
+  const envelope: MeshEnvelope = { type, from, data, ts: new Date().toISOString() };
   const key = meshkey();
   if (key !== null) {
     const sealed = encrypt(JSON.stringify(envelope.data));
@@ -319,28 +370,32 @@ export function meshmessage(type, from, data) {
  * opens one mesh message envelope produced by meshmessage, decrypting
  * the data field when needed.
  *
- * @param {object} envelope the wire envelope.
- * @returns {{type: string, from: string, data: unknown, ts: string} | null}
- *   the opened message or null on tampering.
+ * @param envelope the wire envelope.
+ * @returns the opened message or null on tampering.
  */
-export function openmeshmessage(envelope) {
+export function openmeshmessage(envelope: unknown): MeshMessage | null {
   try {
     if (envelope === null || typeof envelope !== 'object') {
       return null;
     }
-    let data = envelope.data;
-    if (data !== null && typeof data === 'object' && typeof data.enc === 'string') {
-      const opened = decrypt(data.enc);
+    const message = envelope as MeshEnvelope;
+    let data: unknown = message.data;
+    if (
+      data !== null &&
+      typeof data === 'object' &&
+      typeof (data as { enc?: unknown }).enc === 'string'
+    ) {
+      const opened = decrypt((data as { enc: string }).enc);
       if (opened === null) {
         return null;
       }
       data = JSON.parse(opened);
     }
     return {
-      type: String(envelope.type ?? ''),
-      from: String(envelope.from ?? ''),
+      type: String(message.type ?? ''),
+      from: String(message.from ?? ''),
       data,
-      ts: String(envelope.ts ?? ''),
+      ts: String(message.ts ?? ''),
     };
   } catch {
     return null;
@@ -359,14 +414,14 @@ const requesttimeoutms = 10 * 1000;
  * SADDLE_MAIN_URL using the global fetch; the signature headers are
  * computed with the shared SADDLE_MESH_SECRET.
  *
- * @param {string} path the full api path (e.g. /api/v1/auth/login).
- * @param {unknown} body the json-serializable payload.
- * @returns {Promise<{status: number, body: unknown}>} the response
- *   status and parsed json body.
- * @throws {Error & {code: string}} when the mesh is unconfigured, the
+ * @param path the full api path (e.g. /api/v1/auth/login).
+ * @param body the json-serializable payload.
+ * @returns the response status, the parsed json body and the
+ *   set-cookie relay.
+ * @throws when the mesh is unconfigured, the
  *   request fails or the body is not json.
  */
-export async function postmain(path, body) {
+export async function postmain(path: string, body: unknown): Promise<MainResponse> {
   const base = mainurl();
   const secret = meshsecret();
   if (base.length === 0 || secret.length === 0) {
@@ -378,7 +433,7 @@ export async function postmain(path, body) {
   const payload = JSON.stringify(body ?? {});
   const timestamp = String(Date.now());
   const signature = sign('POST', path, payload, secret, timestamp);
-  let response;
+  let response: Response;
   try {
     response = await fetch(`${base}${path}`, {
       method: 'POST',
@@ -396,13 +451,13 @@ export async function postmain(path, body) {
       { code: 'mesh-unreachable' },
     );
   }
-  let parsed = null;
+  let parsed: unknown = null;
   try {
     parsed = await response.json();
   } catch {
     parsed = null;
   }
-  let setcookie = [];
+  let setcookie: string[] = [];
   try {
     setcookie =
       typeof response.headers.getSetCookie === 'function'
@@ -426,12 +481,11 @@ const heartbeatperiodms = 60 * 1000;
  * heartbeats every 60 seconds, all signed towards the main node. the
  * interval is unref'd so the process can still exit cleanly.
  *
- * @param {{url: string, region?: string, rolename?: string}} self the
- *   announcing node description.
- * @returns {NodeJS.Timeout | null} the heartbeat timer or null when the
+ * @param self the announcing node description.
+ * @returns the heartbeat timer or null when the
  *   node is not a clone or the mesh is unconfigured.
  */
-export function startheartbeat(self) {
+export function startheartbeat(self: HeartbeatSelf): NodeJS.Timeout | null {
   if (
     role !== 'clone' ||
     mainurl().length === 0 ||
@@ -440,7 +494,7 @@ export function startheartbeat(self) {
   ) {
     return null;
   }
-  const beat = async () => {
+  const beat = async (): Promise<boolean> => {
     try {
       const registered = await postmain('/api/v1/mesh/register', self);
       if (registered.status !== 200 && registered.status !== 201) {
@@ -448,7 +502,11 @@ export function startheartbeat(self) {
       }
       const nodeid =
         registered.body !== null && typeof registered.body === 'object'
-          ? String(registered.body?.nodeid ?? registered.body?.id ?? '')
+          ? String(
+              (registered.body as Record<string, unknown>)?.nodeid ??
+                (registered.body as Record<string, unknown>)?.id ??
+                '',
+            )
           : '';
       if (nodeid.length === 0) {
         return false;
@@ -464,7 +522,7 @@ export function startheartbeat(self) {
    * so short retries run until the first success; afterwards the steady
    * 60 second interval keeps the registry fresh. */
   let established = false;
-  const runbeat = async () => {
+  const runbeat = async (): Promise<boolean> => {
     const ok = await beat();
     if (ok) {
       established = true;
@@ -496,12 +554,14 @@ export function startheartbeat(self) {
  * main authority; the caller caches the returned session locally when
  * the main node accepts it.
  *
- * @param {'register' | 'login'} action the auth action.
- * @param {unknown} body the credentials payload.
- * @returns {Promise<{status: number, body: unknown}>} the main
- *   response verbatim.
+ * @param action the auth action.
+ * @param body the credentials payload.
+ * @returns the main response verbatim.
  */
-export function forwardauth(action, body) {
+export function forwardauth(
+  action: 'register' | 'login',
+  body: unknown,
+): Promise<MainResponse> {
   const path = action === 'register' ? '/api/v1/auth/register' : '/api/v1/auth/login';
   return postmain(path, body);
 }

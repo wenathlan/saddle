@@ -7,7 +7,7 @@ The native wrappers — Android, iOS and desktop — are **generated on the CI r
 - **Generated on the runners, never committed**: the mobile workflows run `npx cap add android` / `npx cap add ios` into `build/native/` (gitignored); the desktop workflow scaffolds the Tauri Rust envelope (Cargo.toml, main.rs, lib.rs, build.rs) via heredoc into `build/native/desktop`. The historical templates remain recoverable from git history.
 - **Single icon source**: `web/icon.svg` is the one source of every native icon family. Runners derive the Android mipmaps/splashs, the iOS AppIcon set and the Tauri bundle icons from it (`npx cap assets` equivalents and `npx --yes @tauri-apps/cli@2.11.4 icon web/icon.svg --output build/native/desktop/icons`).
 - **Versions injected via `SADDLE_VERSION` env**: the workflows patch the generated `tauri.conf.json` copy, the Cargo manifest, the Gradle config and the iOS project with the resolved release version at build time — no committed file carries a stale native version.
-- **One conversion config at the repository root**: `capacitor.config.ts` (`webDir` = `web/dist/public`, `android.path`/`ios.path` = `build/native/{android,ios}`) and `tauri.conf.json` (`frontendDist` = `web/dist/public`, `bundle.icon` relative to the scaffold directory where the runner copies this config).
+- **One conversion config pair**: `web/capacitor.config.ts` (the web root, where the Capacitor CLI resolves it: `webDir` = `dist/public`, `android.path`/`ios.path` = `../build/native/{android,ios}` at the repository root) and `tauri.conf.json` (the repository root, `frontendDist` = `web/dist/public`, `bundle.icon` relative to the scaffold directory where the runner copies this config).
 
 ## Android surface (from the retired `web/android/README.md`)
 

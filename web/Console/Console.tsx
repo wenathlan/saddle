@@ -9,8 +9,8 @@ import { Link } from "wouter";
 import PageShell from "@/PageShell";
 import { apibase, apifetch, fetchhealth } from "../api";
 import type { ExecResult, SandboxCreated, SandboxSpecPayload } from "../api";
-import { bootSequence, createSandboxState, cpudata, dispatch, gpudata } from "../sandbox.js";
-import type { SandboxState } from "../sandbox.js";
+import { bootSequence, createSandboxState, cpudata, dispatch, gpudata } from "../sandbox.ts";
+import type { SandboxState } from "../sandbox.ts";
 import ApiBadge from "./ApiBadge";
 import EventsTimeline from "./EventsTimeline";
 import type { SandboxEvent, SandboxEventKind } from "./EventsTimeline";
@@ -38,7 +38,7 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 
 /**
  * the console page: wires the spec panel, terminal, events timeline and
- * lifecycle controls to the browser-pure engine (sandbox.js) and, when
+ * lifecycle controls to the browser-pure engine (sandbox.ts) and, when
  * available, the self-hosted /api/v1 contract.
  */
 export default function Console() {

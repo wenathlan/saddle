@@ -1,5 +1,5 @@
 /**
- * sandbox.js — browser-pure port of the saddle virtual hardware engine.
+ * sandbox.ts — browser-pure port of the saddle virtual hardware engine.
  *
  * this module is a lightweight rewrite of the engine generators
  * (virtualcpu.ts, virtualmemory.ts, virtualgpu.ts and render.ts) that runs
@@ -20,12 +20,139 @@
  */
 
 /* ------------------------------------------------------------------ */
+/* types: the exported surface                                         */
+/* ------------------------------------------------------------------ */
+
+/** reviewed processor catalog entry (mirrors the vendor pages). */
+export type CpuSpec = {
+  model: string;
+  displayname: string;
+  vendor: string;
+  arch: string;
+  cores: number;
+  threads: number;
+  baseclockmhz: number;
+  boostclockmhz: number;
+  allcoreclockmhz: number;
+  l3mb: number;
+  l2mb: number;
+  socket: string;
+  tdpwatts: number;
+  pcie: string;
+  maxmemorygb: number;
+  memorytype: string;
+  memorychannels: number;
+  microarch: string;
+  cpufamily: number;
+  cpumodel: number;
+  stepping: number;
+  physicalline: string;
+  virtualline: string;
+  launch: string;
+};
+
+/** reviewed virtual gpu catalog entry. */
+export type GpuSpec = {
+  id: string;
+  name: string;
+  vendor: string;
+  pcivendor: string;
+  pcidevice: string;
+  vrammib: number;
+  smireportedmib: number;
+  memtype: string;
+  busbits: number;
+  bandwidthgbs: number;
+  tdpwatts: number;
+  arch: string;
+  smarch: string;
+  smcount: number;
+  mig: boolean;
+  driver: string;
+  cuda: string | null;
+};
+
+/** one mig slicing profile of the 96 gb-class device. */
+export type MigProfile = {
+  id: string;
+  slicegb: number;
+  maxinstances: number;
+};
+
+/** sandbox specification accepted by createSandboxState. */
+export type SandboxSpec = {
+  model: string;
+  vcpus?: number;
+  ramgb?: number;
+  gpu: string;
+  mig?: string;
+  id?: string;
+};
+
+/** resolved smp topology for a virtual cpu spec. */
+export type CpuTopology = {
+  threadspercore: number;
+  coresonline: number;
+  vcpus: number;
+  siblings: number;
+  sockets: number;
+  fullypopulated: boolean;
+};
+
+/** one persistent workspace file entry. */
+export type SandboxFile = {
+  content: string;
+  size: number;
+  updatedat: string;
+};
+
+/** the filesystem contract shared by the api host and the memoryfs. */
+export type SandboxFs = {
+  write: (path: string, content: string) => { path: string; size: number; updatedat: string };
+  read: (path: string) => (SandboxFile & { path: string }) | null;
+  list: () => Array<{ path: string; size: number; updatedat: string }>;
+  del: (path: string) => boolean;
+};
+
+/** state object shared by the browser terminal and the api exec endpoint. */
+export type SandboxState = {
+  model: string;
+  cpuspec: CpuSpec;
+  gpuspec: GpuSpec;
+  vcpus: number;
+  ramgb: number;
+  gpu: string;
+  mig: string;
+  id: string;
+  hostname: string;
+  boottime: number;
+  kernel: string;
+  memsnapshot: string;
+  history: string[];
+  files: Map<string, SandboxFile>;
+};
+
+/** command result matching the api exec contract; clear is set by the
+ * clear command so the terminal can wipe the screen. */
+export type DispatchResult = {
+  output: string;
+  exitCode: number;
+  clear?: boolean;
+};
+
+/** optional exec context provided by the api host. */
+export type DispatchContext = {
+  fs?: SandboxFs;
+  quota?: number;
+};
+
+/* ------------------------------------------------------------------ */
 /* context: shared helpers                                             */
 /* ------------------------------------------------------------------ */
 
 /** inclusive pseudo-random integer between min and max; deterministic
  * fallback when crypto randomness is unavailable. */
-function rnd(min, max) {
+function rnd(min: number, max: number): number {
   try {
     const span = max - min + 1;
     if (typeof globalThis.crypto?.getRandomValues === 'function') {
@@ -40,12 +167,12 @@ function rnd(min, max) {
 }
 
 /** right-pad helper that never exceeds the target width. */
-function pad(text, width) {
+function pad(text: string, width: number): string {
   return text.length >= width ? text.slice(0, width) : text + ' '.repeat(width - text.length);
 }
 
 /** left-pad helper for right-aligned columns. */
-function padstart(text, width) {
+function padstart(text: string, width: number): string {
   return text.length >= width
     ? text.slice(text.length - width)
     : ' '.repeat(width - text.length) + text;
@@ -58,9 +185,9 @@ function padstart(text, width) {
  * @param {number} bytes the byte count.
  * @returns {string} the human readable size.
  */
-function humanbytes(bytes) {
+function humanbytes(bytes: number): string {
   const value = Math.max(0, Math.round(bytes));
-  const unit = (size, suffix) => {
+  const unit = (size: number, suffix: string): string => {
     const scaled = value / size;
     const rounded = Math.round(scaled * 10) / 10;
     return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)} ${suffix}`;
@@ -78,12 +205,12 @@ function humanbytes(bytes) {
 }
 
 /** lowercases a model string for case-insensitive lookups. */
-function normalizemodel(model) {
+function normalizemodel(model: string): string {
   return String(model ?? '').trim().toLowerCase();
 }
 
 /** generates a random uuid-shaped hex token with a prefix. */
-function token(prefix) {
+function token(prefix: string): string {
   const raw =
     typeof globalThis.crypto?.randomUUID === 'function'
       ? globalThis.crypto.randomUUID().replace(/-/g, '')
@@ -102,7 +229,7 @@ function token(prefix) {
  * granite rapids and apple m3 ultra. every field mirrors the vendor pages
  * and the techpowerup database as pinned by best_virtual_processors.
  */
-export const cpudata = [
+export const cpudata: CpuSpec[] = [
   {
     model: 'AMD EPYC 9965',
     displayname: 'AMD EPYC 9965 192-Core Processor',
@@ -315,7 +442,7 @@ export const cpudata = [
 
 /** resolves a processor spec by model name, case-insensitive; returns
  * undefined for unknown models so callers can shape friendly errors. */
-export function getcpu(model) {
+export function getcpu(model: string): CpuSpec | undefined {
   const needle = normalizemodel(model);
   return cpudata.find((spec) => normalizemodel(spec.model) === needle);
 }
@@ -326,9 +453,9 @@ export function getcpu(model) {
  * @param {string} id the catalog id.
  * @returns {object | undefined} the matching cpu entry.
  */
-export function getcpubyid(id) {
+export function getcpubyid(id: string): CpuSpec | undefined {
   const key = String(id).toLowerCase().replace(/\s+/g, '-');
-  const strip = (name) =>
+  const strip = (name: string): string =>
     name
       .toLowerCase()
       .replace(/\s+/g, '-')
@@ -398,8 +525,18 @@ const armfeatures = [
   'bti',
 ];
 
+/** per-vendor identity block consumed by cpuinfo and lscpu. */
+type VendorTable = {
+  vendorid: string;
+  flags: string[];
+  bugs: string;
+  tlbsize: string | null;
+  cpuidlevel: number;
+  powermanagement: string;
+};
+
 /** vendor identity table consumed by cpuinfo and lscpu. */
-const vendortables = {
+const vendortables: Record<string, VendorTable> = {
   amd: {
     vendorid: 'AuthenticAMD',
     flags: zen5flags,
@@ -437,7 +574,7 @@ const vendortables = {
  * heterogeneous parts report one thread per core and the count is clamped
  * to the model thread ceiling).
  */
-export function solvetopology(spec, vcpus) {
+export function solvetopology(spec: CpuSpec, vcpus: number): CpuTopology {
   const threadspercore = Math.max(1, Math.round(spec.threads / spec.cores));
   const count = Math.max(1, Math.min(Math.round(vcpus) || 1, spec.threads));
   return {
@@ -455,7 +592,7 @@ export function solvetopology(spec, vcpus) {
 /* ------------------------------------------------------------------ */
 
 /** per-key tab alignment the kernel uses on x86 cpuinfo lines. */
-const keytabs = {
+const keytabs: Record<string, string> = {
   processor: '\t', vendor_id: '\t', 'cpu family': '\t', model: '\t\t',
   'model name': '\t', stepping: '\t', microcode: '\t', 'cpu MHz': '\t\t',
   'cache size': '\t', 'physical id': '\t', siblings: '\t', 'core id': '\t\t',
@@ -466,7 +603,7 @@ const keytabs = {
 };
 
 /** renders one cpuinfo line exactly as procfs does: key, tabs, colon, value. */
-function line(key, value) {
+function line(key: string, value: number | string): string {
   const tabs = keytabs[key] ?? '\t';
   return `${key}${tabs}: ${value}`;
 }
@@ -483,7 +620,7 @@ function line(key, value) {
  */
 
 
-export function cpuinfo(model, vcpus) {
+export function cpuinfo(model: string, vcpus: number): string {
   const spec = getcpu(model);
   if (spec === undefined) {
     throw new Error(
@@ -570,7 +707,7 @@ export function cpuinfo(model, vcpus) {
  * @param {number} [numanodes=1] number of numa nodes to spread over.
  * @returns {string} the lscpu text block.
  */
-export function lscpu(model, vcpus, numanodes = 1) {
+export function lscpu(model: string, vcpus: number, numanodes: number = 1): string {
   const spec = getcpu(model);
   if (spec === undefined) {
     throw new Error(`unknown processor model "${model}"`);
@@ -654,7 +791,7 @@ export function lscpu(model, vcpus, numanodes = 1) {
  * vrammib (physical capacity) and smireportedmib (the value after the
  * firmware carveout) cross-checked on 2026-08-22.
  */
-export const gpudata = [
+export const gpudata: GpuSpec[] = [
   {
     id: 'rtx5090', name: 'NVIDIA GeForce RTX 5090', vendor: 'nvidia',
     pcivendor: '10DE', pcidevice: '2B85', vrammib: 32768,
@@ -714,7 +851,7 @@ export const gpudata = [
 ];
 
 /** resolves a gpu spec by id or name, case-insensitive. */
-export function getgpu(gpu) {
+export function getgpu(gpu: string): GpuSpec | undefined {
   const needle = normalizemodel(gpu);
   return gpudata.find(
     (spec) =>
@@ -727,14 +864,14 @@ export function getgpu(gpu) {
  * 1g.24gb exposes 24 gb slices (4 instances), 2g.48gb 48 gb slices (2
  * instances) and 4g.96gb dedicates the full device to one instance.
  */
-export const migprofiles = [
+export const migprofiles: MigProfile[] = [
   { id: '1g.24gb', slicegb: 24, maxinstances: 4 },
   { id: '2g.48gb', slicegb: 48, maxinstances: 2 },
   { id: '4g.96gb', slicegb: 96, maxinstances: 1 },
 ];
 
 /** resolves a mig profile by id; null for 'off' and unknown names. */
-export function getmig(id) {
+export function getmig(id: string | null | undefined): MigProfile | null {
   if (id === 'off' || id === undefined || id === null || id === '') {
     return null;
   }
@@ -746,7 +883,7 @@ export function getmig(id) {
 /* ------------------------------------------------------------------ */
 
 /** rounds a kb value down to the nearest 4 kb page boundary. */
-export function pagealign(kb) {
+export function pagealign(kb: number): number {
   return Math.floor(kb / 4) * 4;
 }
 
@@ -761,7 +898,15 @@ export function pagealign(kb) {
  *   availablefraction?: number}} [options] optional overrides.
  * @returns {string} the full meminfo payload.
  */
-export function meminfo(ramgb, options = {}) {
+export function meminfo(
+  ramgb: number,
+  options: {
+    swapgb?: number;
+    vcpus?: number;
+    freefraction?: number;
+    availablefraction?: number;
+  } = {},
+): string {
   if (!Number.isFinite(ramgb) || ramgb <= 0) {
     throw new Error(`ramgb must be a positive number, received ${ramgb}`);
   }
@@ -788,7 +933,7 @@ export function meminfo(ramgb, options = {}) {
   const directmap1g = ramgb >= 64 ? pagealign(totalkb * 0.8) : 0;
   const directmap2m =
     directmap1g > 0 ? pagealign(totalkb * 0.15) : pagealign(totalkb * 0.9);
-  const rows = [
+  const rows: Array<[string, number]> = [
     ['MemTotal', totalkb], ['MemFree', memfree],
     ['MemAvailable', memavailable], ['Buffers', buffers], ['Cached', cached],
     ['SwapCached', 0], ['Active', active], ['Inactive', inactive],
@@ -827,7 +972,7 @@ export function meminfo(ramgb, options = {}) {
 }
 
 /** converts a kb value to the largest human unit for free -h. */
-function human(kb) {
+function human(kb: number): string {
   if (kb >= 1024 * 1024) {
     const gb = kb / (1024 * 1024);
     return `${gb >= 100 ? Math.round(gb) : gb.toFixed(1)}Gi`;
@@ -845,8 +990,8 @@ function human(kb) {
  * @param {string} meminfotext a payload previously returned by meminfo().
  * @returns {string} the free -h table.
  */
-export function freeh(meminfotext) {
-  const map = {};
+export function freeh(meminfotext: string): string {
+  const map: Record<string, number> = {};
   for (const row of meminfotext.split('\n')) {
     const match = /^([A-Za-z_()]+):\s*(\d+)\skB$/.exec(row);
     if (match !== null) {
@@ -862,7 +1007,7 @@ export function freeh(meminfotext) {
   const swap = map.SwapTotal ?? 0;
   const swapfreekb = map.SwapFree ?? 0;
   const swapused = swap - swapfreekb;
-  const w = (text) => padstart(String(text), 13);
+  const w = (text: string): string => padstart(String(text), 13);
   return [
     `${w('total')}${w('used')}${w('free')}${w('shared')}${w('buff/cache')}${w('available')}`,
     ['Mem:', w(human(total)), w(human(used)), w(human(freekb)),
@@ -884,33 +1029,33 @@ const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** formats the nvidia-smi timestamp "weekday month day hh:mm:ss year". */
-function formatstamp(date) {
-  const two = (value) => String(value).padStart(2, '0');
+function formatstamp(date: Date): string {
+  const two = (value: number): string => String(value).padStart(2, '0');
   return `${weekdays[date.getDay()]} ${months[date.getMonth()]} ${two(date.getDate())} ${two(date.getHours())}:${two(date.getMinutes())}:${two(date.getSeconds())} ${date.getFullYear()}`;
 }
 
 /** full-width border line: "+" plus 87 fill characters plus "+". */
-function smiborder(fill) {
+function smiborder(fill: string): string {
   return `+${fill.repeat(smiwidth - 2)}+`;
 }
 
 /** full-width content line padded to the 89-char table width. */
-function smifull(content) {
+function smifull(content: string): string {
   return `|${pad(content, smiwidth - 2)}|`;
 }
 
 /** three-column separator: pipes at fixed offsets 1, 42 and 67. */
-function smisep(fill) {
+function smisep(fill: string): string {
   return `|${fill.repeat(smicolumns[0])}+${fill.repeat(smicolumns[1])}+${fill.repeat(smicolumns[2])}|`;
 }
 
 /** three-column data row within the 89-char width. */
-function smirow(left, mid, right) {
+function smirow(left: string, mid: string, right: string): string {
   return `|${pad(left, smicolumns[0])}|${pad(mid, smicolumns[1])}|${pad(right, smicolumns[2])}|`;
 }
 
 /** process table content line within the 75-char width. */
-function procline(content) {
+function procline(content: string): string {
   return `|${pad(content, procwidth - 2)}|`;
 }
 
@@ -925,7 +1070,7 @@ function procline(content) {
  * @param {string} [migprofile='off'] one of 1g.24gb, 2g.48gb, 4g.96gb or off.
  * @returns {string} the full report text.
  */
-export function nvidiaSmiTable(gpu, migprofile = 'off') {
+export function nvidiaSmiTable(gpu: string, migprofile: string = 'off'): string {
   const spec = getgpu(gpu);
   if (spec === undefined) {
     throw new Error(
@@ -1007,7 +1152,7 @@ export function nvidiaSmiTable(gpu, migprofile = 'off') {
  * @param {string} [migprofile='off'] mig profile id or off.
  * @returns {string} the -l listing.
  */
-export function nvidiaSmiList(gpu, migprofile = 'off') {
+export function nvidiaSmiList(gpu: string, migprofile: string = 'off'): string {
   const spec = getgpu(gpu);
   if (spec === undefined) {
     throw new Error(`unknown gpu "${gpu}"`);
@@ -1040,7 +1185,7 @@ const mesastack = {
  * @param {number} [vcpus=8] vcpu count reported as compute units.
  * @returns {string} the clinfo summary block.
  */
-export function clinfoSummary(vcpus = 8) {
+export function clinfoSummary(vcpus: number = 8): string {
   const units = Math.max(1, Math.min(vcpus, 32));
   return [
     'Number of platforms                               1',
@@ -1076,7 +1221,7 @@ export function clinfoSummary(vcpus = 8) {
  *
  * @returns {string} the vulkan summary block.
  */
-export function vulkanSummary() {
+export function vulkanSummary(): string {
   return [
     '==========',
     'VULKANINFO',
@@ -1113,7 +1258,7 @@ export function vulkanSummary() {
  *
  * @returns {string} the glxinfo block.
  */
-export function glxinfoSummary() {
+export function glxinfoSummary(): string {
   return [
     'name of display: :0',
     'display: :0  screen: 0',
@@ -1154,7 +1299,7 @@ export function glxinfoSummary() {
  *   every core up to the lp_max_threads=32 ceiling).
  * @returns {Record<string, string>} the environment record.
  */
-export function mesaenv(vcpus = 8) {
+export function mesaenv(vcpus: number = 8): Record<string, string> {
   const threads = vcpus <= 0 ? 0 : Math.min(vcpus, 32);
   return {
     LIBGL_ALWAYS_SOFTWARE: 'true',
@@ -1192,12 +1337,18 @@ export function mesaenv(vcpus = 8) {
  * @param {number} [quota=16777216] persistent workspace quota in bytes.
  * @returns {string[]} ordered dmesg lines.
  */
-export function bootSequence(model, vcpus, ramgb = 32, gpu = 'rtx5090', quota = 16 * 1024 * 1024) {
+export function bootSequence(
+  model: string,
+  vcpus: number,
+  ramgb: number = 32,
+  gpu: string = 'rtx5090',
+  quota: number = 16 * 1024 * 1024,
+): string[] {
   const spec = getcpu(model) ?? cpudata[0];
   const gpuspec = getgpu(gpu) ?? gpudata[0];
   const topology = solvetopology(spec, vcpus);
   const arch = spec.arch === 'arm64' ? 'aarch64' : 'x86_64';
-  const stamp = (seconds) => `[${seconds.toFixed(6).padStart(12)}]`;
+  const stamp = (seconds: number): string => `[${seconds.toFixed(6).padStart(12)}]`;
   const onlinetime = 0.039 + 0.00042 * topology.vcpus;
   return [
     `${stamp(0)} Linux version 6.12.0-saddle (root@saddle) (gcc 15.1.0, ld 2.44) #1 SMP PREEMPT_DYNAMIC ${arch}`,
@@ -1219,7 +1370,7 @@ export function bootSequence(model, vcpus, ramgb = 32, gpu = 'rtx5090', quota = 
     `${stamp(onlinetime + 0.0837)} rusticl: opencl ${mesastack.opencl} on llvmpipe, features fp64 (fp16 default since 25.2)`,
     `${stamp(onlinetime + 0.091)} virtualgpu: identity ${gpuspec.name} [${gpuspec.pcivendor}:${gpuspec.pcidevice}] ${gpuspec.memtype} ${gpuspec.vrammib / 1024} GB`,
     `${stamp(onlinetime + 0.0922)} nvml shim: FAKE_MODEL="${gpuspec.name}" FAKE_VRAM=${gpuspec.smireportedmib} (fake-nvidia-smi adapter ready)`,
-    `${stamp(onlinetime + 0.1045)} saddle: virtual hardware engine v2.1.3, sandbox created -> running`,
+    `${stamp(onlinetime + 0.1045)} saddle: virtual hardware engine v2.1.4, sandbox created -> running`,
     `${stamp(onlinetime + 0.1047)} saddle: persistent workspace: ${humanbytes(quota)} quota, data stays with the sandbox id`,
     `${stamp(onlinetime + 0.1046)} Freeing unused kernel image memory`,
   ];
@@ -1239,7 +1390,7 @@ export function bootSequence(model, vcpus, ramgb = 32, gpu = 'rtx5090', quota = 
  *   mig?: string, id?: string}} spec the sandbox specification.
  * @returns {object} the sandbox state consumed by dispatch.
  */
-export function createSandboxState(spec) {
+export function createSandboxState(spec: SandboxSpec): SandboxState {
   // the reviewed catalog is the only source of processor identity; ram
   // accepts any user chosen plan up to the 18 tb virtual ceiling.
   const cpu = getcpu(spec.model) ?? cpudata[0];
@@ -1254,7 +1405,7 @@ export function createSandboxState(spec) {
     vcpus: topology.vcpus,
     ramgb,
     gpu: gpu.id,
-    mig: getmig(spec.mig) === null ? 'off' : spec.mig,
+    mig: getmig(spec.mig) === null ? 'off' : (spec.mig as string),
     id,
     hostname: `saddle-${id.replace(/^sb-/, '').slice(0, 8)}`,
     boottime: Date.now(),
@@ -1266,7 +1417,7 @@ export function createSandboxState(spec) {
 }
 
 /** the supported command list, reused by help and the terminal. */
-export const commands = [
+export const commands: string[] = [
   'help', 'lscpu', 'cat /proc/cpuinfo', 'cat /proc/meminfo', 'free -h',
   'nvidia-smi', 'nvidia-smi -L', 'clinfo', 'vulkaninfo --summary',
   'glxinfo', 'uname -a', 'ls /etc/virtual', 'env', 'docker --version',
@@ -1277,7 +1428,7 @@ export const commands = [
 ];
 
 /** renders the help text with every supported command. */
-function helpText() {
+function helpText(): string {
   const rows = [
     ['help', 'this command list'],
     ['lscpu', 'virtual processor topology summary'],
@@ -1315,7 +1466,7 @@ function helpText() {
 }
 
 /** renders the neofetch block: the saddle ascii logo beside sandbox specs. */
-function neofetch(state) {
+function neofetch(state: SandboxState): string {
   const cpu = state.cpuspec;
   const gpu = state.gpuspec;
   const logo = [
@@ -1337,7 +1488,7 @@ function neofetch(state) {
   const info = [
     `root@${state.hostname}`,
     '-----------------',
-    'OS: saddle linux (virtual hardware engine v2.1.3)',
+    'OS: saddle linux (virtual hardware engine v2.1.4)',
     'Host: firecracker microvm (125 ms boot)',
     `Kernel: ${state.kernel}`,
     `Uptime: ${uptimeText}`,
@@ -1358,23 +1509,23 @@ function neofetch(state) {
 }
 
 /** renders the uptime line with a load average derived from the vcpus. */
-function uptimeLine(state) {
+function uptimeLine(state: SandboxState): string {
   const totalSeconds = Math.max(0, Math.floor((Date.now() - state.boottime) / 1000));
   const now = new Date();
   const mins = Math.max(1, Math.round(totalSeconds / 60));
-  const load = (decay) =>
+  const load = (decay: number): string =>
     (Math.random() * state.vcpus * 0.18 * Math.exp(-decay / 30)).toFixed(2);
   return ` ${now.toTimeString().slice(0, 8)} up ${mins} min,  1 user,  load average: ${load(1)}, ${load(5)}, ${load(15)}`;
 }
 
 /** renders the env listing: the mesa stack plus the sandbox variables. */
-function envText(state) {
+function envText(state: SandboxState): string {
   const mig = getmig(state.mig);
-  const entries = {
+  const entries: Record<string, string> = {
     ...mesaenv(state.vcpus),
     FAKE_MODEL: state.gpuspec.name,
     FAKE_VRAM: String(mig !== null ? mig.slicegb * 1024 : state.gpuspec.smireportedmib),
-    SADDLE_VERSION: '2.1.3',
+    SADDLE_VERSION: '2.1.4',
     SADDLE_SANDBOX: state.id,
     SADDLE_STATE: 'running',
     SADDLE_CPU: state.model,
@@ -1413,7 +1564,7 @@ const historycap = 50;
  * @param {string} input the raw path typed by the user.
  * @returns {{ok: true, path: string} | {ok: false, error: string}} the verdict.
  */
-function normalizepath(input) {
+function normalizepath(input: string): { ok: true; path: string } | { ok: false; error: string } {
   const raw = String(input ?? '').trim();
   if (raw.length === 0) {
     return { ok: false, error: 'empty path' };
@@ -1443,7 +1594,7 @@ function normalizepath(input) {
  * @returns {{write: Function, read: Function, list: Function, del: Function}}
  *   the in-memory filesystem adapter.
  */
-function memoryfs(state) {
+function memoryfs(state: SandboxState): SandboxFs {
   return {
     write(path, content) {
       const text = content === null || content === undefined ? '' : String(content);
@@ -1473,13 +1624,13 @@ function memoryfs(state) {
  * @param {{path: string, size: number, updatedat: string}} file the file row.
  * @returns {string} the formatted line.
  */
-function lsrow(file) {
+function lsrow(file: { path: string; size: number; updatedat: string }): string {
   const when = String(file.updatedat ?? '').slice(0, 16).replace('T', ' ');
   return `-rw-r--r-- 1 root root ${padstart(String(file.size), 9)} ${when} ${file.path}`;
 }
 
 /** the short manual pages served by the man command. */
-const manualpages = {
+const manualpages: Record<string, string | undefined> = {
   streaming: 'streaming: shows the streaming memory plan - any workload size runs inside a small hot window (mmap layers, evict after last consumer)',
   quantum: 'quantum: quantum layer summary - simulator, bb84, grover, dna vault, optical planner',
   tiers: 'tiers: shows the layered virtual memory - l1 ram to l4 buckets, the free pool and the npm-as-disk farm',
@@ -1510,7 +1661,11 @@ const manualpages = {
  *   context provided by the api host.
  * @returns {{output: string, exitCode: number, clear?: boolean}} the result.
  */
-export function dispatch(command, state, context) {
+export function dispatch(
+  command: string,
+  state: SandboxState,
+  context?: DispatchContext,
+): DispatchResult {
   const raw = String(command ?? '').trim();
   if (raw.length === 0) {
     return { output: '', exitCode: 0 };
@@ -1718,7 +1873,7 @@ export function dispatch(command, state, context) {
         const quota = Number(context?.quota ?? defaultquota);
         const avail = Math.max(0, quota - used);
         const percent = quota > 0 ? Math.min(100, Math.floor((used / quota) * 100)) : 0;
-        const col = (text, width) => padstart(String(text), width);
+        const col = (text: string, width: number): string => padstart(String(text), width);
         return {
           output: [
             `Filesystem ${col('Size', 10)}${col('Used', 10)}${col('Avail', 10)}${col('Use%', 6)} Mounted on`,
@@ -1808,7 +1963,7 @@ export function dispatch(command, state, context) {
  * optical storage planners - every "quantum" capability is software.
  * @returns {string} the quantum summary lines.
  */
-export function quantumdemo() {
+export function quantumdemo(): string {
   return [
     'saddle quantum layer (100 percent classical simulation)',
     '  simulator   statevector, float64 interleaved re/im, 1-20 qubits',
@@ -1823,7 +1978,7 @@ export function quantumdemo() {
   ].join('\n');
 }
 
-export function tiersdemo() {
+export function tiersdemo(): string {
   const ladder = ['ram ~100ns', 'zram ~500ns', 'tmpfs ~1us', 'mmap ~5us', 'sqlite ~10us', 'r2 ~50us'];
   return [
     'saddle tiered virtual memory (everything is vram)',
@@ -1841,11 +1996,15 @@ export function tiersdemo() {
   ].join('\n');
 }
 
-export function streamingdemo(totalbytes = 1649267441664, windowbytes = 4 * 1024 * 1024 * 1024) {
+export function streamingdemo(
+  totalbytes: number = 1649267441664,
+  windowbytes: number = 4 * 1024 * 1024 * 1024,
+): string {
   const layerbytes = 512 * 1024 * 1024;
   const count = Math.ceil(totalbytes / layerbytes);
   const batches = Math.ceil(count / Math.max(1, Math.floor(windowbytes / layerbytes)));
-  const fmt = (b) => (b >= 1024 ** 4 ? (b / 1024 ** 4).toFixed(2) + ' TB' : (b / 1024 ** 3).toFixed(1) + ' GB');
+  const fmt = (b: number): string =>
+    (b >= 1024 ** 4 ? (b / 1024 ** 4).toFixed(2) + ' TB' : (b / 1024 ** 3).toFixed(1) + ' GB');
   return [
     'saddle streaming memory plan',
     `  workload:  ${fmt(totalbytes)} decomposed into ${count} layers of ${layerbytes / 1024 ** 2} MiB`,

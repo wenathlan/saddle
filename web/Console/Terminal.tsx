@@ -3,7 +3,7 @@
 // keys, tab completion over the sandbox command list, the live prompt and
 // the focus-on-click output pane.
 import { useEffect, useRef, useState } from "react";
-import { commands } from "../sandbox.js";
+import { commands } from "../sandbox.ts";
 
 /** one rendered output row; cls mirrors the static page row classes. */
 export type TerminalRow = {

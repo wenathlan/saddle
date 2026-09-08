@@ -2,7 +2,7 @@
 // model, workspace quota, vcpus slider, ram slider + exact numeric field,
 // gpu model and mig profile, each with the live catalog hints.
 import { useEffect, useRef, useState } from "react";
-import { cpudata, gpudata } from "../sandbox.js";
+import { cpudata, gpudata } from "../sandbox.ts";
 
 /** the sandbox specification selection held by the console page. */
 export type SandboxSpecSelection = {

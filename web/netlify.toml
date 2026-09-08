@@ -1,4 +1,4 @@
-# static edge only; the sandbox api is self-hosted node (web/server.js);
+# static edge only; the sandbox api is self-hosted node (web/server.ts);
 # no serverless functions per project rules. this file is read from the
 # repository root; the build command produces the SPA dist at
 # web/dist/public (npm run web:build:pages), and every route rewrites to
@@ -7,8 +7,8 @@
 # or by connecting the repo and letting netlify read this file.
 
 [build]
-  command = "npm run web:build:pages"
-  publish = "web/dist/public"
+  command = "cd .. && npm run web:build:pages"
+  publish = "dist/public"
 
 [build.environment]
   NODE_VERSION = "26.7.0"
@@ -20,7 +20,7 @@
   to = "/index.html"
   status = 200
 
-# security headers mirroring web/server.js and the caddyfile; no
+# security headers mirroring web/server.ts and the caddyfile; no
 # functions, static edge only.
 
 [[headers]]

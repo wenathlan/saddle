@@ -381,12 +381,11 @@ test('ci gate structure: the 2.1.0 flat layout contract (single tsx interface)',
     'index.css',
     'api.ts',
     'localauth.ts',
-    'sandbox.js',
-    'sandbox.d.ts',
-    'server.js',
-    'db.js',
-    'auth.js',
-    'mesh.js',
+    'sandbox.ts',
+    'server.ts',
+    'db.ts',
+    'auth.ts',
+    'mesh.ts',
     'manifest.json',
     'popup.html',
     'popup.css',
@@ -440,18 +439,26 @@ test('ci gate structure: the 2.1.0 flat layout contract (single tsx interface)',
       `web/${page}/${page}.tsx — one folder per route (the doctrine of the 2.1.0 interface)`,
     );
   }
-  /* the conversion configs of the generated wrappers live at the root. */
-  for (const config of [
+  /* the platform/deploy configs live at the web root (the 2.1.4 home:
+   * vercel.json, netlify.toml, capacitor.config.ts and vite.config.ts
+   * ride beside the interface they publish, so the deploy root owns
+   * them); vitest.config.ts (the root test battery) and the tauri
+   * envelope (a release-version carrier) stay at the repository root. */
+  for (const config of ['vitest.config.ts', 'tauri.conf.json']) {
+    assert.ok(
+      existsSync(join(reporoot, config)),
+      `${config} — the root-borne config lives at the repository root`,
+    );
+  }
+  for (const webconfig of [
     'capacitor.config.ts',
     'vite.config.ts',
-    'vitest.config.ts',
-    'tauri.conf.json',
     'vercel.json',
     'netlify.toml',
   ]) {
     assert.ok(
-      existsSync(join(reporoot, config)),
-      `${config} — the conversion/deploy config lives at the repository root`,
+      existsSync(join(reporoot, 'web', webconfig)),
+      `web/${webconfig} — the platform/deploy config lives at the web root`,
     );
   }
   /* the forbidden tree: the native wrappers are generated on the
@@ -575,22 +582,23 @@ test('ci gate workflows: desktop.yml scaffolds the tauri shell on the runner', (
 });
 
 test('ci gate workflows: the conversion configs point at the generated wrappers', () => {
-  /* the tracked surface of the native lanes: the conversion configs at
-   * the repository root aim every platform at the gitignored
-   * build/native/* output and at the single vite build the interface
-   * publishes; the root .gitignore keeps that output out of the tree. */
-  const capacitor = readFileSync(join(reporoot, 'capacitor.config.ts'), 'utf8');
+  /* the tracked surface of the native lanes: the capacitor config at
+   * the web root (where the cli resolves it) aims every platform at the
+   * gitignored build/native/* output of the repository root and at the
+   * single vite build the interface publishes (dist/public relative to
+   * web/); the root .gitignore keeps that output out of the tree. */
+  const capacitor = readFileSync(join(reporoot, 'web', 'capacitor.config.ts'), 'utf8');
   assert.ok(
-    capacitor.includes('build/native/android'),
-    'capacitor.config.ts points the android platform at build/native/android',
+    capacitor.includes('../build/native/android'),
+    'capacitor.config.ts points the android platform at ../build/native/android',
   );
   assert.ok(
-    capacitor.includes('build/native/ios'),
-    'capacitor.config.ts points the ios platform at build/native/ios',
+    capacitor.includes('../build/native/ios'),
+    'capacitor.config.ts points the ios platform at ../build/native/ios',
   );
   assert.ok(
-    capacitor.includes('web/dist/public'),
-    'the capacitor webDir is the vite build output (web/dist/public)',
+    capacitor.includes('webDir: "dist/public"'),
+    'the capacitor webDir is the vite build output (dist/public at the web root)',
   );
   const tauri = readFileSync(join(reporoot, 'tauri.conf.json'), 'utf8');
   assert.ok(
@@ -806,7 +814,7 @@ test('ci gate container: the one Dockerfile carries the merged compose and entry
    * EXPOSE and VOLUME facts of the one container file. */
   assert.ok(
     containerfile.includes('SADDLE_DB="/data/web/saddle.db"'),
-    'the web node database ENV of the former vhe service is baked in (SADDLE_*, the env surface web/db.js reads)',
+    'the web node database ENV of the former vhe service is baked in (SADDLE_*, the env surface web/db.ts reads)',
   );
   assert.ok(
     /^EXPOSE 8080$/m.test(containerfile),

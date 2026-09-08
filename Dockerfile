@@ -13,7 +13,7 @@
 #      compute service published as ghcr.io/wenathlan/saddle:<version>
 #      across the four-arch family standard (amd64, arm64, ppc64le, s390x
 #      — the trixie slim base line; the stage also builds the web SPA so
-#      the image serves the self-hosted console via `node /app/web/server.js`).
+#      the image serves the self-hosted console via `node /app/web/server.ts`).
 #
 # saddle v2 (grand merge) - virtual hardware engine, multi-stage, multi-arch image.
 #
@@ -94,7 +94,7 @@
 #     -v vmdata:/data/vmdata -v webdata:/data/web \
 #     -v ./vm.config.json:/engine/vm.config.json:ro \
 #     -e PORT=8080 -e NODE_ENV=production -p 31280:8080 \
-#     ghcr.io/wenathlan/saddle:vhe-2.1.3
+#     ghcr.io/wenathlan/saddle:vhe-2.1.4
 #
 #   vheqemu (the guest runner; build it first with
 #   docker build --target qemu-runtime -t saddle/qemu:11.1.0 . because the
@@ -128,7 +128,7 @@
 #     -e VHE_GPU_PROFILE=b200 -e VHE_GPUS=8 -e VHE_MIG=1 \
 #     -e VHE_SMI_DRIVER=575.57.08 -e VHE_SMI_CUDA=12.9 \
 #     -e VHE_SMI_INTERVAL=30 -e VHE_SKIP_XVFB=1 -e VHE_SKIP_VALIDATE=1 \
-#     ghcr.io/wenathlan/saddle:vhe-2.1.3 /bin/bash -c '
+#     ghcr.io/wenathlan/saddle:vhe-2.1.4 /bin/bash -c '
 #       while true; do
 #         /usr/local/bin/nvidia-smi "$VHE_GPU_PROFILE" "$VHE_GPUS" || true
 #         sleep "$VHE_SMI_INTERVAL"
@@ -145,7 +145,7 @@
 #     -v qemudata:/data/qemudata \
 #     -v ./qemubridge.py:/engine/qemubridge.py:ro \
 #     -e QMP_SOCKET=/run/vhe/vm.qmp -e PYTHONUNBUFFERED=1 \
-#     ghcr.io/wenathlan/saddle:vhe-2.1.3 \
+#     ghcr.io/wenathlan/saddle:vhe-2.1.4 \
 #     python3 /engine/qemubridge.py --socket /run/vhe/vm.qmp status
 #
 #   saddle-node (the node-engine service, the former compose.yml
@@ -159,7 +159,7 @@
 #     --log-driver json-file --log-opt max-size=50m --log-opt max-file=5 \
 #     --tmpfs /tmp:size=2g,mode=1777 \
 #     -e SADDLE_MEMORY_ENGINE=ram -e SBOT_PLATFORM= -e SBOT_CDN_URL= \
-#     ghcr.io/wenathlan/saddle:2.1.3 \
+#     ghcr.io/wenathlan/saddle:2.1.4 \
 #     node dist/cli.js plan
 #
 #   observability (the former prometheus scraper of the full profile)
@@ -902,10 +902,10 @@ COPY qemu.config mttg.config passage.config docker.config /engine/
 # the web node ships inside the main container: the mesh edition (auth,
 # sqlite database, dashboard and the browser sandbox pages) runs from the
 # same image, so one container serves the engine AND the web surface.
-# run it with: docker run ghcr.io/wenathlan/saddle node /engine/web/server.js
+# run it with: docker run ghcr.io/wenathlan/saddle node /engine/web/server.ts
 COPY web /engine/web
 # the built web SPA (vite, from the saddle-build stage): the console
-# server (node /engine/web/server.js) serves web/dist/public - the
+# server (node /engine/web/server.ts) serves web/dist/public - the
 # unified React interface that absorbed the former static pages.
 COPY --from=saddle-build /app/web/dist /engine/web/dist
 
@@ -1271,7 +1271,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --start-interval=5s 
 # OCI labels for registry introspection.
 LABEL org.opencontainers.image.title="saddle virtual-hardware engine (the grand merge)" \
       org.opencontainers.image.description="100% software virtual hardware: per-profile CPU/memory spoofing via LD_PRELOAD (max/balanced/lite), mesa 26.2.1 llvmpipe/lavapipe/rusticl, QEMU 11.1.0 TCG/MTTCG, virtual nvidia-smi adapter + NVML/CUDA shims, node 26.7.0, python bridge" \
-      org.opencontainers.image.version="2.1.3" \
+      org.opencontainers.image.version="2.1.4" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/wenathlan/saddle" \
       org.opencontainers.image.documentation="https://github.com/wenathlan/saddle/blob/main/README.md" \
@@ -1359,7 +1359,7 @@ RUN apt-get update \
 COPY --from=saddle-build /app/dist ./dist
 # the web service surface (self-hosted console): the built SPA
 # (web/dist/public from the saddle-build vite run) plus the pure-node
-# server stack (server.js, db.js, auth.js, mesh.js, sandbox.js,
+# server stack (server.ts, db.ts, auth.ts, mesh.ts, sandbox.ts,
 # mime.types, init.sql, schema.prisma) - zero npm dependencies, the
 # node 26 runtime carries everything (node:sqlite, node:crypto).
 COPY --from=saddle-build /app/web ./web

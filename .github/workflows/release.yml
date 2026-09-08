@@ -125,21 +125,21 @@ jobs:
             exit 1
           fi
           server_version=$(node -e "
-            const text = require('fs').readFileSync('web/server.js', 'utf8');
+            const text = require('fs').readFileSync('web/server.ts', 'utf8');
             const m = text.match(/const version = '([^']+)'/);
             process.stdout.write(m ? m[1] : '');
           ")
           if [ "${server_version}" != "${version}" ]; then
-            echo "::error file=web/server.js::version envelope is '${server_version}' but the release is ${version}; keep the api version literal in lockstep." >&2
+            echo "::error file=web/server.ts::version envelope is '${server_version}' but the release is ${version}; keep the api version literal in lockstep." >&2
             exit 1
           fi
           sandbox_version=$(node -e "
-            const text = require('fs').readFileSync('web/sandbox.js', 'utf8');
+            const text = require('fs').readFileSync('web/sandbox.ts', 'utf8');
             const m = text.match(/SADDLE_VERSION: '([^']+)'/);
             process.stdout.write(m ? m[1] : '');
           ")
           if [ "${sandbox_version}" != "${version}" ]; then
-            echo "::error file=web/sandbox.js::version envelope is '${sandbox_version}' but the release is ${version}; keep the sandbox engine stamp in lockstep." >&2
+            echo "::error file=web/sandbox.ts::version envelope is '${sandbox_version}' but the release is ${version}; keep the sandbox engine stamp in lockstep." >&2
             exit 1
           fi
           echo "envelope lockstep verified at ${version}"
@@ -353,21 +353,21 @@ jobs:
             exit 1
           fi
           server_version=$(node -e "
-            const text = require('fs').readFileSync('web/server.js', 'utf8');
+            const text = require('fs').readFileSync('web/server.ts', 'utf8');
             const m = text.match(/const version = '([^']+)'/);
             process.stdout.write(m ? m[1] : '');
           ")
           if [ "${server_version}" != "${version}" ]; then
-            echo "::error file=web/server.js::version envelope is '${server_version}' but the release is ${version}; keep the api version literal in lockstep." >&2
+            echo "::error file=web/server.ts::version envelope is '${server_version}' but the release is ${version}; keep the api version literal in lockstep." >&2
             exit 1
           fi
           sandbox_version=$(node -e "
-            const text = require('fs').readFileSync('web/sandbox.js', 'utf8');
+            const text = require('fs').readFileSync('web/sandbox.ts', 'utf8');
             const m = text.match(/SADDLE_VERSION: '([^']+)'/);
             process.stdout.write(m ? m[1] : '');
           ")
           if [ "${sandbox_version}" != "${version}" ]; then
-            echo "::error file=web/sandbox.js::version envelope is '${sandbox_version}' but the release is ${version}; keep the sandbox engine stamp in lockstep." >&2
+            echo "::error file=web/sandbox.ts::version envelope is '${sandbox_version}' but the release is ${version}; keep the sandbox engine stamp in lockstep." >&2
             exit 1
           fi
           echo "envelope lockstep verified at ${version}"

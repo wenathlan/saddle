@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * server.js — self-hosted node api for the saddle web console (the merged e2ugh sandbox surface, v7-BACK).
+ * server.ts — self-hosted node api for the saddle web console (the merged e2ugh sandbox surface, v7-BACK).
  *
  * pure node:http, zero dependencies, esm. the server serves the react
  * spa build (web/dist/public, produced once by "npm run web:build";
@@ -9,24 +9,25 @@
  * health, spec catalogs read from the repository json files, in-memory
  * sandboxes with the created ->
  * running state machine persisted to sqlite, exec through the very
- * same browser-pure dispatcher (web.js) with the persistent
+ * same browser-pure dispatcher (sandbox.ts) with the persistent
  * per-sandbox workspace filesystem (sandboxfiles table, quota capped,
  * data stays with the sandbox id across restarts), the auth surface
- * (register/login/logout/me backed by scrypt and sessions in db.js),
+ * (register/login/logout/me backed by scrypt and sessions in db.ts),
  * the signed mesh surface (register/heartbeat/nodes verified by
- * mesh.js), the admin surface (overview/users/nodes/sandboxes/audit)
+ * mesh.ts), the admin surface (overview/users/nodes/sandboxes/audit)
  * and the events poll for the dashboard. per the project rules there
  * is no serverless function anywhere: this file is the whole backend
  * and runs on any plain node host (docker, vps, caddy reverse proxy).
- * the backend sources (server.js, db.js, auth.js, mesh.js, sandbox.js)
+ * the backend sources (server.ts, db.ts, auth.ts, mesh.ts, sandbox.ts)
  * stay in web/ itself, one level above the served dist/public root, so
  * the static resolver can never reach them.
  *
- * contexts (26): httpserver, portselection, noderole, staticfiles,
- * mimetypes, contenttypes, cacheheaders, securityheaders, cors, jsonio,
- * apierrors, health, speccatalogs, specscache, authroutes, sandboxes,
- * sandboxfs, statemachine, ttlreaper, execendpoint, filesroutes,
- * meshroutes, adminroutes, eventsroute, requestlogging, gracefulshutdown.
+ * contexts (27): types, httpserver, portselection, noderole,
+ * staticfiles, mimetypes, contenttypes, cacheheaders, securityheaders,
+ * cors, jsonio, apierrors, health, speccatalogs, specscache, authroutes,
+ * sandboxes, sandboxfs, statemachine, ttlreaper, execendpoint,
+ * filesroutes, meshroutes, adminroutes, eventsroute, requestlogging,
+ * gracefulshutdown.
  *
  * rules: lowercase identifiers, english jsdoc in third person, no emoji,
  * try/catch on every fallible path, standardized {error:{code,message}}
@@ -41,6 +42,7 @@ import { randomUUID } from 'node:crypto';
 import { extname, join, normalize, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   createSandboxState,
   dispatch,
@@ -51,8 +53,10 @@ import {
   getcpubyid,
   getgpu,
   getmig,
-} from './sandbox.js';
-import store from './db.js';
+} from './sandbox.ts';
+import type { SandboxFs, SandboxState } from './sandbox.ts';
+import store from './db.ts';
+import type { DbError, SandboxRow, WorkspaceUsage } from './db.ts';
 import {
   burndummy,
   cachesession,
@@ -70,11 +74,105 @@ import {
   validatepassword,
   validateusername,
   verifypassword,
-} from './auth.js';
-import { forwardauth, mainurl, meshsecret, role, startheartbeat, verifymesh } from './mesh.js';
+} from './auth.ts';
+import type { SessionUser } from './auth.ts';
+import { forwardauth, mainurl, meshsecret, role, startheartbeat, verifymesh } from './mesh.ts';
+import type { MainResponse } from './mesh.ts';
+
+/* ------------------------------------------------------------------ */
+/* context: types — the api surface contracts                          */
+/* ------------------------------------------------------------------ */
+
+/** sandbox creation request carried by POST /api/v1/sandboxes; the cpu
+ * model, gpu and mig values come from the reviewed catalogs. */
+export type SandboxCreateBody = {
+  model?: string;
+  vcpus?: number;
+  ramgb?: number;
+  gpu?: string;
+  mig?: string;
+  quotamb?: number;
+};
+
+/** the resolved sandbox spec stored on the record and echoed by the views. */
+export type SandboxSpecView = {
+  model: string;
+  vcpus: number;
+  ramgb: number;
+  gpu: string;
+  mig: string;
+};
+
+/** the in-memory sandbox record: the api lifecycle fields plus the
+ * private engine state consumed by dispatch and the dispatcher
+ * filesystem context bound to the sqlite workspace table. */
+export type SandboxRecord = {
+  id: string;
+  userid: string;
+  state: 'created' | 'running' | 'destroyed' | 'expired';
+  spec: SandboxSpecView;
+  createdat: number;
+  startedat: number | null;
+  expiresat: number;
+  execcount: number;
+  lastcommand: string | null;
+  usage: WorkspaceUsage;
+  engine: SandboxState;
+  fscontext: { quota: number; fs: SandboxFs };
+};
+
+/** the json-safe status document answered by the sandbox routes. */
+export type SandboxPublicView = {
+  id: string;
+  state: string;
+  model: string;
+  vcpus: number;
+  ramgb: number;
+  gpu: string;
+  mig: string;
+  spec: SandboxSpecView;
+  createdAt: string;
+  startedAt: string | null;
+  expiresAt: string;
+  ttlSeconds: number;
+  execCount: number;
+  lastCommand: string | null;
+  usage: WorkspaceUsage;
+};
+
+/** one shelf row answered by GET /api/v1/sandboxes. */
+export type SandboxShelfRow = {
+  id: string;
+  state: string;
+  model: string;
+  vcpus: number;
+  ramgb: number;
+  gpu: string;
+  createdAt: string;
+  expiresAt: string | null;
+  files: number;
+  bytes: number;
+  resumable: boolean;
+};
+
+/** the shape thrown by route failures: a status and code carried on a
+ * plain error object (Object.assign on new Error). */
+type RouteError = { status?: number; code?: string };
+
+/** the {error:{code,message}} payload answered by the main node. */
+type MainErrorBody = { error?: { code?: string; message?: string } };
+
+/** one dashboard event row answered by the events poll. */
+type EventView = {
+  id: number;
+  topic: string | null;
+  payload: unknown;
+  nodeid: string | null;
+  createdAt: string;
+};
 
 /** the directory holding this module: the web/ root with the backend
- * sources (db.js, auth.js, mesh.js, sandbox.js), mime.types and the
+ * sources (db.ts, auth.ts, mesh.ts, sandbox.ts), mime.types and the
  * repository catalogs one level up (the grand-merge layout). */
 const moduledir = dirname(fileURLToPath(import.meta.url));
 
@@ -86,8 +184,11 @@ const rootdir = resolve(moduledir, '..');
  * backend sources never live inside it. */
 const webdir = join(moduledir, 'dist', 'public');
 
-/** api version tag reported by /api/v1/health. */
-const version = '2.1.3';
+/** api version tag reported by /api/v1/health; the release workflow
+ * greps this exact literal out of the source with a regular expression,
+ * so the declaration below stays a plain single-quoted string with no
+ * type annotation in typescript. */
+const version = '2.1.4';
 
 /** sandbox ttl in milliseconds (15 minutes) and sweep interval (60 s). */
 const ttlms = 15 * 60 * 1000;
@@ -99,7 +200,7 @@ const sessionsweepperiodms = 10 * 60 * 1000;
 /** firecracker-style bring-up delay before a sandbox reaches running. */
 const startrampms = 125;
 
-/** the session ttl mirrored from auth.js for clone-forwarded sessions. */
+/** the session ttl mirrored from auth.ts for clone-forwarded sessions. */
 const sessionttlms = 24 * 60 * 60 * 1000;
 
 /* ------------------------------------------------------------------ */
@@ -111,9 +212,9 @@ const sessionttlms = 24 * 60 * 60 * 1000;
  * port or saddle_port environment variables, then a random port in the
  * documented 30000-59999 range.
  *
- * @returns {number} the tcp port to bind.
+ * @returns the tcp port to bind.
  */
-function resolveport() {
+function resolveport(): number {
   try {
     const argindex = process.argv.indexOf('--port');
     if (argindex !== -1 && process.argv[argindex + 1] !== undefined) {
@@ -153,11 +254,11 @@ const port = resolveport();
  * so the canonical entry (text/javascript for es/js/mjs) is kept when
  * an extension repeats.
  *
- * @param {string} filepath the mime.types file location.
- * @returns {Map<string, string>} the extension (with dot) -> type map.
+ * @param filepath the mime.types file location.
+ * @returns the extension (with dot) -> type map.
  */
-function parsemimetypes(filepath) {
-  const map = new Map();
+function parsemimetypes(filepath: string): Map<string, string> {
+  const map = new Map<string, string>();
   try {
     const content = readFileSync(filepath, 'utf8');
     for (const rawline of content.split('\n')) {
@@ -196,15 +297,15 @@ const denylist = new Set(['.db', '.sqlite', '.sqlite3', '.log']);
 /**
  * resolves the content type for one lower-case extension.
  *
- * @param {string} extension the extension including the dot.
- * @returns {string} the media type or the octet-stream fallback.
+ * @param extension the extension including the dot.
+ * @returns the media type or the octet-stream fallback.
  */
-function contenttypefor(extension) {
+function contenttypefor(extension: string): string {
   return mimetable.get(extension) ?? fallbacktype;
 }
 
 /** per-extension cache policy: html revalidates, assets cache an hour. */
-function cachefor(extension) {
+function cachefor(extension: string): string {
   if (extension === '.html' || extension === '.txt') {
     return 'no-cache, must-revalidate';
   }
@@ -219,9 +320,9 @@ function cachefor(extension) {
  * resolves the comma separated saddle_allowed_origins list once per
  * request (cheap) so operators can change it without a restart tool.
  *
- * @returns {string[]} the allowed origin list, possibly empty.
+ * @returns the allowed origin list, possibly empty.
  */
-function allowedorigins() {
+function allowedorigins(): string[] {
   try {
     return String(process.env.SADDLE_ALLOWED_ORIGINS ?? '')
       .split(',')
@@ -238,14 +339,14 @@ function allowedorigins() {
  * on clone nodes), nosniff, DENY framing, the strict referrer policy,
  * the empty permissions policy and HSTS on https requests.
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @returns {Record<string, string>} the header map.
+ * @param req the incoming request.
+ * @returns the header map.
  */
-function securityheaders(req) {
+function securityheaders(req: IncomingMessage): Record<string, string> {
   const forwarded = req?.headers?.['x-forwarded-proto'];
   const ishttps = forwarded === 'https';
   const connectextra = role === 'clone' && mainurl().length > 0 ? ` ${mainurl()}` : '';
-  const headers = {
+  const headers: Record<string, string> = {
     'content-security-policy':
       `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';` +
       ` connect-src 'self'${connectextra}; img-src 'self'; object-src 'none';` +
@@ -267,14 +368,14 @@ function securityheaders(req) {
  * echoes the origin and allows credentials only for origins listed in
  * saddle_allowed_origins.
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @param {'public' | 'credentials'} mode the cors mode.
- * @returns {Record<string, string>} the header map.
+ * @param req the incoming request.
+ * @param mode the cors mode.
+ * @returns the header map.
  */
-function corsheaders(req, mode) {
+function corsheaders(req: IncomingMessage, mode: 'public' | 'credentials'): Record<string, string> {
   if (mode === 'credentials') {
     const origin = req?.headers?.origin;
-    const headers = {
+    const headers: Record<string, string> = {
       'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
       'access-control-allow-headers':
         'content-type, authorization, x-saddle-timestamp, x-saddle-signature',
@@ -296,12 +397,15 @@ function corsheaders(req, mode) {
 /**
  * merges the security and cors header sets for one request.
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @param {'public' | 'credentials'} [mode] the cors mode (defaults to
+ * @param req the incoming request.
+ * @param mode the cors mode (defaults to
  *   credentials for the authed surface).
- * @returns {Record<string, string>} the merged header map.
+ * @returns the merged header map.
  */
-function respondheaders(req, mode = 'credentials') {
+function respondheaders(
+  req: IncomingMessage,
+  mode: 'public' | 'credentials' = 'credentials',
+): Record<string, string> {
   return { ...securityheaders(req), ...corsheaders(req, mode) };
 }
 
@@ -314,12 +418,17 @@ function respondheaders(req, mode = 'credentials') {
  * computed by the caller plus optional extras like set-cookie and
  * retry-after).
  *
- * @param {import('node:http').ServerResponse} res the outgoing response.
- * @param {number} status http status code.
- * @param {unknown} payload json-serializable payload.
- * @param {Record<string, string>} [headers] the extra headers.
+ * @param res the outgoing response.
+ * @param status http status code.
+ * @param payload json-serializable payload.
+ * @param headers the extra headers.
  */
-function writejson(res, status, payload, headers = {}) {
+function writejson(
+  res: ServerResponse,
+  status: number,
+  payload: unknown,
+  headers: Record<string, string> = {},
+): void {
   try {
     const body = JSON.stringify(payload);
     res.writeHead(status, {
@@ -343,7 +452,7 @@ function writejson(res, status, payload, headers = {}) {
  * must never reach a client response; this helper returns only the message
  * property (no stack) or a generic fallback for non-error throws.
  */
-function safemsg(error) {
+function safemsg(error: unknown): string {
   // log internal technical details server-side only; the returned string is a
   // generic, stack-trace-free message so no tainted information reaches
   // client responses (CodeQL js/stack-trace-exposure). errors thrown from the
@@ -351,11 +460,11 @@ function safemsg(error) {
   // code) which is the only safe, untainted string returned to the network.
   // the underlying driver error is logged with its stack to stderr.
   if (error instanceof Error) {
-    const internal = /** @type {{ internal?: string }} */ (error).internal;
+    const internal = (error as DbError).internal;
     console.error(
       `[server] ${error.message}${internal ? ` :: ${internal}` : ''}\n${error.stack ?? ''}`,
     );
-    const publicmsg = /** @type {{ publicMessage?: string }} */ (error).publicMessage;
+    const publicmsg = (error as DbError).publicMessage;
     if (typeof publicmsg === 'string' && publicmsg.length > 0) {
       return publicmsg;
     }
@@ -368,13 +477,19 @@ function safemsg(error) {
 /**
  * writes the standardized error payload {error:{code,message}}.
  *
- * @param {import('node:http').ServerResponse} res the outgoing response.
- * @param {number} status http status code.
- * @param {string} code machine readable error code.
- * @param {string} message human readable explanation.
- * @param {Record<string, string>} [headers] the extra headers.
+ * @param res the outgoing response.
+ * @param status http status code.
+ * @param code machine readable error code.
+ * @param message human readable explanation.
+ * @param headers the extra headers.
  */
-function writeerror(res, status, code, message, headers = {}) {
+function writeerror(
+  res: ServerResponse,
+  status: number,
+  code: string,
+  message: string,
+  headers: Record<string, string> = {},
+): void {
   // for server errors (5xx) never expose internal details or stack traces
   // to the client; the code is machine-readable, the message becomes generic.
   const safeMessage = status >= 500
@@ -386,10 +501,10 @@ function writeerror(res, status, code, message, headers = {}) {
 /**
  * extracts the client ip for audit rows and rate limit buckets.
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @returns {string} the remote address or unknown.
+ * @param req the incoming request.
+ * @returns the remote address or unknown.
  */
-function clientip(req) {
+function clientip(req: IncomingMessage): string {
   try {
     return req.socket?.remoteAddress ?? 'unknown';
   } catch {
@@ -400,10 +515,10 @@ function clientip(req) {
 /**
  * extracts the user agent header bounded to 256 characters.
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @returns {string | undefined} the trimmed user agent.
+ * @param req the incoming request.
+ * @returns the trimmed user agent.
  */
-function clientuseragent(req) {
+function clientuseragent(req: IncomingMessage): string | undefined {
   try {
     const value = req.headers?.['user-agent'];
     return typeof value === 'string' ? value.slice(0, 256) : undefined;
@@ -417,23 +532,23 @@ function clientuseragent(req) {
 /* ------------------------------------------------------------------ */
 
 /** catalog map: /api/v1/specs/<key> reads the mapped repository file. */
-const speccatalogs = {
+const speccatalogs: Record<string, string> = {
   cpus: 'processors.json',
   gpus: 'gpus.json',
   memory: 'cores.json',
 };
 
 /** memoization cache: catalog key to parsed json document. */
-const specscache = new Map();
+const specscache = new Map<string, unknown>();
 
 /**
  * reads and caches one spec catalog; files are parsed once per process
  * lifetime and served from the map afterwards.
  *
- * @param {string} key one of cpus, gpus, memory.
- * @returns {Promise<unknown>} the parsed json document.
+ * @param key one of cpus, gpus, memory.
+ * @returns the parsed json document.
  */
-async function getspeccatalog(key) {
+async function getspeccatalog(key: string): Promise<unknown> {
   if (specscache.has(key)) {
     return specscache.get(key);
   }
@@ -458,9 +573,9 @@ async function getspeccatalog(key) {
  * files because the sandbox is self-contained, the flag only records
  * the operator's intent in the expiry event.
  *
- * @returns {boolean} true when the retention flag is set.
+ * @returns true when the retention flag is set.
  */
-function workspacepersist() {
+function workspacepersist(): boolean {
   try {
     return String(process.env.SADDLE_SANDBOX_PERSIST ?? '') === 'true';
   } catch {
@@ -476,18 +591,21 @@ function workspacepersist() {
  * this context live in the database file of the node, so they survive
  * process restarts and stay addressable by the sandbox id.
  *
- * @param {string} id the sandbox id.
- * @returns {{quota: number, fs: {write: Function, read: Function,
- *   list: Function, del: Function}}} the dispatcher context.
+ * @param id the sandbox id.
+ * @param quotabytes the optional per-sandbox quota picked at creation.
+ * @returns the dispatcher context.
  */
-function sandboxfscontext(id, quotabytes) {
+function sandboxfscontext(
+  id: string,
+  quotabytes?: number,
+): { quota: number; fs: SandboxFs } {
   return {
     quota: quotabytes ?? store.sandboxquota(),
     fs: {
-      write(path, content) {
+      write(path: string, content: string) {
         return store.writefile(id, path, content, quotabytes);
       },
-      read(path) {
+      read(path: string) {
         try {
           return store.readfile(id, path);
         } catch {
@@ -501,7 +619,7 @@ function sandboxfscontext(id, quotabytes) {
           return [];
         }
       },
-      del(path) {
+      del(path: string) {
         try {
           return store.deletefile(id, path);
         } catch {
@@ -516,10 +634,10 @@ function sandboxfscontext(id, quotabytes) {
  * refreshes the usage counters of one sandbox in memory and in the
  * sandboxes row; failures never break the exec response.
  *
- * @param {object} record the stored sandbox record.
- * @returns {void}
+ * @param record the stored sandbox record.
+ * @returns void.
  */
-function refreshusage(record) {
+function refreshusage(record: SandboxRecord): void {
   try {
     const usage = store.sandboxusage(record.id);
     record.usage = usage;
@@ -538,7 +656,7 @@ function refreshusage(record) {
  * lifecycle fields plus the private engine state consumed by dispatch
  * and the owning userid persisted in the sandboxes table.
  */
-const sandboxes = new Map();
+const sandboxes = new Map<string, SandboxRecord>();
 
 /**
  * creates a sandbox record: id, the created -> running state machine with
@@ -547,14 +665,13 @@ const sandboxes = new Map();
  * into the sqlite sandboxes table. malformed requests throw errors
  * carrying status and code fields consumed by the route handler.
  *
- * @param {{model?: string, vcpus?: number, ramgb?: number, gpu?: string,
- *   mig?: string, quotamb?: number}} body the creation request; the cpu
+ * @param body the creation request; the cpu
  *   model comes from the reviewed catalog, quotamb picks the persistent
  *   workspace quota (4-256 MiB).
- * @param {{id: string}} user the authenticated owner.
- * @returns {object} the stored sandbox record.
+ * @param user the authenticated owner.
+ * @returns the stored sandbox record.
  */
-function createsandbox(body, user) {
+function createsandbox(body: SandboxCreateBody, user: SessionUser): SandboxRecord {
   // no per-user sandbox cap by design: the project is open source and the
   // shelf grows with the account; the workspace quota per sandbox already
   // bounds the database, and operators who want a cap set SADDLE_MAX_SANDBOXES
@@ -573,7 +690,7 @@ function createsandbox(body, user) {
   }
   // user chosen persistent workspace quota, 4-256 MiB, capped by the node
   // maximum inside db.writefile; omitted falls back to the node default.
-  let quotabytes;
+  let quotabytes: number | undefined;
   if (body.quotamb !== undefined) {
     const mb = Number(body.quotamb);
     if (!Number.isFinite(mb) || mb < 4 || mb > 256) {
@@ -648,7 +765,7 @@ function createsandbox(body, user) {
   const id = randomUUID();
   const engine = createSandboxState({ model: cpu.model, vcpus, ramgb, gpu: gpu.id, mig, id });
   const now = Date.now();
-  const record = {
+  const record: SandboxRecord = {
     id,
     userid: user.id,
     state: 'created',
@@ -695,10 +812,10 @@ function createsandbox(body, user) {
  * workspace files with it (the manual delete is the purge path); the
  * lifecycle event is emitted for the dashboard poll.
  *
- * @param {object} record the stored sandbox record.
- * @returns {void}
+ * @param record the stored sandbox record.
+ * @returns void.
  */
-function destroysandbox(record) {
+function destroysandbox(record: SandboxRecord): void {
   record.state = 'destroyed';
   sandboxes.delete(record.id);
   try {
@@ -716,10 +833,10 @@ function destroysandbox(record) {
  * the container stays self-contained (the data lives with the sandbox
  * id until a manual delete purges it).
  *
- * @param {object} record the stored sandbox record.
- * @returns {void}
+ * @param record the stored sandbox record.
+ * @returns void.
  */
-function expiresandbox(record) {
+function expiresandbox(record: SandboxRecord): void {
   record.state = 'expired';
   sandboxes.delete(record.id);
   try {
@@ -737,10 +854,10 @@ function expiresandbox(record) {
  * projects the public view of a sandbox record (the engine state stays
  * private to the process).
  *
- * @param {object} record the stored sandbox record.
- * @returns {object} the json-safe status document.
+ * @param record the stored sandbox record.
+ * @returns the json-safe status document.
  */
-function publicview(record) {
+function publicview(record: SandboxRecord): SandboxPublicView {
   return {
     id: record.id,
     state: record.state,
@@ -765,9 +882,9 @@ function publicview(record) {
  * (mirroring the state into sqlite); the interval is unref'd so the
  * process can exit cleanly.
  *
- * @returns {NodeJS.Timeout} the sweep timer.
+ * @returns the sweep timer.
  */
-function startreaper() {
+function startreaper(): NodeJS.Timeout {
   const timer = setInterval(() => {
     try {
       const now = Date.now();
@@ -788,11 +905,11 @@ function startreaper() {
  * resolves whether one user may touch one sandbox record: the owner or
  * any admin.
  *
- * @param {object} record the stored sandbox record.
- * @param {object} user the authenticated user.
- * @returns {boolean} the verdict.
+ * @param record the stored sandbox record.
+ * @param user the authenticated user.
+ * @returns the verdict.
  */
-function ownssandbox(record, user) {
+function ownssandbox(record: SandboxRecord, user: SessionUser): boolean {
   return record.userid === user.id || user.role === 'admin';
 }
 
@@ -804,13 +921,13 @@ function ownssandbox(record, user) {
  * reads the raw request body bounded to 64 kb; mesh verification needs
  * the exact bytes so the json parsing lives one layer above.
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @returns {Promise<Buffer>} the raw body, empty when absent.
+ * @param req the incoming request.
+ * @returns the raw body, empty when absent.
  */
-function readrawbody(req) {
+function readrawbody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolvebody, rejectbody) => {
     try {
-      const chunks = [];
+      const chunks: Buffer[] = [];
       let size = 0;
       req.on('data', (chunk) => {
         size += chunk.length;
@@ -846,10 +963,10 @@ function readrawbody(req) {
 /**
  * reads and parses a json request body bounded to 64 kb.
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @returns {Promise<unknown>} the parsed body or {} when absent.
+ * @param req the incoming request.
+ * @returns the parsed body or {} when absent.
  */
-async function readbody(req) {
+async function readbody(req: IncomingMessage): Promise<unknown> {
   const raw = await readrawbody(req);
   if (raw.length === 0) {
     return {};
@@ -873,19 +990,19 @@ async function readbody(req) {
  * streaming, the real mime.types content types, the shared security
  * headers and the index.html fallback for client routes.
  *
- * @param {string} urlpath the decoded url path.
- * @param {import('node:http').ServerResponse} res the outgoing response.
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @returns {void}
+ * @param urlpath the decoded url path.
+ * @param res the outgoing response.
+ * @param req the incoming request.
+ * @returns void.
  */
 /** backend sources are never inside the served root: the api modules
- * (server.js, db.js, auth.js, mesh.js, sandbox.js), the schema files
+ * (server.ts, db.ts, auth.ts, mesh.ts, sandbox.ts), the schema files
  * (init.sql, schema.prisma, drizzle.config.ts) and the deploy manifests
  * stay in web/ itself while the static resolver is jailed to
  * web/dist/public, so the old filename denylist became dead weight and
  * only the extension denylist below remains as defense in depth (a
  * stray .db/.sqlite/.log artifact inside a build). */
-function servestatic(urlpath, res, req) {
+function servestatic(urlpath: string, res: ServerResponse, req: IncomingMessage): void {
   const headers = securityheaders(req);
   try {
     const relative = urlpath === '/' ? 'index.html' : urlpath.replace(/^\/+/, '');
@@ -894,7 +1011,7 @@ function servestatic(urlpath, res, req) {
     // bookmarks and the login ?next= flow keep resolving, and every other
     // extensionless path falls back to index.html below (the spa renders
     // its own 404 for unknown routes).
-    const pagemap = {
+    const pagemap: Record<string, string> = {
       login: 'index.html',
       register: 'index.html',
       dashboard: 'index.html',
@@ -971,11 +1088,11 @@ function servestatic(urlpath, res, req) {
  * explanation instead of a bare 404 - the /api/v1 surface and this
  * server keep working either way.
  *
- * @param {import('node:http').ServerResponse} res the outgoing response.
- * @param {Record<string, string>} headers the prepared security headers.
- * @returns {void}
+ * @param res the outgoing response.
+ * @param headers the prepared security headers.
+ * @returns void.
  */
-function serveshell(res, headers) {
+function serveshell(res: ServerResponse, headers: Record<string, string>): void {
   const shellpath = join(webdir, 'index.html');
   try {
     accessSync(shellpath);
@@ -1018,13 +1135,18 @@ function serveshell(res, headers) {
  * register and login to the main authority and cache the returned
  * session locally.
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @param {import('node:http').ServerResponse} res the outgoing response.
- * @param {string} path the api-relative path.
- * @param {string[]} segments the path segments.
- * @returns {Promise<boolean>} true when the request was handled.
+ * @param req the incoming request.
+ * @param res the outgoing response.
+ * @param path the api-relative path.
+ * @param segments the path segments.
+ * @returns true when the request was handled.
  */
-async function handleauth(req, res, path, segments) {
+async function handleauth(
+  req: IncomingMessage,
+  res: ServerResponse,
+  path: string,
+  segments: string[],
+): Promise<boolean> {
   if (segments[0] !== 'auth') {
     return false;
   }
@@ -1048,12 +1170,13 @@ async function handleauth(req, res, path, segments) {
         writeerror(res, 400, 'invalid-body', 'request body must be a json object', headers);
         return true;
       }
-      const usernamecheck = validateusername(body.username);
+      const credentials = body as { username?: unknown; password?: unknown };
+      const usernamecheck = validateusername(credentials.username);
       if (!usernamecheck.ok) {
         writeerror(res, 400, usernamecheck.code, usernamecheck.message, headers);
         return true;
       }
-      const passwordcheck = validatepassword(body.password);
+      const passwordcheck = validatepassword(credentials.password);
       if (!passwordcheck.ok) {
         writeerror(res, 400, passwordcheck.code, passwordcheck.message, headers);
         return true;
@@ -1063,15 +1186,15 @@ async function handleauth(req, res, path, segments) {
         await cacheforwarded(forwarded, req, headers, res);
         return true;
       }
-      const existing = store.finduserbyname(String(body.username));
+      const existing = store.finduserbyname(String(credentials.username));
       if (existing !== null) {
         writeerror(res, 409, 'username-taken', 'username is already registered', headers);
         return true;
       }
-      const { passwordhash, salt } = hashpassword(String(body.password));
-      const userrole = bootstraprole(String(body.username));
+      const { passwordhash, salt } = hashpassword(String(credentials.password));
+      const userrole = bootstraprole(String(credentials.username));
       const user = store.createuser({
-        username: String(body.username),
+        username: String(credentials.username),
         passwordhash,
         salt,
         role: userrole,
@@ -1088,8 +1211,8 @@ async function handleauth(req, res, path, segments) {
     } catch (error) {
       writeerror(
         res,
-        error?.status ?? 500,
-        error?.code ?? 'register-failed',
+        (error as RouteError)?.status ?? 500,
+        (error as RouteError)?.code ?? 'register-failed',
         safemsg(error),
         headers,
       );
@@ -1113,24 +1236,25 @@ async function handleauth(req, res, path, segments) {
         writeerror(res, 400, 'invalid-body', 'request body must be a json object', headers);
         return true;
       }
+      const credentials = body as { username?: unknown; password?: unknown };
       if (role === 'clone' && mainurl().length > 0 && meshsecret().length > 0) {
         const forwarded = await forwardauth('login', body);
         await cacheforwarded(forwarded, req, headers, res);
         return true;
       }
-      const user = store.finduserbyname(String(body.username ?? ''));
+      const user = store.finduserbyname(String(credentials.username ?? ''));
       let valid = false;
       if (user === null) {
         valid = burndummy();
       } else {
         valid = verifypassword(
-          String(body.password ?? ''),
+          String(credentials.password ?? ''),
           String(user.passwordhash),
           String(user.salt),
         );
       }
       if (user === null || !valid) {
-        store.addaudit({ action: 'login-failed', detail: String(body.username ?? ''), ip });
+        store.addaudit({ action: 'login-failed', detail: String(credentials.username ?? ''), ip });
         writeerror(res, 401, 'invalid-credentials', 'invalid credentials', headers);
         return true;
       }
@@ -1148,8 +1272,8 @@ async function handleauth(req, res, path, segments) {
     } catch (error) {
       writeerror(
         res,
-        error?.status ?? 500,
-        error?.code ?? 'login-failed',
+        (error as RouteError)?.status ?? 500,
+        (error as RouteError)?.code ?? 'login-failed',
         safemsg(error),
         headers,
       );
@@ -1201,20 +1325,24 @@ async function handleauth(req, res, path, segments) {
  * set-cookie is re-issued to the caller and the session row is cached
  * locally with the remote userid so requireauth works on the clone.
  *
- * @param {{status: number, body: unknown, setcookie: string[]}} forwarded
- *   the main node response.
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @param {Record<string, string>} headers the prepared headers.
- * @param {import('node:http').ServerResponse} res the outgoing response.
- * @returns {Promise<void>} resolves when the response is written.
+ * @param forwarded the main node response.
+ * @param req the incoming request.
+ * @param headers the prepared headers.
+ * @param res the outgoing response.
+ * @returns resolves when the response is written.
  */
-async function cacheforwarded(forwarded, req, headers, res) {
+async function cacheforwarded(
+  forwarded: MainResponse,
+  req: IncomingMessage,
+  headers: Record<string, string>,
+  res: ServerResponse,
+): Promise<void> {
   const ip = clientip(req);
   const useragent = clientuseragent(req);
   const cookie = forwarded.setcookie.find((entry) => entry.startsWith('saddlesession='));
   const user =
     forwarded.body !== null && typeof forwarded.body === 'object'
-      ? forwarded.body?.user
+      ? (forwarded.body as Record<string, unknown>).user
       : null;
   if (
     forwarded.status >= 200 &&
@@ -1226,15 +1354,17 @@ async function cacheforwarded(forwarded, req, headers, res) {
     const token = cookie.split(';')[0].slice('saddlesession='.length);
     /* cache the remote user row (best effort) so requireauth resolves
      * sessions minted by the main authority on the clone too */
+    const remoteuser = user as Record<string, unknown>;
     try {
-      if (store.finduserbyid(String(user.id)) === null) {
+      if (store.finduserbyid(String(remoteuser.id)) === null) {
         store.createuser({
-          id: String(user.id),
-          username: String(user.username),
+          id: String(remoteuser.id),
+          username: String(remoteuser.username),
           passwordhash: 'mesh-forwarded',
           salt: 'mesh-forwarded',
-          role: typeof user.role === 'string' ? user.role : 'user',
-          createdat: typeof user.createdAt === 'string' ? user.createdAt : undefined,
+          role: typeof remoteuser.role === 'string' ? remoteuser.role : 'user',
+          createdat:
+            typeof remoteuser.createdAt === 'string' ? remoteuser.createdAt : undefined,
         });
       }
     } catch {
@@ -1243,7 +1373,7 @@ async function cacheforwarded(forwarded, req, headers, res) {
     }
     cachesession({
       token,
-      userid: String(user.id),
+      userid: String(remoteuser.id),
       expiresat: new Date(Date.now() + sessionttlms).toISOString(),
       ip,
       useragent,
@@ -1254,8 +1384,8 @@ async function cacheforwarded(forwarded, req, headers, res) {
   writeerror(
     res,
     forwarded.status >= 400 ? forwarded.status : 502,
-    forwarded.body?.error?.code ?? 'mesh-forward-failed',
-    forwarded.body?.error?.message ?? 'the main node rejected the request',
+    (forwarded.body as MainErrorBody | null)?.error?.code ?? 'mesh-forward-failed',
+    (forwarded.body as MainErrorBody | null)?.error?.message ?? 'the main node rejected the request',
     headers,
   );
 }
@@ -1268,15 +1398,20 @@ async function cacheforwarded(forwarded, req, headers, res) {
  * handles the signed mesh surface: clone registration, heartbeats and
  * the node listing served by the main/standalone authority. every
  * request must carry the x-saddle-timestamp and x-saddle-signature
- * headers verified by mesh.js.
+ * headers verified by mesh.ts.
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @param {import('node:http').ServerResponse} res the outgoing response.
- * @param {string} path the api-relative path.
- * @param {string[]} segments the path segments.
- * @returns {Promise<boolean>} true when the request was handled.
+ * @param req the incoming request.
+ * @param res the outgoing response.
+ * @param path the api-relative path.
+ * @param segments the path segments.
+ * @returns true when the request was handled.
  */
-async function handlemesh(req, res, path, segments) {
+async function handlemesh(
+  req: IncomingMessage,
+  res: ServerResponse,
+  path: string,
+  segments: string[],
+): Promise<boolean> {
   if (segments[0] !== 'mesh') {
     return false;
   }
@@ -1299,7 +1434,7 @@ async function handlemesh(req, res, path, segments) {
   /* POST /mesh/register */
   if (req.method === 'POST' && path === '/mesh/register') {
     try {
-      const body = raw.length === 0 ? {} : JSON.parse(raw);
+      const body: Record<string, unknown> = raw.length === 0 ? {} : JSON.parse(raw);
       const url = String(body?.url ?? '').trim();
       if (url.length === 0) {
         writeerror(res, 400, 'invalid-body', 'url is required', headers);
@@ -1323,7 +1458,7 @@ async function handlemesh(req, res, path, segments) {
   /* POST /mesh/heartbeat */
   if (req.method === 'POST' && path === '/mesh/heartbeat') {
     try {
-      const body = raw.length === 0 ? {} : JSON.parse(raw);
+      const body: Record<string, unknown> = raw.length === 0 ? {} : JSON.parse(raw);
       const nodeid = String(body?.nodeid ?? '');
       if (nodeid.length === 0) {
         writeerror(res, 400, 'invalid-body', 'nodeid is required', headers);
@@ -1364,13 +1499,18 @@ async function handlemesh(req, res, path, segments) {
  * and the audit trail. access requires an authenticated admin user; on
  * clone nodes the surface answers 403 pointing at the main authority.
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @param {import('node:http').ServerResponse} res the outgoing response.
- * @param {string} path the api-relative path.
- * @param {string[]} segments the path segments.
- * @returns {boolean} true when the request was handled.
+ * @param req the incoming request.
+ * @param res the outgoing response.
+ * @param path the api-relative path.
+ * @param segments the path segments.
+ * @returns true when the request was handled.
  */
-function handleadmin(req, res, path, segments) {
+function handleadmin(
+  req: IncomingMessage,
+  res: ServerResponse,
+  path: string,
+  segments: string[],
+): boolean {
   if (segments[0] !== 'admin') {
     return false;
   }
@@ -1461,18 +1601,18 @@ function handleadmin(req, res, path, segments) {
  * handles GET /api/v1/events?since=<id>: the dashboard poll over the
  * durable events table (auth, sandbox and mesh topics).
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @param {import('node:http').ServerResponse} res the outgoing response.
- * @param {URL} url the parsed request url.
- * @returns {boolean} true when the request was handled.
+ * @param req the incoming request.
+ * @param res the outgoing response.
+ * @param url the parsed request url.
+ * @returns true when the request was handled.
  */
-function handleevents(req, res, url) {
+function handleevents(req: IncomingMessage, res: ServerResponse, url: URL): boolean {
   const headers = respondheaders(req, 'credentials');
   /** resolves whether a sandbox id belongs to the caller (event scoping). */
-  const minehas = (candidate) => {
+  const minehas = (candidate: string) => {
     try {
       const row = store.findsandboxbyid(candidate);
-      return row !== undefined && row.userid === user?.id;
+      return row !== undefined && (row as SandboxRow).userid === user?.id;
     } catch {
       return false;
     }
@@ -1493,13 +1633,13 @@ function handleevents(req, res, url) {
     // cross-tenant privacy: regular users only see events whose payload
     // references their own user id (auth topics) or their sandbox ids; the
     // admin role keeps the global stream for the management dashboard.
-    const events = [];
+    const events: EventView[] = [];
     for (const row of rows) {
-      const payload = parsetolerant(row.payload);
+      const payload = parsetolerant(row.payload) as Record<string, unknown>;
       if (isadmin === false) {
         const owns =
           payload?.userid === user.id ||
-          (typeof payload?.id === 'string' && minehas(payload.id));
+          (typeof payload?.id === 'string' && minehas(payload.id as string));
         if (owns === false) continue;
       }
       events.push({
@@ -1527,10 +1667,10 @@ function handleevents(req, res, url) {
 /**
  * parses one json payload string, tolerating null and plain strings.
  *
- * @param {string | null} value the stored payload.
- * @returns {unknown} the parsed value or the raw string.
+ * @param value the stored payload.
+ * @returns the parsed value or the raw string.
  */
-function parsetolerant(value) {
+function parsetolerant(value: string | null | undefined): unknown {
   if (value === null || value === undefined) {
     return null;
   }
@@ -1549,14 +1689,19 @@ function parsetolerant(value) {
  * executes one command against a sandbox record and updates the counters;
  * shared by the exec route.
  *
- * @param {object} record the sandbox record.
- * @param {unknown} body the parsed request body.
- * @param {import('node:http').ServerResponse} res the outgoing response.
- * @param {Record<string, string>} headers the prepared headers.
- * @returns {void}
+ * @param record the sandbox record.
+ * @param body the parsed request body.
+ * @param res the outgoing response.
+ * @param headers the prepared headers.
+ * @returns void.
  */
-function execcommand(record, body, res, headers) {
-  const command = String(body?.command ?? '');
+function execcommand(
+  record: SandboxRecord,
+  body: unknown,
+  res: ServerResponse,
+  headers: Record<string, string>,
+): void {
+  const command = String((body as { command?: unknown })?.command ?? '');
   if (command.trim().length === 0) {
     writeerror(res, 400, 'invalid-command', 'command must be a non-empty string', headers);
     return;
@@ -1587,12 +1732,12 @@ function execcommand(record, body, res, headers) {
 /**
  * handles one /api/v1 request.
  *
- * @param {import('node:http').IncomingMessage} req the incoming request.
- * @param {import('node:http').ServerResponse} res the outgoing response.
- * @param {URL} url the parsed request url.
- * @returns {Promise<void>} resolves when the response is written.
+ * @param req the incoming request.
+ * @param res the outgoing response.
+ * @param url the parsed request url.
+ * @returns resolves when the response is written.
  */
-async function handleapi(req, res, url) {
+async function handleapi(req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
   const path = url.pathname.replace(/^\/api\/v1/, '') || '/';
   const segments = path.split('/').filter((segment) => segment.length > 0);
 
@@ -1673,7 +1818,7 @@ async function handleapi(req, res, url) {
         writeerror(res, 400, 'invalid-body', 'request body must be a json object', headers);
         return;
       }
-      const record = createsandbox(body, user);
+      const record = createsandbox(body as SandboxCreateBody, user);
       store.addaudit({
         userid: user.id,
         action: 'sandbox-create',
@@ -1684,8 +1829,8 @@ async function handleapi(req, res, url) {
     } catch (error) {
       writeerror(
         res,
-        error?.status ?? 400,
-        error?.code ?? 'invalid-request',
+        (error as RouteError)?.status ?? 400,
+        (error as RouteError)?.code ?? 'invalid-request',
         safemsg(error),
         headers,
       );
@@ -1706,7 +1851,7 @@ async function handleapi(req, res, url) {
     }
     try {
       const rows = store.listsandboxesbyuser(user.id);
-      const shelf = rows.map((row) => {
+      const shelf: SandboxShelfRow[] = rows.map((row) => {
         const live = sandboxes.get(row.id);
         let usage = { files: 0, bytes: 0 };
         try {
@@ -1814,7 +1959,7 @@ async function handleapi(req, res, url) {
         return;
       }
       if (sandboxes.has(id)) {
-        writejson(res, 200, publicview(sandboxes.get(id)), headers);
+        writejson(res, 200, publicview(sandboxes.get(id) as SandboxRecord), headers);
         return;
       }
       const engine = createSandboxState({
@@ -1826,7 +1971,7 @@ async function handleapi(req, res, url) {
         id,
       });
       const now = Date.now();
-      const record = {
+      const record: SandboxRecord = {
         id,
         userid: user.id,
         state: 'running',
@@ -1878,8 +2023,8 @@ async function handleapi(req, res, url) {
     } catch (error) {
       writeerror(
         res,
-        error?.status ?? 500,
-        error?.code ?? 'exec-failed',
+        (error as RouteError)?.status ?? 500,
+        (error as RouteError)?.code ?? 'exec-failed',
         safemsg(error),
         headers,
       );
@@ -1913,7 +2058,7 @@ async function handleapi(req, res, url) {
       try {
         const row = store.findsandboxbyid(id);
         known = row !== null;
-        ownerok = known && (row.userid === user.id || user.role === 'admin');
+        ownerok = known && ((row as SandboxRow).userid === user.id || user.role === 'admin');
       } catch {
         known = false;
         ownerok = false;
@@ -2009,7 +2154,7 @@ async function handleapi(req, res, url) {
 /* ------------------------------------------------------------------ */
 
 /** the http server: static files plus the /api/v1 router. */
-const server = createServer((req, res) => {
+const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'saddle.internal'}`);
   if (url.pathname === '/api/v1' || url.pathname.startsWith('/api/v1/')) {
     handleapi(req, res, url).catch((error) => {
@@ -2023,7 +2168,7 @@ const server = createServer((req, res) => {
   }
   // malformed percent sequences (/%zz) must answer 400, never crash the
   // process: a failed decode is a client error, not a server shutdown.
-  let decodedpath;
+  let decodedpath: string;
   try {
     decodedpath = decodeURIComponent(url.pathname);
   } catch {

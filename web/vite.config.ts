@@ -10,8 +10,8 @@ import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 // Writes browser logs directly to files, trimmed when exceeding size limit
 // =============================================================================
 
-const REPO_ROOT = import.meta.dirname;
-const WEB_ROOT = path.join(REPO_ROOT, "web");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
+const WEB_ROOT = import.meta.dirname;
 const LOG_DIR = path.join(WEB_ROOT, ".manus-logs");
 const MAX_LOG_SIZE_BYTES = 1 * 1024 * 1024; // 1MB per log file
 const TRIM_TARGET_BYTES = Math.floor(MAX_LOG_SIZE_BYTES * 0.6); // Trim to 60% to avoid constant re-trimming
@@ -246,6 +246,7 @@ export default defineConfig({
     ],
     fs: {
       strict: true,
+      allow: [WEB_ROOT, REPO_ROOT],
       deny: ["**/.*"],
     },
   },
